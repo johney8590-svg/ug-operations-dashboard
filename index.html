@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UG 茶飲 · 營運監控儀表板</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2536;
+    --border: #2a3147;
+    --accent: #4f9eff;
+    --accent2: #38d9a9;
+    --warn: #ffd43b;
+    --danger: #ff6b6b;
+    --text: #e8eaf0;
+    --text2: #8892a4;
+    --text3: #525e75;
+    --nav-w: 220px;
+    --header-h: 64px;
+    --radius: 12px;
+    --font: 'Noto Sans TC', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    width: var(--nav-w);
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  .nav-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo .brand { font-size: 18px; font-weight: 700; letter-spacing: .04em; color: var(--text); }
+  .nav-logo .sub { font-size: 11px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+
+  .nav-section { padding: 16px 12px 8px; font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: .1em; }
+
+  .nav-item {
+    margin: 2px 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text2);
+    transition: all .15s;
+    font-size: 13.5px;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(79,158,255,.15); color: var(--accent); font-weight: 500; }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .nav-footer {
+    margin-top: auto;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+  }
+
+  /* ── MAIN ── */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    height: var(--header-h);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text); min-width: 120px; }
+
+  .filter-group { display: flex; align-items: center; gap: 8px; }
+  .filter-label { font-size: 11px; color: var(--text3); white-space: nowrap; }
+
+  .multi-select-wrapper { position: relative; }
+  .multi-select-btn {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: var(--font);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .multi-select-btn:hover { border-color: var(--accent); }
+  .multi-select-btn .caret { font-size: 10px; color: var(--text3); }
+
+  .dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    min-width: 160px;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  .dropdown.open { display: block; }
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text2);
+  }
+  .dropdown-item:hover { background: var(--bg2); color: var(--text); }
+  .dropdown-item input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+
+  .dim-switcher {
+    display: flex;
+    gap: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    margin-left: auto;
+  }
+  .dim-btn {
+    padding: 5px 14px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    font-size: 12.5px;
+    font-family: var(--font);
+    transition: all .15s;
+  }
+  .dim-btn.active { background: var(--accent); color: #fff; font-weight: 600; }
+
+  .content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+  }
+
+  /* ── CARDS / PANELS ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+
+  .kpi-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .kpi-card.blue::before { background: var(--accent); }
+  .kpi-card.green::before { background: var(--accent2); }
+  .kpi-card.warn::before { background: var(--warn); }
+  .kpi-card.danger::before { background: var(--danger); }
+
+  .kpi-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+  .kpi-value { font-size: 26px; font-weight: 700; margin: 6px 0 4px; font-family: var(--mono); line-height: 1.1; }
+  .kpi-value.blue { color: var(--accent); }
+  .kpi-value.green { color: var(--accent2); }
+  .kpi-value.warn { color: var(--warn); }
+  .kpi-value.danger { color: var(--danger); }
+  .kpi-sub { font-size: 11.5px; color: var(--text3); }
+
+  .chart-panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+  }
+  .chart-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+  .chart-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .chart-sub { font-size: 11.5px; color: var(--text3); margin-top: 3px; }
+  .chart-badge {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: .03em;
+  }
+  .chart-badge.warn { background: rgba(255,212,59,.15); color: var(--warn); border: 1px solid rgba(255,212,59,.3); }
+  .chart-badge.ok { background: rgba(56,217,169,.1); color: var(--accent2); border: 1px solid rgba(56,217,169,.2); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+  .alert-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(255,212,59,.07);
+    border: 1px solid rgba(255,212,59,.25);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--warn);
+    margin-bottom: 12px;
+  }
+  .alert-box .icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  canvas { max-height: 300px; }
+
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  /* trend page */
+  .trend-canvas { max-height: 360px !important; }
+
+  /* rank list */
+  .rank-table { width: 100%; border-collapse: collapse; }
+  .rank-table th { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+  .rank-table td { padding: 9px 10px; font-size: 13px; border-bottom: 1px solid rgba(42,49,71,.5); }
+  .rank-table tr:hover td { background: rgba(255,255,255,.02); }
+  .rank-num { font-family: var(--mono); color: var(--text3); font-size: 12px; }
+  .rank-bar-wrap { position: relative; height: 6px; background: var(--bg3); border-radius: 3px; width: 100px; display: inline-block; vertical-align: middle; }
+  .rank-bar { height: 100%; border-radius: 3px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pulse {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent2);
+    box-shadow: 0 0 0 0 rgba(56,217,169,.4);
+    animation: pulse 2s infinite;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(56,217,169,.4); }
+    70%  { box-shadow: 0 0 0 8px rgba(56,217,169,0); }
+    100% { box-shadow: 0 0 0 0 rgba(56,217,169,0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="brand">☕ UG 茶飲</div>
+    <div class="sub">Operations Dashboard</div>
+  </div>
+  <div class="nav-section">主選單</div>
+  <div class="nav-item active" data-page="today" onclick="switchPage('today',this)">
+    <span class="icon">📑</span> 今日現況
+  </div>
+  <div class="nav-item" data-page="trend" onclick="switchPage('trend',this)">
+    <span class="icon">📈</span> 趨勢分析
+  </div>
+  <div class="nav-item" data-page="compare" onclick="switchPage('compare',this)">
+    <span class="icon">📊</span> 門市對比
+  </div>
+  <div class="nav-footer">
+    <span class="pulse"></span>資料更新：04/30 18:00
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main>
+  <header>
+    <div class="header-title" id="page-title">今日現況</div>
+
+    <!-- 分區篩選器 -->
+    <div class="filter-group">
+      <span class="filter-label">分區</span>
+      <div class="multi-select-wrapper">
+        <div class="multi-select-btn" onclick="toggleDropdown('zone-dd')">
+          <span id="zone-label">全部分區</span>
+          <span class="caret">▾</span>
+        </div>
+        <div class="dropdown" id="zone-dd"></div>
+      </div>
+    </div>
+
+    <!-- 門市篩選器 -->
+    <div class="filter-group">
+      <span class="filter-label">門市</span>
+      <div class="multi-select-wrapper">
+        <div class="multi-select-btn" onclick="toggleDropdown('store-dd')">
+          <span id="store-label">全選</span>
+          <span class="caret">▾</span>
+        </div>
+        <div class="dropdown" id="store-dd"></div>
+      </div>
+    </div>
+
+    <!-- 維度切換 -->
+    <div class="dim-switcher">
+      <button class="dim-btn active" onclick="setDim('revenue',this)">營業淨額</button>
+      <button class="dim-btn" onclick="setDim('cups',this)">銷售杯數</button>
+      <button class="dim-btn" onclick="setDim('customers',this)">來客數</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- PAGE: 今日現況 -->
+    <div class="tab-page active" id="page-today">
+      <div class="section-title">📅 最新日期（2024/04/30）全門市加總</div>
+      <div class="kpi-row" id="today-kpis"></div>
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">今日各門市表現一覽</div>
+            <div class="chart-sub">依當前維度排序</div>
+          </div>
+        </div>
+        <canvas id="today-bar"></canvas>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">渠道拆解（今日）</div>
+            <div class="chart-sub">UberEats / Foodpanda / ODO 自取 佔比</div>
+          </div>
+        </div>
+        <canvas id="today-channel"></canvas>
+      </div>
+    </div>
+
+    <!-- PAGE: 趨勢分析 -->
+    <div class="tab-page" id="page-trend">
+      <div class="section-title">📈 整月走勢（4 月 1 日 – 4 月 30 日）</div>
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">每日走勢折線圖</div>
+            <div class="chart-sub">依頂部篩選門市加總 · 可切換維度</div>
+          </div>
+        </div>
+        <canvas id="trend-line" class="trend-canvas"></canvas>
+      </div>
+      <div class="grid-2">
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">週間分佈（星期一–日平均）</div>
+              <div class="chart-sub">排除週期效應基準</div>
+            </div>
+          </div>
+          <canvas id="trend-weekday"></canvas>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">天氣影響分析</div>
+              <div class="chart-sub">晴/陰/雨 日平均對比</div>
+            </div>
+          </div>
+          <canvas id="trend-weather"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: 門市對比 -->
+    <div class="tab-page" id="page-compare">
+      <div id="anomaly-alerts"></div>
+
+      <div class="grid-2">
+        <!-- Chart A -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">圖表 A · 本週走勢 vs 4週基線</div>
+              <div class="chart-sub">實線=本週 · 虛線=過去4週同星期平均</div>
+            </div>
+          </div>
+          <canvas id="chart-a"></canvas>
+        </div>
+
+        <!-- Chart B -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">圖表 B · 客單價異常偵測</div>
+              <div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div>
+            </div>
+            <span class="chart-badge warn" id="chartb-badge">⚠ 偵測異常</span>
+          </div>
+          <canvas id="chart-b"></canvas>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Chart C -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">圖表 C · 門市排名（Top / Bottom）</div>
+              <div class="chart-sub">依當前維度排名</div>
+            </div>
+          </div>
+          <canvas id="chart-c"></canvas>
+        </div>
+
+        <!-- Chart D -->
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div>
+              <div class="chart-title">圖表 D · 渠道結構健康度</div>
+              <div class="chart-sub">100% 堆疊 · 各門市渠道佔比</div>
+            </div>
+          </div>
+          <canvas id="chart-d"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- content -->
+</main>
+
+<script>
+/* ════════════════════════════════════════
+   MOCK DATA
+════════════════════════════════════════ */
+const ZONES = ['北區', '中彰投', '南區', '宜花東'];
+
+const STORES = [
+  { id:'S01', name:'台北信義', zone:'北區' },
+  { id:'S02', name:'台北大安', zone:'北區' },
+  { id:'S03', name:'新北板橋', zone:'北區' },
+  { id:'S04', name:'台中七期', zone:'中彰投' },
+  { id:'S05', name:'台中逢甲', zone:'中彰投' },
+  { id:'S06', name:'彰化員林', zone:'中彰投' },
+  { id:'S07', name:'高雄左營', zone:'南區' },
+  { id:'S08', name:'高雄苓雅', zone:'南區' },
+  { id:'S09', name:'台南東區', zone:'南區' },
+  { id:'S10', name:'宜蘭羅東', zone:'宜花東' },
+  { id:'S11', name:'花蓮市區', zone:'宜花東' },
+  { id:'S12', name:'台東知本', zone:'宜花東' },
+];
+
+const WEATHERS = ['晴', '晴', '陰', '陰', '雨', '晴', '陰'];
+const DOW = ['一','二','三','四','五','六','日'];
+
+// base revenue per store (daily avg)
+const BASE = {
+  S01:85000, S02:78000, S03:72000,
+  S04:68000, S05:65000, S06:42000,
+  S07:60000, S08:55000, S09:58000,
+  S10:38000, S11:35000, S12:28000,
+};
+
+function rand(min,max){ return Math.round(min + Math.random()*(max-min)); }
+
+function buildData(){
+  const rows = [];
+  // April 2024: 30 days, starts Monday Apr 1
+  for(let d=1;d<=30;d++){
+    const dow = (d-1)%7; // 0=Mon
+    const date = `04/${String(d).padStart(2,'0')}`;
+    const weather = WEATHERS[dow];
+    const weekMulti = [1.0,1.05,1.1,1.15,1.35,1.6,1.5][dow];
+
+    STORES.forEach(store => {
+      let base = BASE[store.id];
+      // anomaly stores: S05 逢甲 and S08 苓雅 — heavy discount, more customers but lower revenue
+      let isAnom = (store.id==='S05'||store.id==='S08');
+
+      const weatherMod = weather==='晴'?1.05:weather==='陰'?0.98:0.88;
+      const noise = 0.9 + Math.random()*0.2;
+      let revenue = Math.round(base * weekMulti * weatherMod * noise);
+      let cups = Math.round(revenue / (isAnom ? 48 : 62)); // lower price per cup for anomaly
+      let customers = Math.round(cups * (isAnom ? 0.72 : 0.85)); // anomaly: more cups per customer (bundles)
+      // anomaly: more customers from delivery, but high discount
+      if(isAnom){ customers = Math.round(customers * 1.25); revenue = Math.round(revenue * 0.82); }
+
+      const discountRate = isAnom ? 0.28 + Math.random()*0.08 : 0.06 + Math.random()*0.06;
+      const discount = Math.round(revenue * discountRate);
+
+      // channel mix
+      let ubRatio = isAnom ? 0.40 + Math.random()*0.1 : 0.20 + Math.random()*0.1;
+      let fpRatio = isAnom ? 0.25 + Math.random()*0.08 : 0.15 + Math.random()*0.08;
+      let odoRatio = 1 - ubRatio - fpRatio;
+      if(odoRatio < 0.1){ ubRatio*=0.8; fpRatio*=0.8; odoRatio=1-ubRatio-fpRatio; }
+
+      rows.push({
+        zone: store.zone, store: store.id, storeName: store.name,
+        date, dow, weather,
+        revenue, cups, customers, discount, discountRate,
+        ub: Math.round(revenue*ubRatio),
+        fp: Math.round(revenue*fpRatio),
+        odo: Math.round(revenue*odoRatio),
+        ubCups: Math.round(cups*ubRatio),
+        fpCups: Math.round(cups*fpRatio),
+        odoCups: Math.round(cups*odoRatio),
+      });
+    });
+  }
+  return rows;
+}
+
+const DATA = buildData();
+// get all unique dates
+const ALL_DATES = [...new Set(DATA.map(r=>r.date))].sort();
+const LATEST_DATE = ALL_DATES[ALL_DATES.length-1];
+
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let state = {
+  page: 'today',
+  zones: new Set(ZONES),
+  stores: new Set(STORES.map(s=>s.id)),
+  dim: 'revenue',
+};
+
+/* ════════════════════════════════════════
+   CHART REGISTRY
+════════════════════════════════════════ */
+const charts = {};
+function destroyChart(id){
+  if(charts[id]){ charts[id].destroy(); delete charts[id]; }
+}
+
+function mkChart(id, config){
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  charts[id] = new Chart(ctx, config);
+  return charts[id];
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+const DIM_LABEL = { revenue:'營業淨額 (元)', cups:'銷售杯數 (杯)', customers:'來客數 (人)' };
+const DIM_KEY   = { revenue:'revenue', cups:'cups', customers:'customers' };
+const FMT = {
+  revenue: v => v>=10000 ? (v/10000).toFixed(1)+'萬' : v.toLocaleString(),
+  cups:     v => v.toLocaleString()+'杯',
+  customers:v => v.toLocaleString()+'人',
+};
+
+function filterData(rows, extraDate=null){
+  return rows.filter(r => {
+    if(!state.zones.has(r.zone)) return false;
+    if(!state.stores.has(r.store)) return false;
+    if(extraDate && r.date!==extraDate) return false;
+    return true;
+  });
+}
+
+function sumByStore(rows){
+  const map = {};
+  rows.forEach(r => {
+    if(!map[r.store]) map[r.store]={store:r.store,name:r.storeName,zone:r.zone,revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,count:0};
+    const m = map[r.store];
+    m.revenue+=r.revenue; m.cups+=r.cups; m.customers+=r.customers;
+    m.discount+=r.discount; m.ub+=r.ub; m.fp+=r.fp; m.odo+=r.odo; m.count++;
+  });
+  return Object.values(map);
+}
+
+function sumTotal(rows){
+  return rows.reduce((a,r)=>({
+    revenue:a.revenue+r.revenue,cups:a.cups+r.cups,customers:a.customers+r.customers,
+    discount:a.discount+r.discount,ub:a.ub+r.ub,fp:a.fp+r.fp,odo:a.odo+r.odo
+  }),{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0});
+}
+
+/* ════════════════════════════════════════
+   FILTERS UI
+════════════════════════════════════════ */
+function buildDropdowns(){
+  // Zones
+  const zoneDD = document.getElementById('zone-dd');
+  zoneDD.innerHTML = '';
+  ZONES.forEach(z => {
+    const el = document.createElement('div');
+    el.className = 'dropdown-item';
+    el.innerHTML = `<input type="checkbox" id="z_${z}" checked> <label for="z_${z}" style="cursor:pointer">${z}</label>`;
+    el.querySelector('input').addEventListener('change', () => { onZoneChange(); });
+    zoneDD.appendChild(el);
+  });
+
+  buildStoreDropdown();
+}
+
+function buildStoreDropdown(){
+  const storeDD = document.getElementById('store-dd');
+  storeDD.innerHTML = '';
+  const visible = STORES.filter(s => state.zones.has(s.zone));
+  visible.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'dropdown-item';
+    const checked = state.stores.has(s.id);
+    el.innerHTML = `<input type="checkbox" id="st_${s.id}" ${checked?'checked':''}> <label for="st_${s.id}" style="cursor:pointer">${s.name}</label>`;
+    el.querySelector('input').addEventListener('change', () => { onStoreChange(); });
+    storeDD.appendChild(el);
+  });
+}
+
+function onZoneChange(){
+  state.zones = new Set();
+  document.querySelectorAll('#zone-dd input').forEach(inp => {
+    if(inp.checked) state.zones.add(inp.id.replace('z_',''));
+  });
+  // reset stores to all within zone
+  state.stores = new Set(STORES.filter(s=>state.zones.has(s.zone)).map(s=>s.id));
+  buildStoreDropdown();
+  updateLabels();
+  renderAll();
+}
+
+function onStoreChange(){
+  state.stores = new Set();
+  document.querySelectorAll('#store-dd input').forEach(inp => {
+    if(inp.checked) state.stores.add(inp.id.replace('st_',''));
+  });
+  updateLabels();
+  renderAll();
+}
+
+function updateLabels(){
+  const zc = state.zones.size;
+  document.getElementById('zone-label').textContent = zc===ZONES.length?'全部分區':`已選 ${zc} 區`;
+  const sc = state.stores.size;
+  const total = STORES.filter(s=>state.zones.has(s.zone)).length;
+  document.getElementById('store-label').textContent = sc===total?'全選':`已選 ${sc} 店`;
+}
+
+function toggleDropdown(id){
+  document.querySelectorAll('.dropdown').forEach(d => {
+    if(d.id!==id) d.classList.remove('open');
+  });
+  document.getElementById(id).classList.toggle('open');
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('.multi-select-wrapper')) {
+    document.querySelectorAll('.dropdown').forEach(d=>d.classList.remove('open'));
+  }
+});
+
+/* ════════════════════════════════════════
+   PAGE / DIM SWITCH
+════════════════════════════════════════ */
+const PAGE_TITLES = {today:'今日現況', trend:'趨勢分析', compare:'門市對比'};
+function switchPage(p, el){
+  state.page = p;
+  document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[p];
+  renderAll();
+}
+
+function setDim(dim, btn){
+  state.dim = dim;
+  document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+/* ════════════════════════════════════════
+   CHART DEFAULTS
+════════════════════════════════════════ */
+const COLORS = {
+  accent: '#4f9eff', accent2: '#38d9a9', warn: '#ffd43b', danger: '#ff6b6b',
+  purple: '#b197fc', pink: '#f783ac',
+};
+
+Chart.defaults.color = '#8892a4';
+Chart.defaults.borderColor = '#2a3147';
+Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+Chart.defaults.font.size = 12;
+
+const baseOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: { legend: { labels: { boxWidth: 12, padding: 16 } } },
+};
+
+/* ════════════════════════════════════════
+   PAGE: TODAY
+════════════════════════════════════════ */
+function renderToday(){
+  const rows = filterData(DATA, LATEST_DATE);
+  const tot = sumTotal(rows);
+  const byStore = sumByStore(rows);
+
+  // KPIs
+  const avgAov = tot.customers>0 ? Math.round(tot.revenue/tot.customers) : 0;
+  const discRate = tot.revenue>0 ? ((tot.discount/(tot.revenue+tot.discount))*100).toFixed(1) : 0;
+  document.getElementById('today-kpis').innerHTML = `
+    <div class="kpi-card blue">
+      <div class="kpi-label">營業淨額</div>
+      <div class="kpi-value blue">${(tot.revenue/10000).toFixed(1)}<span style="font-size:14px;color:var(--text2)">萬</span></div>
+      <div class="kpi-sub">${rows.length} 筆交易門市</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">銷售杯數</div>
+      <div class="kpi-value green">${tot.cups.toLocaleString()}<span style="font-size:14px;color:var(--text2)">杯</span></div>
+      <div class="kpi-sub">全門市合計</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="kpi-label">來客數</div>
+      <div class="kpi-value warn">${tot.customers.toLocaleString()}<span style="font-size:14px;color:var(--text2)">人</span></div>
+      <div class="kpi-sub">客單價 ${avgAov.toLocaleString()} 元</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">折扣佔比</div>
+      <div class="kpi-value danger">${discRate}<span style="font-size:14px;color:var(--text2)">%</span></div>
+      <div class="kpi-sub">折讓金額 ${(tot.discount/10000).toFixed(1)}萬元</div>
+    </div>
+  `;
+
+  // Bar chart
+  const dim = DIM_KEY[state.dim];
+  byStore.sort((a,b)=>b[dim]-a[dim]);
+  mkChart('today-bar',{
+    type:'bar',
+    data:{
+      labels: byStore.map(s=>s.name),
+      datasets:[{
+        label: DIM_LABEL[state.dim],
+        data: byStore.map(s=>s[dim]),
+        backgroundColor: byStore.map(s => (s.store==='S05'||s.store==='S08') ? COLORS.danger+'bb' : COLORS.accent+'bb'),
+        borderColor: byStore.map(s => (s.store==='S05'||s.store==='S08') ? COLORS.danger : COLORS.accent),
+        borderWidth: 1.5,
+        borderRadius: 4,
+      }]
+    },
+    options:{
+      ...baseOptions,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: ctx => DIM_LABEL[state.dim]+': '+ctx.raw.toLocaleString() } } },
+      scales:{
+        x:{ ticks:{ maxRotation:35 } },
+        y:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } }
+      }
+    }
+  });
+
+  // Channel doughnut
+  mkChart('today-channel',{
+    type:'doughnut',
+    data:{
+      labels:['UberEats','Foodpanda','ODO 自取'],
+      datasets:[{
+        data:[tot.ub,tot.fp,tot.odo],
+        backgroundColor:[COLORS.accent+'cc',COLORS.purple+'cc',COLORS.accent2+'cc'],
+        borderColor:[COLORS.accent,COLORS.purple,COLORS.accent2],
+        borderWidth:1.5,
+        hoverOffset:6,
+      }]
+    },
+    options:{
+      ...baseOptions,
+      plugins:{
+        legend:{ position:'right' },
+        tooltip:{ callbacks:{ label: ctx => ctx.label+': '+(ctx.raw/10000).toFixed(1)+'萬 ('+((ctx.raw/tot.revenue)*100).toFixed(1)+'%)' } }
+      },
+      cutout:'60%',
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   PAGE: TREND
+════════════════════════════════════════ */
+function renderTrend(){
+  const rows = filterData(DATA);
+  const dim = DIM_KEY[state.dim];
+
+  // By date
+  const byDate = {};
+  rows.forEach(r => { byDate[r.date] = (byDate[r.date]||0) + r[dim]; });
+  const dates = ALL_DATES;
+  const vals = dates.map(d=>byDate[d]||0);
+
+  mkChart('trend-line',{
+    type:'line',
+    data:{
+      labels: dates.map(d=>d),
+      datasets:[{
+        label: DIM_LABEL[state.dim],
+        data: vals,
+        borderColor: COLORS.accent,
+        backgroundColor: COLORS.accent+'22',
+        fill: true,
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+      }]
+    },
+    options:{
+      ...baseOptions,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{ maxTicksLimit:15 } },
+        y:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } }
+      }
+    }
+  });
+
+  // Weekday avg
+  const wdSums = Array(7).fill(0), wdCnts = Array(7).fill(0);
+  rows.forEach(r => { wdSums[r.dow]+=r[dim]; wdCnts[r.dow]++; });
+  const wdAvg = wdSums.map((s,i)=>wdCnts[i]?Math.round(s/wdCnts[i]):0);
+  mkChart('trend-weekday',{
+    type:'bar',
+    data:{
+      labels: DOW.map(d=>'週'+d),
+      datasets:[{ label:'日平均', data:wdAvg,
+        backgroundColor:[COLORS.accent2+'99',COLORS.accent2+'99',COLORS.accent2+'99',COLORS.accent2+'99',COLORS.accent+'99',COLORS.warn+'aa',COLORS.warn+'aa'],
+        borderRadius:4 }]
+    },
+    options:{
+      ...baseOptions,
+      plugins:{ legend:{display:false} },
+      scales:{ y:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } } }
+    }
+  });
+
+  // Weather
+  const wMap = {};
+  rows.forEach(r => {
+    if(!wMap[r.weather]) wMap[r.weather]={sum:0,cnt:0};
+    wMap[r.weather].sum+=r[dim]; wMap[r.weather].cnt++;
+  });
+  const wLabels = ['晴','陰','雨'];
+  const wVals = wLabels.map(w=>wMap[w]?Math.round(wMap[w].sum/wMap[w].cnt):0);
+  mkChart('trend-weather',{
+    type:'bar',
+    data:{
+      labels:wLabels,
+      datasets:[{ label:'日平均', data:wVals,
+        backgroundColor:[COLORS.warn+'99','#adb5bd99',COLORS.accent+'99'],
+        borderRadius:4 }]
+    },
+    options:{
+      ...baseOptions,
+      plugins:{ legend:{display:false} },
+      scales:{ y:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } } }
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   PAGE: COMPARE
+════════════════════════════════════════ */
+function renderCompare(){
+  const rows = filterData(DATA);
+  const dim = DIM_KEY[state.dim];
+
+  // ─── Chart A: this week vs 4-week baseline ───
+  // "this week" = last 7 dates in data
+  const lastWeekDates = ALL_DATES.slice(-7);
+  const prevDates = ALL_DATES.slice(0,-7); // remaining weeks
+
+  // Group by dow for baseline
+  const baselineSums = Array(7).fill(0), baselineCnts = Array(7).fill(0);
+  const filteredPrev = filterData(DATA).filter(r=>prevDates.includes(r.date));
+  filteredPrev.forEach(r=>{ baselineSums[r.dow]+=r[dim]; baselineCnts[r.dow]++; });
+  const baseline = baselineSums.map((s,i)=>baselineCnts[i]?Math.round(s/baselineCnts[i]):0);
+
+  const thisWeekByDow = Array(7).fill(0);
+  filterData(DATA).filter(r=>lastWeekDates.includes(r.date)).forEach(r=>{ thisWeekByDow[r.dow]+=r[dim]; });
+
+  mkChart('chart-a',{
+    type:'line',
+    data:{
+      labels: DOW.map(d=>'週'+d),
+      datasets:[
+        { label:'本週實績', data:thisWeekByDow, borderColor:COLORS.accent, backgroundColor:COLORS.accent+'22', fill:true, tension:0.3, pointRadius:5, borderWidth:2.5 },
+        { label:'4週基線', data:baseline, borderColor:COLORS.accent2+'88', borderDash:[6,4], fill:false, tension:0.3, pointRadius:3, borderWidth:1.5, pointStyle:'circle' }
+      ]
+    },
+    options:{
+      ...baseOptions,
+      scales:{ y:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } } }
+    }
+  });
+
+  // ─── Chart B: anomaly detection ───
+  const byStore = sumByStore(rows);
+  const anomStores = byStore.filter(s=>s.store==='S05'||s.store==='S08');
+  const anomFound = anomStores.length>0;
+
+  document.getElementById('chartb-badge').textContent = anomFound ? '⚠ 偵測異常 '+anomStores.map(s=>s.name).join('、') : '✓ 無異常';
+  document.getElementById('chartb-badge').className = 'chart-badge '+(anomFound?'warn':'ok');
+
+  // Show all stores (summed), revenue left axis, customers right axis
+  byStore.sort((a,b)=>b.revenue-a.revenue);
+  const bLabels = byStore.map(s=>s.name);
+  mkChart('chart-b',{
+    type:'line',
+    data:{
+      labels: bLabels,
+      datasets:[
+        { label:'營業淨額', data:byStore.map(s=>s.revenue), borderColor:COLORS.accent, backgroundColor:COLORS.accent+'22', fill:true, tension:0.3, yAxisID:'y', pointRadius:5,
+          pointBackgroundColor: byStore.map(s=>(s.store==='S05'||s.store==='S08')?COLORS.danger:COLORS.accent),
+          pointBorderColor: byStore.map(s=>(s.store==='S05'||s.store==='S08')?COLORS.danger:COLORS.accent),
+          pointRadius: byStore.map(s=>(s.store==='S05'||s.store==='S08')?8:4),
+        },
+        { label:'來客數', data:byStore.map(s=>s.customers), borderColor:COLORS.warn, borderDash:[5,3], fill:false, tension:0.3, yAxisID:'y1', pointRadius:4,
+          pointBackgroundColor: byStore.map(s=>(s.store==='S05'||s.store==='S08')?COLORS.danger:COLORS.warn),
+        }
+      ]
+    },
+    options:{
+      ...baseOptions,
+      scales:{
+        x:{ ticks:{ maxRotation:35 } },
+        y:{ position:'left', ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } },
+        y1:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback: v=>v.toLocaleString() } }
+      },
+      plugins:{
+        legend:{ labels:{ boxWidth:12, padding:14 } },
+        tooltip:{ mode:'index', intersect:false }
+      }
+    }
+  });
+
+  // Anomaly alerts
+  const alertBox = document.getElementById('anomaly-alerts');
+  if(anomFound){
+    alertBox.innerHTML = anomStores.map(s=>`
+      <div class="alert-box">
+        <span class="icon">⚠</span>
+        <div><b>${s.name}</b> 偵測到客單價異常：外送折扣率過高（折扣佔比 ${(s.discount/(s.revenue+s.discount)*100).toFixed(1)}%），來客數顯著上揚但淨額未同步成長，建議審視外送平台優惠設定。</div>
+      </div>
+    `).join('');
+  } else {
+    alertBox.innerHTML = '';
+  }
+
+  // ─── Chart C: Top/Bottom ranking ───
+  byStore.sort((a,b)=>b[dim]-a[dim]);
+  const top5 = byStore.slice(0,5);
+  const bot5 = [...byStore].sort((a,b)=>a[dim]-b[dim]).slice(0,5);
+  const maxVal = byStore[0][dim];
+
+  mkChart('chart-c',{
+    type:'bar',
+    data:{
+      labels: [...top5.map(s=>'🏆 '+s.name), ...bot5.map(s=>'⚠ '+s.name)],
+      datasets:[{
+        label: DIM_LABEL[state.dim],
+        data: [...top5.map(s=>s[dim]), ...bot5.map(s=>s[dim])],
+        backgroundColor:[
+          ...top5.map(()=>COLORS.accent+'bb'),
+          ...bot5.map(s=>(s.store==='S05'||s.store==='S08')?COLORS.danger+'bb':COLORS.warn+'88')
+        ],
+        borderColor:[
+          ...top5.map(()=>COLORS.accent),
+          ...bot5.map(s=>(s.store==='S05'||s.store==='S08')?COLORS.danger:COLORS.warn)
+        ],
+        borderWidth:1.5, borderRadius:4,
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      ...baseOptions,
+      scales:{
+        x:{ ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } },
+        y:{ ticks:{ font:{ size:11 } } }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+
+  // ─── Chart D: channel stacked ───
+  mkChart('chart-d',{
+    type:'bar',
+    data:{
+      labels: byStore.map(s=>s.name),
+      datasets:[
+        { label:'UberEats', data:byStore.map(s=>s.ub), backgroundColor:COLORS.accent+'cc', stack:'ch' },
+        { label:'Foodpanda', data:byStore.map(s=>s.fp), backgroundColor:COLORS.purple+'cc', stack:'ch' },
+        { label:'ODO 自取', data:byStore.map(s=>s.odo), backgroundColor:COLORS.accent2+'cc', stack:'ch' },
+      ]
+    },
+    options:{
+      ...baseOptions,
+      scales:{
+        x:{ stacked:true, ticks:{ maxRotation:35 } },
+        y:{ stacked:true, ticks:{ callback: v=>v>=10000?(v/10000).toFixed(0)+'萬':v } }
+      },
+      plugins:{
+        legend:{ labels:{ boxWidth:12 } },
+        tooltip:{ mode:'index', intersect:false }
+      }
+    }
+  });
+}
+
+/* ════════════════════════════════════════
+   RENDER ALL
+════════════════════════════════════════ */
+function renderAll(){
+  if(state.page==='today')   renderToday();
+  if(state.page==='trend')   renderTrend();
+  if(state.page==='compare') renderCompare();
+}
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+buildDropdowns();
+renderAll();
+</script>
+</body>
+</html>
