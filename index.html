@@ -711,82 +711,103 @@ function renderToday(){
 
 /* ══ WEEKLY COMPARE (今日現況頁) ══ */
 function renderWeeklyCompare(){
-  const dim = DIM_KEY[state.dim];
-  const ad = getActiveDates();
-  const rangeLen = ad.length;
-
-  // 取所有篩選門市的資料（不受日期區間限制，要往前取基線）
+  const dim     = DIM_KEY[state.dim];
+  const ad      = getActiveDates();
+  const rangeLen= ad.length;
   const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
 
+  // ── 共用：計算每店日均（主）& 總計（輔）──
+  // 每店日均 = 全體總值 ÷ 店家數 ÷ 天數
+  function getDailyAvg(rows, dateList){
+    const tot = rows.reduce((s,r)=>s+r[dim],0);
+    const stores = new Set(rows.map(r=>r.store)).size || 1;
+    const days   = dateList.length || 1;
+    return { avg: Math.round(tot / stores / days), total: tot, stores, days };
+  }
+
+  const DAILY_LABEL = {revenue:'每店日均淨額', cups:'每店日均杯數', customers:'每店日均來客'};
+  const UNIT = {revenue:'元', cups:'杯', customers:'人'};
+  const fmtV = v => v>=10000 ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+
   if(rangeLen <= 7){
-    // ── 模式 A：逐日折線 + 4週基線 ──
-    document.getElementById('weekly-compare-title').textContent = '週間業績對比（逐日）';
-    document.getElementById('weekly-compare-sub').textContent = '近 7 天實績 vs 過去 4 週同期日平均';
+    // ── 模式 A：逐日折線，Y 軸改為每店日均 ──
+    document.getElementById('weekly-compare-title').textContent = '週間業績對比（逐日每店日均）';
+    document.getElementById('weekly-compare-sub').textContent   = '近 7 天每店日均 vs 過去 4 週同期平均';
     document.getElementById('weekly-compare-badge').textContent = '近 7 天';
-    document.getElementById('weekly-compare-badge').className = 'chart-badge ok';
+    document.getElementById('weekly-compare-badge').className   = 'chart-badge ok';
 
-    // 實際 7 天：取資料中最新 7 天
-    const latest7 = ALL_DATES.slice(-7);
-    const actual = latest7.map(date => {
-      const rows = DATA.filter(r => storeFilter(r) && r.date === date);
-      return rows.reduce((s,r) => s + r[dim], 0);
-    });
-
-    // 基線：往前 4 週，按 dow 平均
+    const latest7    = ALL_DATES.slice(-7);
     const baselineDates = ALL_DATES.slice(0, -7);
-    const dowSums = Array(7).fill(0), dowCnts = Array(7).fill(0);
-    DATA.filter(r => storeFilter(r) && baselineDates.includes(r.date)).forEach(r => {
-      dowSums[r.dow] += r[dim]; dowCnts[r.dow]++;
-    });
-    const dowAvg = dowSums.map((s,i) => dowCnts[i] ? Math.round(s/dowCnts[i]) : 0);
 
-    // 把基線對齊到 latest7 各天的 dow
-    const baselineAligned = latest7.map(date => {
-      const row = DATA.find(r => r.date === date);
-      return row ? dowAvg[row.dow] : 0;
+    // 實績：各天的每店日均（該天總值 ÷ 有資料店家數）
+    const actualData = latest7.map(date => {
+      const rows   = DATA.filter(r => storeFilter(r) && r.date === date);
+      const stores = new Set(rows.map(r=>r.store)).size || 1;
+      const tot    = rows.reduce((s,r)=>s+r[dim],0);
+      return { avg: Math.round(tot/stores), total: tot, stores };
     });
 
-    // X 軸：日期 + 星期
-    const DOW_ZH = ['一','二','三','四','五','六','日'];
-    const labels = latest7.map(date => {
-      const row = DATA.find(r => r.date === date);
-      const dow = row ? row.dow : 0;
-      return date + '\n週' + DOW_ZH[dow];
+    // 基線：各 dow 的 4週日均（同 dow 總值 ÷ 出現次數 ÷ 當天有資料店家數均值）
+    const dowAvgData = Array(7).fill(null).map(()=>({sum:0,cnt:0,storeSums:0}));
+    DATA.filter(r => storeFilter(r) && baselineDates.includes(r.date)).forEach(r=>{
+      dowAvgData[r.dow].sum += r[dim]; dowAvgData[r.dow].cnt++;
+    });
+    // 估每 dow 的平均店家數（用實際資料算）
+    const dowStores = Array(7).fill(0).map((_,i)=>{
+      const s=new Set(DATA.filter(r=>storeFilter(r)&&baselineDates.includes(r.date)&&r.dow===i).map(r=>r.store));
+      return s.size||1;
+    });
+    const dowAvg = dowAvgData.map((d,i)=>{
+      if(!d.cnt) return 0;
+      // total÷天數 = 每天所有店總值，再÷店家數 = 每店日均
+      const dayCount = d.cnt / dowStores[i]; // cnt/stores ≈ 出現天數
+      return Math.round(d.sum / dowStores[i] / Math.max(dayCount,1));
     });
 
-    mkChart('weekly-compare-chart', {
-      type: 'line',
-      data: {
+    const baselineAligned = latest7.map(date=>{
+      const row = DATA.find(r=>r.date===date); return row ? dowAvg[row.dow] : 0;
+    });
+
+    const DOW_ZH=['一','二','三','四','五','六','日'];
+    const labels = latest7.map(date=>{
+      const row=DATA.find(r=>r.date===date); const dow=row?row.dow:0;
+      return date+'\n週'+DOW_ZH[dow];
+    });
+
+    mkChart('weekly-compare-chart',{
+      type:'line',
+      data:{
         labels,
-        datasets: [
-          {
-            label: '實際業績',
-            data: actual,
-            borderColor: C.a, backgroundColor: C.a+'22', fill: true,
-            tension: 0.3, pointRadius: 6, pointHoverRadius: 8, borderWidth: 2.5,
-          },
-          {
-            label: '4週基線',
-            data: baselineAligned,
-            borderColor: C.b+'99', borderDash: [6,4], fill: false,
-            tension: 0.3, pointRadius: 4, borderWidth: 1.5,
-            pointStyle: 'circle', pointBackgroundColor: C.b+'66',
-          }
+        datasets:[
+          { label:'每店日均（實績）', data:actualData.map(d=>d.avg),
+            borderColor:C.a, backgroundColor:C.a+'22', fill:true,
+            tension:0.3, pointRadius:6, pointHoverRadius:8, borderWidth:2.5 },
+          { label:'4週基線', data:baselineAligned,
+            borderColor:C.b+'99', borderDash:[6,4], fill:false,
+            tension:0.3, pointRadius:4, borderWidth:1.5, pointBackgroundColor:C.b+'66' }
         ]
       },
-      options: {
+      options:{
         ...BO,
-        scales: { y: { ticks: { callback: v => v>=10000?(v/10000).toFixed(0)+'萬':v } } },
-        plugins: {
-          legend: { labels: { boxWidth: 11 } },
-          tooltip: {
-            callbacks: {
-              afterBody: ctx => {
-                if(ctx.length === 2){
-                  const actual = ctx[0].raw, base = ctx[1].raw;
-                  const diff = actual - base;
-                  const pct = base > 0 ? ((diff/base)*100).toFixed(1) : '-';
-                  return [`vs 基線：${diff>=0?'+':''}${diff>=10000?(diff/10000).toFixed(1)+'萬':diff.toLocaleString()} (${pct}%)`];
+        scales:{ y:{ ticks:{ callback:v=>fmtV(v) } } },
+        plugins:{
+          legend:{ labels:{ boxWidth:11 } },
+          tooltip:{
+            callbacks:{
+              label: ctx=>{
+                const isActual = ctx.datasetIndex===0;
+                if(isActual){
+                  const d=actualData[ctx.dataIndex];
+                  return [`每店日均：${fmtV(d.avg)}${UNIT[state.dim]}`,`當日總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店）`];
+                }
+                return [`4週基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
+              },
+              afterBody: ctx=>{
+                if(ctx.length===2){
+                  const actual=ctx[0].raw, base=ctx[1].raw;
+                  if(!base) return [];
+                  const diff=actual-base, pct=((diff/base)*100).toFixed(1);
+                  return [`vs 基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
                 }
                 return [];
               }
@@ -797,80 +818,81 @@ function renderWeeklyCompare(){
     });
 
   } else {
-    // ── 模式 B：週加總長條 + 週平均折線 ──
-    document.getElementById('weekly-compare-title').textContent = '週間業績對比（週加總）';
-    document.getElementById('weekly-compare-sub').textContent = '每週加總長條 + 週平均折線';
+    // ── 模式 B：週加總長條，Y 軸改為每店日均，長條顯示週內日均 ──
+    document.getElementById('weekly-compare-title').textContent = '週間業績對比（週每店日均）';
+    document.getElementById('weekly-compare-sub').textContent   = '每週每店日均長條 + 整體均線';
     document.getElementById('weekly-compare-badge').textContent = `${rangeLen} 天`;
-    document.getElementById('weekly-compare-badge').className = 'chart-badge warn';
+    document.getElementById('weekly-compare-badge').className   = 'chart-badge warn';
 
-    // 將 activeDates 分組成週（以 Mon 為週起始）
-    const weeks = [];
-    let curWeek = null, curLabel = null;
-    ad.forEach(date => {
-      const row = DATA.find(r => r.date === date);
-      const dow = row ? row.dow : 0; // 0=Mon
-      if(dow === 0 || curWeek === null){
-        if(curWeek) weeks.push({label: curLabel, dates: curWeek});
-        curWeek = [date];
-        curLabel = date;
-      } else {
-        curWeek.push(date);
-      }
+    // 將 activeDates 分組成週（Mon 起始）
+    const weeks=[];
+    let curWeek=null, curLabel=null;
+    ad.forEach(date=>{
+      const row=DATA.find(r=>r.date===date); const dow=row?row.dow:0;
+      if(dow===0||curWeek===null){
+        if(curWeek) weeks.push({label:curLabel,dates:curWeek});
+        curWeek=[date]; curLabel=date;
+      } else { curWeek.push(date); }
     });
-    if(curWeek && curWeek.length > 0) weeks.push({label: curLabel, dates: curWeek});
+    if(curWeek&&curWeek.length>0) weeks.push({label:curLabel,dates:curWeek});
 
-    const weekTotals = weeks.map(w => {
-      const rows = DATA.filter(r => storeFilter(r) && w.dates.includes(r.date));
-      return rows.reduce((s,r) => s+r[dim], 0);
+    // 每週：每店日均 & 總計
+    const weekData = weeks.map(w=>{
+      const rows   = DATA.filter(r=>storeFilter(r)&&w.dates.includes(r.date));
+      const stores = new Set(rows.map(r=>r.store)).size||1;
+      const days   = w.dates.length||1;
+      const tot    = rows.reduce((s,r)=>s+r[dim],0);
+      return { avg: Math.round(tot/stores/days), total: tot, stores, days };
     });
 
-    const weekAvg = weekTotals.length > 0
-      ? Math.round(weekTotals.reduce((a,b)=>a+b,0) / weekTotals.length)
-      : 0;
-    const avgLine = weekTotals.map(() => weekAvg);
+    // 整體均線 = 全區間每店日均
+    const allRows = DATA.filter(r=>storeFilter(r)&&ad.includes(r.date));
+    const overall = getDailyAvg(allRows, ad);
+    const avgLine = weekData.map(()=>overall.avg);
 
-    const weekLabels = weeks.map((w,i) => {
-      const [m,d] = w.label.split('/');
+    const weekLabels=weeks.map((w,i)=>{
+      const[m,d]=w.label.split('/');
       return `第${i+1}週\n${parseInt(m)}/${parseInt(d)}~`;
     });
 
-    mkChart('weekly-compare-chart', {
-      type: 'bar',
-      data: {
-        labels: weekLabels,
-        datasets: [
-          {
-            type: 'bar',
-            label: '週加總',
-            data: weekTotals,
-            backgroundColor: weekTotals.map(v => v >= weekAvg ? C.a+'bb' : C.w+'bb'),
-            borderColor: weekTotals.map(v => v >= weekAvg ? C.a : C.w),
-            borderWidth: 1.5, borderRadius: 5,
-            order: 2,
-          },
-          {
-            type: 'line',
-            label: '週平均',
-            data: avgLine,
-            borderColor: C.b, borderDash: [6,4], borderWidth: 2,
-            pointRadius: 0, fill: false, tension: 0,
-            order: 1,
-          }
+    mkChart('weekly-compare-chart',{
+      type:'bar',
+      data:{
+        labels:weekLabels,
+        datasets:[
+          { type:'bar', label:'每店日均',
+            data:weekData.map(d=>d.avg),
+            backgroundColor:weekData.map(d=>d.avg>=overall.avg?C.a+'bb':C.w+'bb'),
+            borderColor:    weekData.map(d=>d.avg>=overall.avg?C.a:C.w),
+            borderWidth:1.5, borderRadius:5, order:2 },
+          { type:'line', label:`整體日均 ${fmtV(overall.avg)}${UNIT[state.dim]}`,
+            data:avgLine,
+            borderColor:C.b, borderDash:[6,4], borderWidth:2,
+            pointRadius:0, fill:false, tension:0, order:1 }
         ]
       },
-      options: {
+      options:{
         ...BO,
-        scales: { y: { ticks: { callback: v => v>=10000?(v/10000).toFixed(0)+'萬':v } } },
-        plugins: {
-          legend: { labels: { boxWidth: 11 } },
-          tooltip: {
-            callbacks: {
-              afterBody: ctx => {
-                const v = ctx[0]?.raw;
-                if(v === undefined) return [];
-                const diff = v - weekAvg;
-                const pct = weekAvg > 0 ? ((diff/weekAvg)*100).toFixed(1) : '-';
-                return [`vs 週平均：${diff>=0?'+':''}${Math.abs(diff)>=10000?(diff/10000).toFixed(1)+'萬':diff.toLocaleString()} (${pct}%)`];
+        scales:{ y:{ ticks:{ callback:v=>fmtV(v) } } },
+        plugins:{
+          legend:{ labels:{ boxWidth:11 } },
+          tooltip:{
+            callbacks:{
+              label: ctx=>{
+                if(ctx.datasetIndex===0){
+                  const d=weekData[ctx.dataIndex];
+                  return [
+                    `每店日均：${fmtV(d.avg)}${UNIT[state.dim]}`,
+                    `週總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店×${d.days}天）`
+                  ];
+                }
+                return [`整體日均：${fmtV(overall.avg)}${UNIT[state.dim]}（${overall.stores}店×${overall.days}天）`];
+              },
+              afterBody: ctx=>{
+                const d=weekData[ctx[0]?.dataIndex];
+                if(!d||!overall.avg) return [];
+                const diff=d.avg-overall.avg, pct=((diff/overall.avg)*100).toFixed(1);
+                return [`vs 整體均：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
