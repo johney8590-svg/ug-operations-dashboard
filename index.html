@@ -542,21 +542,169 @@ function renderInfoBar(id){
 /* ══ TODAY ══ */
 function renderToday(){
   renderInfoBar('data-info-today');
-  const ld=getLatestDate();const rows=filterData(DATA,ld);
-  if(!rows.length){document.getElementById('today-kpis').innerHTML='<div style="color:var(--text3);padding:20px">此日期區間無資料</div>';return;}
-  const tot=sumTotal(rows);
-  const avgAov=tot.customers>0?Math.round(tot.revenue/tot.customers):0;
-  const discR=(tot.revenue+tot.discount)>0?(tot.discount/(tot.revenue+tot.discount)*100).toFixed(1):0;
-  document.getElementById('today-title').textContent=`最新日期（${ld}）${rows.length} 家門市加總`;
-  document.getElementById('today-kpis').innerHTML=`
-    <div class="kpi-card blue"><div class="kpi-label">營業淨額</div><div class="kpi-value blue">${(tot.revenue/10000).toFixed(1)}<span style="font-size:14px;color:var(--text2)">萬</span></div><div class="kpi-sub">${rows.length} 家門市</div></div>
-    <div class="kpi-card green"><div class="kpi-label">銷售杯數</div><div class="kpi-value green">${tot.cups.toLocaleString()}<span style="font-size:14px;color:var(--text2)">杯</span></div><div class="kpi-sub">全門市合計</div></div>
-    <div class="kpi-card warn"><div class="kpi-label">來客數</div><div class="kpi-value warn">${tot.customers.toLocaleString()}<span style="font-size:14px;color:var(--text2)">人</span></div><div class="kpi-sub">客單價 ${avgAov.toLocaleString()} 元</div></div>
-    <div class="kpi-card danger"><div class="kpi-label">折扣佔比</div><div class="kpi-value danger">${discR}<span style="font-size:14px;color:var(--text2)">%</span></div><div class="kpi-sub">折讓 ${(tot.discount/10000).toFixed(1)}萬元</div></div>
+  const ad = getActiveDates();
+  const dayCount = ad.length || 1;
+  const ld = getLatestDate();
+
+  // 最新日資料（渠道、KPI 輔助用）
+  const latestRows = filterData(DATA, ld);
+  // 全區間資料（計算日均用）
+  const allRows = filterData(DATA);
+
+  if(!allRows.length){
+    document.getElementById('today-kpis').innerHTML='<div style="color:var(--text3);padding:20px">此日期區間無資料</div>';
+    return;
+  }
+
+  // ── 各店日均（每店總營收 ÷ 該店在區間內有資料的天數）──
+  const byStore = sumByStore(allRows);
+  byStore.forEach(s => {
+    const storeDays = new Set(allRows.filter(r=>r.store===s.store).map(r=>r.date)).size || 1;
+    s.dailyAvgRevenue  = Math.round(s.revenue  / storeDays);
+    s.dailyAvgCups     = Math.round(s.cups      / storeDays);
+    s.dailyAvgCustomers= Math.round(s.customers / storeDays);
+    s.storeDays = storeDays;
+  });
+
+  // ── 全體加總 ──
+  const tot = sumTotal(allRows);
+  const storeCount = byStore.length || 1;
+  // 整體日均 = 全體總營收 ÷ 店家數 ÷ 天數
+  const avgDailyRev = Math.round(tot.revenue / storeCount / dayCount);
+  const avgDailyCups= Math.round(tot.cups    / storeCount / dayCount);
+  const avgDailyCust= Math.round(tot.customers/ storeCount/ dayCount);
+  const avgAov = tot.customers > 0 ? Math.round(tot.revenue / tot.customers) : 0;
+  const discR  = (tot.revenue+tot.discount)>0 ? (tot.discount/(tot.revenue+tot.discount)*100).toFixed(1) : 0;
+
+  // ── KPI 卡片：主顯示每店日均，副顯示總計 ──
+  const dimLabel = state.dim==='revenue'?'每店日均淨額':state.dim==='cups'?'每店日均杯數':'每店日均來客';
+  const dimAvg   = state.dim==='revenue'?avgDailyRev:state.dim==='cups'?avgDailyCups:avgDailyCust;
+  const dimTotal = state.dim==='revenue'?tot.revenue:state.dim==='cups'?tot.cups:tot.customers;
+  const dimUnit  = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+
+  const fmtMain = v => state.dim==='revenue'
+    ? (v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString())
+    : v.toLocaleString();
+  const fmtSub  = v => state.dim==='revenue'
+    ? `總計 ${(v/10000).toFixed(1)}萬元`
+    : `總計 ${v.toLocaleString()}${dimUnit}`;
+
+  document.getElementById('today-title').textContent =
+    `${ld}（近 ${dayCount} 天）· ${storeCount} 家門市`;
+
+  document.getElementById('today-kpis').innerHTML = `
+    <div class="kpi-card blue">
+      <div class="kpi-label">${dimLabel}</div>
+      <div class="kpi-value blue">${fmtMain(dimAvg)}<span style="font-size:13px;color:var(--text2)">${state.dim==='revenue'?'':''+dimUnit}</span></div>
+      <div class="kpi-sub">${fmtSub(dimTotal)}</div>
+    </div>
+    <div class="kpi-card green">
+      <div class="kpi-label">每店日均杯數</div>
+      <div class="kpi-value green">${avgDailyCups.toLocaleString()}<span style="font-size:13px;color:var(--text2)">杯</span></div>
+      <div class="kpi-sub">總計 ${tot.cups.toLocaleString()} 杯</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="kpi-label">每店日均來客</div>
+      <div class="kpi-value warn">${avgDailyCust.toLocaleString()}<span style="font-size:13px;color:var(--text2)">人</span></div>
+      <div class="kpi-sub">客單價 ${avgAov.toLocaleString()} 元</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">折扣佔比</div>
+      <div class="kpi-value danger">${discR}<span style="font-size:13px;color:var(--text2)">%</span></div>
+      <div class="kpi-sub">折讓 ${(tot.discount/10000).toFixed(1)}萬元</div>
+    </div>
   `;
-  const dim=DIM_KEY[state.dim];const byStore=sumByStore(rows).sort((a,b)=>b[dim]-a[dim]);
-  mkChart('today-bar',{type:'bar',data:{labels:byStore.map(s=>s.name),datasets:[{label:DIM_LABEL[state.dim],data:byStore.map(s=>s[dim]),backgroundColor:byStore.map(s=>isAnom(s)?C.d+'bb':C.a+'bb'),borderColor:byStore.map(s=>isAnom(s)?C.d:C.a),borderWidth:1.5,borderRadius:4}]},options:{...BO,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>DIM_LABEL[state.dim]+': '+ctx.raw.toLocaleString()}}},scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
-  mkChart('today-channel',{type:'doughnut',data:{labels:['UberEats','Foodpanda','ODO 自取'],datasets:[{data:[tot.ub,tot.fp,tot.odo],backgroundColor:[C.a+'cc',C.p+'cc',C.b+'cc'],borderColor:[C.a,C.p,C.b],borderWidth:1.5,hoverOffset:6}]},options:{...BO,plugins:{legend:{position:'right'},tooltip:{callbacks:{label:ctx=>ctx.label+': '+(ctx.raw/10000).toFixed(1)+'萬 ('+(tot.revenue>0?(ctx.raw/tot.revenue*100).toFixed(1):0)+'%)'}}},cutout:'60%'}});
+
+  // ── 各門市表現：主顯日均，Tooltip 顯總營收 ──
+  const DIM_DAILY = {
+    revenue: s => s.dailyAvgRevenue,
+    cups:    s => s.dailyAvgCups,
+    customers: s => s.dailyAvgCustomers,
+  };
+  const DIM_TOTAL = {
+    revenue: s => s.revenue,
+    cups:    s => s.cups,
+    customers: s => s.customers,
+  };
+  const DAILY_LABEL = {revenue:'每店日均淨額 (元)', cups:'每店日均杯數 (杯)', customers:'每店日均來客 (人)'};
+
+  byStore.sort((a,b) => DIM_DAILY[state.dim](b) - DIM_DAILY[state.dim](a));
+
+  mkChart('today-bar', {
+    type: 'bar',
+    data: {
+      labels: byStore.map(s=>s.name),
+      datasets: [{
+        label: DAILY_LABEL[state.dim],
+        data:  byStore.map(s => DIM_DAILY[state.dim](s)),
+        backgroundColor: byStore.map(s => isAnom(s) ? C.d+'bb' : C.a+'bb'),
+        borderColor:     byStore.map(s => isAnom(s) ? C.d : C.a),
+        borderWidth: 1.5, borderRadius: 4,
+      }]
+    },
+    options: {
+      ...BO,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const s = byStore[ctx.dataIndex];
+              const daily = DIM_DAILY[state.dim](s);
+              const total = DIM_TOTAL[state.dim](s);
+              const unit = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+              const fmtD = state.dim==='revenue'
+                ? (daily>=10000?(daily/10000).toFixed(1)+'萬':daily.toLocaleString())+'元'
+                : daily.toLocaleString()+unit;
+              const fmtT = state.dim==='revenue'
+                ? (total/10000).toFixed(1)+'萬元'
+                : total.toLocaleString()+unit;
+              return [`日均：${fmtD}（共 ${s.storeDays} 天）`, `總計：${fmtT}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxRotation:40, font:{size:10} } },
+        y: { ticks: { callback: v => v>=10000?(v/10000).toFixed(0)+'萬':v } }
+      }
+    }
+  });
+
+  // ── 渠道圖：用全區間加總 ──
+  mkChart('today-channel', {
+    type: 'doughnut',
+    data: {
+      labels: ['UberEats','Foodpanda','ODO 自取'],
+      datasets: [{
+        data: [tot.ub, tot.fp, tot.odo],
+        backgroundColor: [C.a+'cc', C.p+'cc', C.b+'cc'],
+        borderColor: [C.a, C.p, C.b],
+        borderWidth: 1.5, hoverOffset: 6,
+      }]
+    },
+    options: {
+      ...BO,
+      plugins: {
+        legend: { position:'right' },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.raw;
+              const dayAvg = Math.round(v / storeCount / dayCount);
+              return [
+                `${ctx.label}：${(v/10000).toFixed(1)}萬元`,
+                `佔比 ${tot.revenue>0?(v/tot.revenue*100).toFixed(1):0}%`,
+                `每店日均 ${dayAvg>=10000?(dayAvg/10000).toFixed(1)+'萬':dayAvg.toLocaleString()}元`,
+              ];
+            }
+          }
+        }
+      },
+      cutout: '60%'
+    }
+  });
+
   renderWeeklyCompare();
 }
 
