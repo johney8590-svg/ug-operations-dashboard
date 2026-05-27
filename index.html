@@ -919,11 +919,84 @@ function renderTrend(){
 function renderCompare(){
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();const lastWeek=ad.slice(-7);const prevDates=ad.slice(0,-7);
-  const bS=Array(7).fill(0),bC=Array(7).fill(0);
-  filterData(DATA).filter(r=>new Set(prevDates).has(r.date)).forEach(r=>{bS[r.dow]+=r[dim];bC[r.dow]++;});
-  const baseline=bS.map((s,i)=>bC[i]?Math.round(s/bC[i]):0);
-  const twDow=Array(7).fill(0);filterData(DATA).filter(r=>new Set(lastWeek).has(r.date)).forEach(r=>{twDow[r.dow]+=r[dim];});
-  mkChart('chart-a',{type:'line',data:{labels:['週一','週二','週三','週四','週五','週六','週日'],datasets:[{label:'最新一週',data:twDow,borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,pointRadius:5,borderWidth:2.5},{label:'前期基線',data:baseline,borderColor:C.b+'99',borderDash:[6,4],fill:false,tension:0.3,pointRadius:3,borderWidth:1.5}]},options:{...BO,scales:{y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
+  // 本週：各 dow 的每店日均（該 dow 總值 ÷ 當天有資料店家數）
+  const twDowAvg = Array(7).fill(0);
+  const twDowStores = Array(7).fill(0);
+  filterData(DATA).filter(r=>new Set(lastWeek).has(r.date)).forEach(r=>{
+    twDowAvg[r.dow]+=r[dim]; twDowStores[r.dow]++;
+  });
+  // twDowStores[i] = 總筆數，÷ 出現天數 ≈ 每天店家數
+  // 同一 dow 在 lastWeek 最多出現 1 次，所以直接是該天店家數
+  const twDowDailyAvg = twDowAvg.map((s,i)=>twDowStores[i]?Math.round(s/twDowStores[i]):0);
+
+  // 基線：各 dow 的每店日均（歷史同 dow 總值 ÷ 出現次數 ÷ 各次有資料店家數均值）
+  const bS=Array(7).fill(0), bStores=Array(7).fill(0), bDays=Array(7).fill(0);
+  filterData(DATA).filter(r=>new Set(prevDates).has(r.date)).forEach(r=>{
+    bS[r.dow]+=r[dim]; bStores[r.dow]++;
+  });
+  // 每個 dow 出現幾天
+  prevDates.forEach(date=>{
+    const row=DATA.find(r=>r.date===date); if(row) bDays[row.dow]=(bDays[row.dow]||0)+1;
+  });
+  const baseline=bS.map((s,i)=>{
+    const stores=bStores[i], days=bDays[i]||1;
+    // stores = 該 dow 所有筆數，days = 出現天數，stores/days = 平均每天店家數
+    const avgStoresPerDay = days ? Math.round(stores/days) : 1;
+    return avgStoresPerDay ? Math.round(s/stores*avgStoresPerDay) : 0;
+    // 等效：總值 ÷ 天數 ÷ 平均店家數
+  });
+  // 更直接的算法：重算 baseline
+  const bClean = Array(7).fill(null).map((_,dow)=>{
+    const rows = filterData(DATA).filter(r=>new Set(prevDates).has(r.date)&&r.dow===dow);
+    const daySet = new Set(rows.map(r=>r.date));
+    if(!daySet.size) return 0;
+    const tot = rows.reduce((a,r)=>a+r[dim],0);
+    // 每天的店家數平均
+    let storeSum=0;
+    daySet.forEach(date=>{
+      storeSum += new Set(rows.filter(r=>r.date===date).map(r=>r.store)).size;
+    });
+    const avgStores = storeSum/daySet.size||1;
+    return Math.round(tot/daySet.size/avgStores);
+  });
+
+  const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+  const unit={revenue:'元',cups:'杯',customers:'人'}[state.dim];
+
+  mkChart('chart-a',{
+    type:'line',
+    data:{
+      labels:['週一','週二','週三','週四','週五','週六','週日'],
+      datasets:[
+        {label:'本週每店日均', data:twDowDailyAvg,
+          borderColor:C.a, backgroundColor:C.a+'22', fill:true,
+          tension:0.3, pointRadius:5, borderWidth:2.5},
+        {label:'前期基線（每店日均）', data:bClean,
+          borderColor:C.b+'99', borderDash:[6,4], fill:false,
+          tension:0.3, pointRadius:3, borderWidth:1.5}
+      ]
+    },
+    options:{
+      ...BO,
+      scales:{y:{ticks:{callback:v=>fmtV(v)}}},
+      plugins:{
+        legend:{labels:{boxWidth:11}},
+        tooltip:{
+          callbacks:{
+            afterBody: ctx=>{
+              if(ctx.length===2){
+                const a=ctx[0].raw, b=ctx[1].raw;
+                if(!b) return [];
+                const diff=a-b, pct=((diff/b)*100).toFixed(1);
+                return [`vs 基線：${diff>=0?'+':''}${fmtV(diff)}${unit} (${pct}%)`];
+              }
+              return [];
+            }
+          }
+        }
+      }
+    }
+  });
   const byStore=sumByStore(rows);const anomStores=byStore.filter(s=>isAnom(s));
   document.getElementById('chartb-badge').textContent=anomStores.length?'⚠ '+anomStores.length+' 家異常':'✓ 無異常';
   document.getElementById('chartb-badge').className='chart-badge '+(anomStores.length?'warn':'ok');
