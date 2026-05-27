@@ -523,12 +523,12 @@ function filterData(rows,extraDate=null){
 function sumByStore(rows){
   const map={};
   rows.forEach(r=>{
-    if(!map[r.store])map[r.store]={store:r.store,name:r.store,zone:r.zone,revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,cnt:0};
-    const m=map[r.store];m.revenue+=r.revenue;m.cups+=r.cups;m.customers+=r.customers;m.discount+=r.discount;m.ub+=r.ub;m.fp+=r.fp;m.odo+=r.odo;m.cnt++;
+    if(!map[r.store])map[r.store]={store:r.store,name:r.store,zone:r.zone,revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0,cnt:0};
+    const m=map[r.store];m.revenue+=r.revenue;m.cups+=r.cups;m.customers+=r.customers;m.discount+=r.discount;m.ub+=r.ub;m.fp+=r.fp;m.odo+=r.odo;m.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));m.cnt++;
   });
   return Object.values(map);
 }
-function sumTotal(rows){return rows.reduce((a,r)=>{a.revenue+=r.revenue;a.cups+=r.cups;a.customers+=r.customers;a.discount+=r.discount;a.ub+=r.ub;a.fp+=r.fp;a.odo+=r.odo;return a;},{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0});}
+function sumTotal(rows){return rows.reduce((a,r)=>{a.revenue+=r.revenue;a.cups+=r.cups;a.customers+=r.customers;a.discount+=r.discount;a.ub+=r.ub;a.fp+=r.fp;a.odo+=r.odo;a.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));return a;},{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0});}
 function isAnom(s){const t=s.revenue+s.discount;return(t>0&&s.discount/t>0.20)||(s.revenue>0&&(s.ub+s.fp)/s.revenue>0.65);}
 
 /* ══ INFO BAR ══ */
@@ -672,14 +672,15 @@ function renderToday(){
   });
 
   // ── 渠道圖：用全區間加總 ──
+  const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
   mkChart('today-channel', {
     type: 'doughnut',
     data: {
-      labels: ['UberEats','Foodpanda','ODO 自取'],
+      labels: ['現場','UberEats','Foodpanda','ODO 自取'],
       datasets: [{
-        data: [tot.ub, tot.fp, tot.odo],
-        backgroundColor: [C.a+'cc', C.p+'cc', C.b+'cc'],
-        borderColor: [C.a, C.p, C.b],
+        data: [onsiteTotal, tot.ub, tot.fp, tot.odo],
+        backgroundColor: ['#51cf66cc', C.a+'cc', C.p+'cc', C.b+'cc'],
+        borderColor: ['#51cf66', C.a, C.p, C.b],
         borderWidth: 1.5, hoverOffset: 6,
       }]
     },
@@ -1015,23 +1016,25 @@ function renderCompare(){
 
   // 每店各渠道日均金額 & 佔比
   const dStores = byStore.map(s=>{
-    const days = storeDayMap[s.store]?.size || 1;
-    const ubD  = Math.round(s.ub  / days);
-    const fpD  = Math.round(s.fp  / days);
-    const odoD = Math.round(s.odo / days);
-    const totD = ubD + fpD + odoD || 1;
+    const days    = storeDayMap[s.store]?.size || 1;
+    const onsiteD = Math.round((s.onsite||Math.max(0,s.revenue-s.ub-s.fp-s.odo)) / days);
+    const ubD     = Math.round(s.ub  / days);
+    const fpD     = Math.round(s.fp  / days);
+    const odoD    = Math.round(s.odo / days);
+    const totD    = onsiteD + ubD + fpD + odoD || 1;
     return {
       name: s.name,
-      ubPct:  Math.round(ubD /totD*100),
-      fpPct:  Math.round(fpD /totD*100),
-      odoPct: Math.round(odoD/totD*100),
-      ubD, fpD, odoD, totD, days
+      onsitePct: Math.round(onsiteD/totD*100),
+      ubPct:     Math.round(ubD    /totD*100),
+      fpPct:     Math.round(fpD    /totD*100),
+      odoPct:    Math.round(odoD   /totD*100),
+      onsiteD, ubD, fpD, odoD, totD, days
     };
   });
-  // 修正加總誤差，讓每店合計剛好 100%
+  // 修正加總誤差（讓每店合計 = 100%，差值補在現場）
   dStores.forEach(s=>{
-    const sum = s.ubPct + s.fpPct + s.odoPct;
-    if(sum !== 100) s.odoPct += (100 - sum);
+    const sum = s.onsitePct + s.ubPct + s.fpPct + s.odoPct;
+    if(sum !== 100) s.onsitePct += (100 - sum);
   });
 
   const fmtM = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
@@ -1041,6 +1044,8 @@ function renderCompare(){
     data:{
       labels: dStores.map(s=>s.name),
       datasets:[
+        { label:'現場 %',      data:dStores.map(s=>s.onsitePct),
+          backgroundColor:'#51cf66cc', stack:'ch' },
         { label:'UberEats %',  data:dStores.map(s=>s.ubPct),
           backgroundColor:C.a+'cc', stack:'ch' },
         { label:'Foodpanda %', data:dStores.map(s=>s.fpPct),
