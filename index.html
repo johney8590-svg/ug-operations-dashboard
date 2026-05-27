@@ -249,6 +249,9 @@ canvas{max-height:300px;}
   </div>
 </main>
 <script>
+/* ══ LIVE CLOCK: 以瀏覽器當下時間為基準 ══ */
+const TODAY = new Date();
+
 /* ══ UPLOAD ══ */
 function downloadSampleCSV(){
   const rows=['門市,日期,週期,天氣,營業淨額,杯數,來客數,總折扣金額,UB金額,FP金額,ODO金額,分區','忠孝敦化店,4月1日,週三,陰,60720,863,396,1727,25769,1008,6401,北北基宜花'].join('\n');
@@ -313,7 +316,7 @@ function applyMapping(){
     const dateKey=`${String(mon).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
     const dowRaw=get('dow');const dow=DOW_MAP[dowRaw]??parseInt(dowRaw)??0;
     const wRaw=get('weather');const weather=wRaw.includes('雨')?'雨':wRaw.includes('陰')?'陰':'晴';
-    const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:2026,month:mon,dow,weather,
+    const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
       revenue:getNum('revenue'),cups:getNum('cups'),customers:getNum('customers'),discount:Math.abs(getNum('discount')),
       ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo')};
     if(r.store&&r.revenue>0)newRows.push(r);
@@ -329,10 +332,13 @@ function resetUpload(){document.getElementById('upload-step-2').style.display='n
 
 /* ══ DATA META ══ */
 let DATA=[...REAL_DATA];
-let ALL_DATES,LATEST_DATE,ZONES,STORE_LIST;
+let ALL_DATES,LATEST_DATE,ZONES,STORE_LIST,DATE_YEAR_MAP={};
 function rebuildMeta(){
   ALL_DATES=[...new Set(DATA.map(r=>r.date))].sort();
   LATEST_DATE=ALL_DATES[ALL_DATES.length-1];
+  // Build date→year map from actual data rows
+  DATE_YEAR_MAP={};
+  DATA.forEach(r=>{if(r.year)DATE_YEAR_MAP[r.date]=r.year;});
   ZONES=[...new Set(DATA.map(r=>r.zone).filter(Boolean))].sort();
   const storeMap=new Map();
   DATA.forEach(r=>{if(!storeMap.has(r.store))storeMap.set(r.store,{id:r.store,name:r.store,zone:r.zone});});
@@ -341,12 +347,20 @@ function rebuildMeta(){
 rebuildMeta();
 
 /* ══ DATE RANGE ══ */
-function internalToDate(d){const[m,day]=d.split('/');return new Date(2026,parseInt(m)-1,parseInt(day));}
-function dateToInput(d){return `2026-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function internalToDate(d,year){
+  // year can be passed explicitly; otherwise infer from today
+  const[m,day]=d.split('/');
+  const y = year || (function(){
+    // Use the year stored in ALL_DATES metadata if available, else today's year
+    return TODAY.getFullYear();
+  })();
+  return new Date(y,parseInt(m)-1,parseInt(day));
+}
+function dateToInput(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function inputToDate(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
 function computeShortcut(key){
-  const latest=internalToDate(LATEST_DATE);
-  const mo=latest.getMonth(),yr=latest.getFullYear();
+  // 以瀏覽器當下時間為基準
+  const mo=TODAY.getMonth(),yr=TODAY.getFullYear();
   if(key==='cur-month') return{start:new Date(yr,mo,1),end:new Date(yr,mo+1,0)};
   if(key==='last-month') return{start:new Date(yr,mo-1,1),end:new Date(yr,mo,0)};
   if(key==='last7'){const e=new Date(latest),s=new Date(latest);s.setDate(s.getDate()-6);return{start:s,end:e};}
@@ -355,7 +369,12 @@ function computeShortcut(key){
 }
 function getActiveDates(){
   const s=state.dateStart,e=state.dateEnd;
-  return ALL_DATES.filter(d=>{const dt=internalToDate(d);return dt>=s&&dt<=e;});
+  return ALL_DATES.filter(d=>{
+    // find year from data
+    const yr = DATE_YEAR_MAP[d] || TODAY.getFullYear();
+    const dt=internalToDate(d,yr);
+    return dt>=s&&dt<=e;
+  });
 }
 function getLatestDate(){const ds=getActiveDates();return ds[ds.length-1]||LATEST_DATE;}
 function updateDRDisplay(){
