@@ -1005,7 +1005,82 @@ function renderCompare(){
   document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">⚠</span><div><b>${s.name}</b>（${s.zone}）— 折扣率 ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%，外送佔比 ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
   const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top10=sorted.slice(0,10);const bot10=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,10);
   mkChart('chart-c',{type:'bar',data:{labels:[...top10.map(s=>'🏆 '+s.name),...bot10.map(s=>'⚠ '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top10.map(s=>s[dim]),...bot10.map(s=>s[dim])],backgroundColor:[...top10.map(()=>C.a+'bb'),...bot10.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top10.map(()=>C.a),...bot10.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
-  mkChart('chart-d',{type:'bar',data:{labels:byStore.map(s=>s.name),datasets:[{label:'UberEats',data:byStore.map(s=>s.ub),backgroundColor:C.a+'cc',stack:'ch'},{label:'Foodpanda',data:byStore.map(s=>s.fp),backgroundColor:C.p+'cc',stack:'ch'},{label:'ODO 自取',data:byStore.map(s=>s.odo),backgroundColor:C.b+'cc',stack:'ch'}]},options:{...BO,scales:{x:{stacked:true,ticks:{maxRotation:40,font:{size:10}}},y:{stacked:true,ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}},plugins:{legend:{labels:{boxWidth:10}},tooltip:{mode:'index',intersect:false}}}});
+  // 圖表D：各店渠道佔比（%為主，金額為輔，用每店日均）
+  // 先算各店在整個篩選區間的天數
+  const storeDayMap = {};
+  rows.forEach(r=>{
+    if(!storeDayMap[r.store]) storeDayMap[r.store]=new Set();
+    storeDayMap[r.store].add(r.date);
+  });
+
+  // 每店各渠道日均金額 & 佔比
+  const dStores = byStore.map(s=>{
+    const days = storeDayMap[s.store]?.size || 1;
+    const ubD  = Math.round(s.ub  / days);
+    const fpD  = Math.round(s.fp  / days);
+    const odoD = Math.round(s.odo / days);
+    const totD = ubD + fpD + odoD || 1;
+    return {
+      name: s.name,
+      ubPct:  Math.round(ubD /totD*100),
+      fpPct:  Math.round(fpD /totD*100),
+      odoPct: Math.round(odoD/totD*100),
+      ubD, fpD, odoD, totD, days
+    };
+  });
+  // 修正加總誤差，讓每店合計剛好 100%
+  dStores.forEach(s=>{
+    const sum = s.ubPct + s.fpPct + s.odoPct;
+    if(sum !== 100) s.odoPct += (100 - sum);
+  });
+
+  const fmtM = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+
+  mkChart('chart-d',{
+    type:'bar',
+    data:{
+      labels: dStores.map(s=>s.name),
+      datasets:[
+        { label:'UberEats %',  data:dStores.map(s=>s.ubPct),
+          backgroundColor:C.a+'cc', stack:'ch' },
+        { label:'Foodpanda %', data:dStores.map(s=>s.fpPct),
+          backgroundColor:C.p+'cc', stack:'ch' },
+        { label:'ODO 自取 %', data:dStores.map(s=>s.odoPct),
+          backgroundColor:C.b+'cc', stack:'ch' },
+      ]
+    },
+    options:{
+      ...BO,
+      scales:{
+        x:{ stacked:true, ticks:{ maxRotation:40, font:{size:10} } },
+        y:{ stacked:true, min:0, max:100,
+            ticks:{ callback:v=>v+'%', stepSize:25 } }
+      },
+      plugins:{
+        legend:{ labels:{ boxWidth:10 } },
+        tooltip:{
+          mode:'index', intersect:false,
+          callbacks:{
+            label: ctx=>{
+              const s = dStores[ctx.dataIndex];
+              const ch = ctx.datasetIndex;
+              const [pct, daily, label] = ch===0
+                ? [s.ubPct,  s.ubD,  'UberEats']
+                : ch===1
+                ? [s.fpPct,  s.fpD,  'Foodpanda']
+                : [s.odoPct, s.odoD, 'ODO 自取'];
+              return `${label}：${pct}%（日均 ${fmtM(daily)}元）`;
+            },
+            afterBody: ctx=>{
+              const s = dStores[ctx[0]?.dataIndex];
+              if(!s) return [];
+              return [`總渠道日均：${fmtM(s.totD)}元 × ${s.days}天`];
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 /* ══ RENDER ALL ══ */
