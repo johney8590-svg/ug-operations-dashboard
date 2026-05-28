@@ -7,7 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="data.js"></script>
+<script>window.DATA_VERSION="202605280525";</script>
+<script id="data-script" src="data.js?v=202605280525"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -445,10 +446,35 @@ async function pushToGitHub(newRows){
     }
     const pushed = await pushRes.json();
     const commitUrl = pushed.commit?.html_url || '';
-    pushLog(`✅ 推送成功！`);
+    pushLog(`✅ data.js 推送成功！`);
     pushLog(`🔗 Commit：${commitUrl}`);
-    pushLog('⏳ GitHub Pages 部署中，約 1–2 分鐘後重整頁面即可看到新資料…');
 
+    // 更新 index.html 裡的版本號，讓下次重新整理自動載入新 data.js
+    pushLog('🔢 更新版本號…');
+    try {
+      const newVer = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
+      const idxBase = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/index.html`;
+      const idxInfo = await fetch(idxBase, {headers}).then(r=>r.json());
+      const idxText = atob(idxInfo.content.replace(/\n/g,''));
+      // 替換版本號
+      const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
+                                .replace(/DATA_VERSION="[^"]*"/g, `DATA_VERSION="${newVer}"`);
+      const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
+      const idxPush = await fetch(idxBase, {
+        method:'PUT', headers,
+        body: JSON.stringify({
+          message: `🔢 更新 data.js 版本號 v${newVer}`,
+          content: newIdxB64,
+          sha: idxInfo.sha
+        })
+      });
+      if(idxPush.ok) pushLog(`✅ 版本號已更新（v${newVer}）`);
+      else pushLog(`⚠ 版本號更新失敗，建議手動重整（Ctrl+Shift+R）`);
+    } catch(e) {
+      pushLog(`⚠ 版本號更新失敗：${e.message}`);
+    }
+
+    pushLog('⏳ GitHub Pages 部署中，約 1–2 分鐘後直接按 F5 重整即可！');
     document.getElementById('push-icon').textContent = '✅';
     document.getElementById('push-title').textContent = `成功！新增 ${added} 筆，更新 ${overwritten} 筆`;
     document.getElementById('push-done-btn').style.display = '';
