@@ -467,18 +467,18 @@ async function pushToGitHub(newRows){
   }
 }
 const REQUIRED_FIELDS=[
-  {key:'store',label:'門市名稱',required:true,hints:['門市','store']},
-  {key:'date',label:'日期',required:true,hints:['日期','date']},
-  {key:'dow',label:'星期週期',required:false,hints:['週期','星期','weekday']},
-  {key:'weather',label:'天氣',required:false,hints:['天氣','weather']},
-  {key:'revenue',label:'營業淨額',required:true,hints:['淨額','revenue']},
-  {key:'cups',label:'杯數',required:true,hints:['杯數','cups']},
-  {key:'customers',label:'來客數',required:true,hints:['來客','customers']},
-  {key:'discount',label:'折扣金額',required:false,hints:['折扣','discount']},
-  {key:'ub',label:'UberEats金額',required:false,hints:['UB金額','ubereats']},
-  {key:'fp',label:'Foodpanda金額',required:false,hints:['FP金額','foodpanda']},
-  {key:'odo',label:'ODO金額',required:false,hints:['ODO金額','odo']},
-  {key:'zone',label:'分區',required:false,hints:['分區','zone']},
+  {key:'store',   label:'門市名稱',    required:true,  exact:['門市'],                  hints:['store']},
+  {key:'date',    label:'日期',        required:true,  exact:['日期'],                  hints:['date']},
+  {key:'dow',     label:'星期週期',    required:false, exact:['週期','星期'],           hints:['weekday']},
+  {key:'weather', label:'天氣',        required:false, exact:['天氣'],                  hints:['weather']},
+  {key:'revenue', label:'營業淨額',    required:true,  exact:['營業淨額'],              hints:['淨額','revenue']},
+  {key:'cups',    label:'杯數',        required:true,  exact:['杯數'],                  hints:['cups']},
+  {key:'customers',label:'來客數',     required:true,  exact:['來客數'],                hints:['customers']},
+  {key:'discount',label:'總折扣金額',  required:false, exact:['總折扣金額','折扣金額'], hints:['discount']},
+  {key:'ub',      label:'UberEats金額',required:false, exact:['UB金額'],               hints:['ubereats']},
+  {key:'fp',      label:'Foodpanda金額',required:false,exact:['FP金額'],               hints:['foodpanda']},
+  {key:'odo',     label:'ODO金額',     required:false, exact:['ODO金額'],              hints:['odo']},
+  {key:'zone',    label:'分區',        required:false, exact:['分區'],                  hints:['zone']},
 ];
 function showMappingStep(){
   document.getElementById('upload-step-1').style.display='none';
@@ -489,7 +489,15 @@ function showMappingStep(){
     const arr=document.createElement('div');arr.className='map-arrow';arr.textContent='→';
     const sel=document.createElement('select');sel.className='map-select';sel.id='map_'+field.key;
     const none=document.createElement('option');none.value='';none.textContent='— 不匯入 —';sel.appendChild(none);
-    csvHeaders.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;if(field.hints.some(hint=>h.includes(hint)))o.selected=true;sel.appendChild(o);});
+    csvHeaders.forEach(h=>{
+      const o=document.createElement('option');o.value=h;o.textContent=h;
+      // 優先：exact 完整比對（避免「UB金額佔比」誤觸「UB金額」）
+      const exactMatch = field.exact?.some(e => h === e);
+      // 次要：hints 模糊比對（exact 沒有才用）
+      const hintMatch  = !field.exact && field.hints.some(hint=>h.includes(hint));
+      if(exactMatch || hintMatch) o.selected=true;
+      sel.appendChild(o);
+    });
     grid.appendChild(lbl);grid.appendChild(arr);grid.appendChild(sel);
   });
 }
