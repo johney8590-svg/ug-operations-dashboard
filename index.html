@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202605280557";</script>
-<script id="data-script" src="data.js?v=202605280557"></script>
+<script>window.DATA_VERSION="202605280611";</script>
+<script id="data-script" src="data.js?v=202605280611"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202605280557"]*"/g, `DATA_VERSION="202605280557"`);
+                                .replace(/DATA_VERSION="202605280611"]*"/g, `DATA_VERSION="202605280611"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1199,7 +1199,12 @@ function renderWeeklyCompare(){
 
     const weekLabels=weeks.map((w,i)=>{
       const[m,d]=w.label.split('/');
-      return `第${i+1}週\n${parseInt(m)}/${parseInt(d)}~`;
+      const endDate=w.dates[w.dates.length-1];
+      const[em,ed]=endDate.split('/');
+      const dayCount=w.dates.length;
+      // 不完整的週加上天數說明
+      const suffix = dayCount<7 ? `（${dayCount}天）` : '';
+      return `第${i+1}週 ${suffix}\n${parseInt(m)}/${parseInt(d)}～${parseInt(em)}/${parseInt(ed)}`;
     });
 
     mkChart('weekly-compare-chart',{
