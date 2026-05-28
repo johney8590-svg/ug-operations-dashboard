@@ -182,7 +182,7 @@ canvas{max-height:300px;}
         </div>
         <div class="date-range-panel" id="dr-panel">
           <div class="dr-shortcuts">
-            <div class="dr-shortcut active" data-key="cur-month" onclick="applyShortcut(this)">本月</div>
+            <div class="dr-shortcut active" data-key="cur-month" onclick="applyShortcut(this)">最新月</div>
             <div class="dr-shortcut" data-key="last-month" onclick="applyShortcut(this)">上個月</div>
             <div class="dr-shortcut" data-key="last7" onclick="applyShortcut(this)">近 7 天</div>
             <div class="dr-shortcut" data-key="last30" onclick="applyShortcut(this)">近 30 天</div>
@@ -414,8 +414,10 @@ function internalToDate(d,year){
 function dateToInput(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function inputToDate(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
 function computeShortcut(key){
-  // 以瀏覽器當下時間為基準
-  const mo=TODAY.getMonth(),yr=TODAY.getFullYear();
+  // 以「資料最新日期」所在月為基準，避免當月無資料時顯示空白
+  const latestDataDate = internalToDate(LATEST_DATE, DATE_YEAR_MAP[LATEST_DATE] || TODAY.getFullYear());
+  const mo = latestDataDate.getMonth();
+  const yr = latestDataDate.getFullYear();
   if(key==='cur-month') return{start:new Date(yr,mo,1),end:new Date(yr,mo+1,0)};
   if(key==='last-month') return{start:new Date(yr,mo-1,1),end:new Date(yr,mo,0)};
   if(key==='last7'){const e=new Date(latest),s=new Date(latest);s.setDate(s.getDate()-6);return{start:s,end:e};}
@@ -436,7 +438,7 @@ function updateDRDisplay(){
   const s=state.dateStart,e=state.dateEnd;
   const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
   let label='';
-  if(state.activeShortcut==='cur-month') label=`${s.getFullYear()}/${String(s.getMonth()+1).padStart(2,'0')}（本月）`;
+  if(state.activeShortcut==='cur-month') label=`${s.getFullYear()}/${String(s.getMonth()+1).padStart(2,'0')}（最新月）`;
   else if(state.activeShortcut==='last-month') label=`${s.getMonth()+1}月（上個月）`;
   else if(state.activeShortcut==='last7') label=`近 7 天（${fmt(s)}–${fmt(e)}）`;
   else if(state.activeShortcut==='last30') label=`近 30 天（${fmt(s)}–${fmt(e)}）`;
@@ -595,7 +597,15 @@ function renderToday(){
   const allRows = filterData(DATA);
 
   if(!allRows.length){
-    document.getElementById('today-kpis').innerHTML='<div style="color:var(--text3);padding:20px">此日期區間無資料</div>';
+    // 自動提示並顯示資料最新日期
+    const latestStr = LATEST_DATE || '';
+    document.getElementById('today-kpis').innerHTML=`
+      <div style="color:var(--text3);padding:20px 0;font-size:13px;line-height:2">
+        ⚠ 所選日期區間（${state.dateStart.getMonth()+1}月）尚無資料。<br>
+        資料最新日期為 <b style="color:var(--accent)">${latestStr}</b>，請切換至「最新月」或調整日期區間。
+      </div>`;
+    destroyChart('today-channel');
+    document.getElementById('rank-card-wall').innerHTML='';
     return;
   }
 
@@ -677,6 +687,12 @@ function renderToday(){
 
   // ── 渠道圖：用全區間加總 ──
   const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
+  // 防呆：四渠道全為 0 時不渲染（避免顯示假資料）
+  if(tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0){
+    destroyChart('today-channel');
+    const ctx=document.getElementById('today-channel');
+    if(ctx){ const p=ctx.parentElement; p.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">此區間無渠道資料</div>'; }
+  } else
   mkChart('today-channel', {
     type: 'doughnut',
     data: {
