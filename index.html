@@ -165,7 +165,7 @@ canvas{max-height:300px;}
 <nav>
   <div class="nav-logo"><div class="brand">☕ UG 茶飲</div><div class="sub">Operations Dashboard</div></div>
   <div class="nav-section">資料</div>
-  <div class="nav-item" id="nav-upload" onclick="switchPage('upload',this)"><span style="width:20px;text-align:center">📂</span> 更新資料</div>
+  <div class="nav-item" id="nav-upload" onclick="checkPassword()"><span style="width:20px;text-align:center">🔒</span> 更新資料</div>
   <div class="nav-section">分析</div>
   <div class="nav-item active" id="nav-today" onclick="switchPage('today',this)"><span style="width:20px;text-align:center">📑</span> 今日現況</div>
   <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">📈</span> 趨勢分析</div>
@@ -1372,6 +1372,70 @@ function renderAll(){
 /* ══ INIT ══ */
 updateTokenStatus();
 buildDropdowns();updateDRDisplay();renderAll();
+</script>
+<!-- 密碼彈窗 -->
+<div id="pw-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px 36px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6);">
+    <div style="font-size:36px;margin-bottom:12px">🔒</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">管理員驗證</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">請輸入密碼以進入資料管理頁面</div>
+    <input type="password" id="pw-input" placeholder="輸入密碼"
+      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:var(--font);margin-bottom:8px;text-align:center;letter-spacing:.1em;"
+      onkeydown="if(event.key==='Enter')verifyPassword()">
+    <div id="pw-error" style="font-size:12px;color:var(--danger);height:18px;margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="closePwOverlay()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;">取消</button>
+      <button onclick="verifyPassword()" style="flex:1;background:var(--accent);border:none;border-radius:8px;padding:9px;color:#fff;font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer;">確認</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══ 密碼保護 ══ */
+const PW_HASH = '1d5f47eb7886e1f3e3fe0c3ef1720ff46693389d658be9ec68688db1cf4a23a0';
+const SESSION_KEY = 'ug_admin_auth';
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function checkPassword(){
+  // 本次 session 已驗證過，直接進入
+  if(sessionStorage.getItem(SESSION_KEY)==='1'){
+    doEnterUpload();
+    return;
+  }
+  // 顯示彈窗
+  const overlay = document.getElementById('pw-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-error').textContent = '';
+  setTimeout(()=>document.getElementById('pw-input').focus(), 100);
+}
+
+async function verifyPassword(){
+  const val = document.getElementById('pw-input').value;
+  if(!val){ document.getElementById('pw-error').textContent='請輸入密碼'; return; }
+  const h = await sha256(val);
+  if(h === PW_HASH){
+    sessionStorage.setItem(SESSION_KEY, '1');
+    closePwOverlay();
+    doEnterUpload();
+  } else {
+    document.getElementById('pw-error').textContent = '❌ 密碼錯誤，請再試一次';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+function closePwOverlay(){
+  document.getElementById('pw-overlay').style.display = 'none';
+}
+
+function doEnterUpload(){
+  switchPage('upload', document.getElementById('nav-upload'));
+}
 </script>
 </body>
 </html>
