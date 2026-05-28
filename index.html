@@ -125,6 +125,38 @@ canvas{max-height:300px;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── RANK CARD WALL ── */
+.rank-card{
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:12px 13px;cursor:default;transition:all .18s;position:relative;overflow:hidden;
+}
+.rank-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.4);}
+.rank-card::before{content:'';position:absolute;inset:0 0 auto 0;height:2px;border-radius:10px 10px 0 0;}
+.rank-card.rc-up::before{background:var(--accent2);}
+.rank-card.rc-flat::before{background:var(--warn);}
+.rank-card.rc-down::before{background:var(--danger);}
+.rank-card.rc-new::before{background:var(--accent);}
+.rank-card.rc-anom{border-color:rgba(255,107,107,.4);}
+.rc-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.rc-zone{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.rc-trend{font-size:13px;font-weight:700;}
+.rc-trend.up{color:var(--accent2);}
+.rc-trend.down{color:var(--danger);}
+.rc-trend.flat{color:var(--warn);}
+.rc-trend.new-store{color:var(--accent);font-size:10px;}
+.rc-name{font-size:12px;font-weight:600;margin-bottom:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rc-main{font-size:20px;font-weight:700;font-family:var(--mono);line-height:1.1;margin-bottom:2px;}
+.rc-main-unit{font-size:11px;color:var(--text2);font-family:var(--font);}
+.rc-sub{font-size:10.5px;color:var(--text3);margin-bottom:7px;}
+.rc-chg{font-size:11px;font-weight:600;padding:2px 7px;border-radius:20px;display:inline-block;margin-bottom:7px;}
+.rc-chg.up{background:rgba(56,217,169,.15);color:var(--accent2);}
+.rc-chg.down{background:rgba(255,107,107,.12);color:var(--danger);}
+.rc-chg.flat{background:rgba(255,212,59,.12);color:var(--warn);}
+.rc-chg.new-store{background:rgba(79,158,255,.15);color:var(--accent);}
+.rc-bar-wrap{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden;}
+.rc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.rc-rank{position:absolute;bottom:9px;right:11px;font-size:10px;font-family:var(--mono);color:var(--text3);}
 </style>
 </head>
 <body>
@@ -222,7 +254,18 @@ canvas{max-height:300px;}
       <div id="data-info-today"></div>
       <div class="section-title" id="today-title">最新日期全門市加總</div>
       <div class="kpi-row" id="today-kpis"></div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">各門市表現一覽</div><div class="chart-sub">依當前維度排序，紅色標示異常門市</div></div></div><canvas id="today-bar"></canvas></div>
+      <div class="chart-panel" id="rank-wall-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">各門市表現一覽</div>
+            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以上月為基準</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <span id="rank-wall-count" style="font-size:11px;color:var(--text3)"></span>
+          </div>
+        </div>
+        <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
+      </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道拆解（最新日）</div><div class="chart-sub">UberEats / Foodpanda / ODO 自取</div></div></div><canvas id="today-channel"></canvas></div>
 
       <!-- 週間業績對比 -->
@@ -630,46 +673,7 @@ function renderToday(){
 
   byStore.sort((a,b) => DIM_DAILY[state.dim](b) - DIM_DAILY[state.dim](a));
 
-  mkChart('today-bar', {
-    type: 'bar',
-    data: {
-      labels: byStore.map(s=>s.name),
-      datasets: [{
-        label: DAILY_LABEL[state.dim],
-        data:  byStore.map(s => DIM_DAILY[state.dim](s)),
-        backgroundColor: byStore.map(s => isAnom(s) ? C.d+'bb' : C.a+'bb'),
-        borderColor:     byStore.map(s => isAnom(s) ? C.d : C.a),
-        borderWidth: 1.5, borderRadius: 4,
-      }]
-    },
-    options: {
-      ...BO,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const s = byStore[ctx.dataIndex];
-              const daily = DIM_DAILY[state.dim](s);
-              const total = DIM_TOTAL[state.dim](s);
-              const unit = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
-              const fmtD = state.dim==='revenue'
-                ? (daily>=10000?(daily/10000).toFixed(1)+'萬':daily.toLocaleString())+'元'
-                : daily.toLocaleString()+unit;
-              const fmtT = state.dim==='revenue'
-                ? (total/10000).toFixed(1)+'萬元'
-                : total.toLocaleString()+unit;
-              return [`日均：${fmtD}（共 ${s.storeDays} 天）`, `總計：${fmtT}`];
-            }
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { maxRotation:40, font:{size:10} } },
-        y: { ticks: { callback: v => v>=10000?(v/10000).toFixed(0)+'萬':v } }
-      }
-    }
-  });
+  renderRankWall(byStore, allRows, dayCount);
 
   // ── 渠道圖：用全區間加總 ──
   const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
@@ -709,6 +713,116 @@ function renderToday(){
   renderWeeklyCompare();
 }
 
+
+/* ══ RANK CARD WALL ══ */
+function renderRankWall(byStore, allRows, dayCount){
+  const dim    = state.dim;
+  const wall   = document.getElementById('rank-card-wall');
+  const subEl  = document.getElementById('rank-wall-sub');
+  const cntEl  = document.getElementById('rank-wall-count');
+  if(!wall) return;
+
+  // 計算每店各維度日均
+  function storeDailyAvg(s, d){
+    const days = new Set(allRows.filter(r=>r.store===s.store).map(r=>r.date)).size || 1;
+    return { val: Math.round(s[d] / days), days };
+  }
+
+  // 上月每店日均（用 DATA 全集，不受日期篩選限制）
+  const curMonth  = state.dateStart.getMonth() + 1; // 1-based
+  const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+
+  const prevMap = {};
+  const prevRows = DATA.filter(r => state.zones.has(r.zone) && state.stores.has(r.store) && r.month === prevMonth);
+  const prevByStore = {};
+  prevRows.forEach(r => {
+    if(!prevByStore[r.store]) prevByStore[r.store] = { revenue:0, cups:0, customers:0, days: new Set() };
+    prevByStore[r.store].revenue    += r.revenue;
+    prevByStore[r.store].cups       += r.cups;
+    prevByStore[r.store].customers  += r.customers;
+    prevByStore[r.store].days.add(r.date);
+  });
+  Object.entries(prevByStore).forEach(([store, d]) => {
+    const days = d.days.size || 1;
+    prevMap[store] = {
+      revenue:   Math.round(d.revenue   / days),
+      cups:      Math.round(d.cups      / days),
+      customers: Math.round(d.customers / days),
+    };
+  });
+
+  // 排序：依當前維度日均由大到小
+  const sorted = [...byStore].sort((a,b) => storeDailyAvg(b,dim).val - storeDailyAvg(a,dim).val);
+  const maxVal = storeDailyAvg(sorted[0], dim).val || 1;
+
+  const DIM_LABEL_SHORT = { revenue:'日均淨額', cups:'日均杯數', customers:'日均來客' };
+  const DIM_UNIT = { revenue:'元', cups:'杯', customers:'人' };
+  const ZONE_SHORT = {
+    '北北基宜花':'北基宜', '桃竹苗':'桃竹苗', '中彰投':'中彰投', '雲嘉南高屏':'雲嘉南'
+  };
+
+  const fmtMain = (v) => {
+    if(dim==='revenue') return v>=10000 ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+    return v.toLocaleString();
+  };
+  const fmtTotal = (s) => {
+    const tot = dim==='revenue'?s.revenue:dim==='cups'?s.cups:s.customers;
+    if(dim==='revenue') return '總計 '+(tot/10000).toFixed(1)+'萬元';
+    return '總計 '+tot.toLocaleString()+DIM_UNIT[dim];
+  };
+
+  subEl.textContent = `依${DIM_LABEL_SHORT[dim]}由高到低 · 成長/衰退以${prevMonth}月為基準`;
+  cntEl.textContent = `${sorted.length} 家門市`;
+
+  wall.innerHTML = '';
+
+  sorted.forEach((s, idx) => {
+    const { val, days } = storeDailyAvg(s, dim);
+    const prev = prevMap[s.store];
+    const prevVal = prev ? prev[dim] : null;
+
+    // 成長率
+    let chgPct = null, chgClass = 'flat', chgText = '—', trendIcon = '→', trendClass = 'flat';
+    if(prevVal === null){
+      chgClass = 'new-store'; chgText = '新店'; trendIcon = '★'; trendClass = 'new-store';
+    } else if(prevVal > 0){
+      chgPct = ((val - prevVal) / prevVal * 100);
+      if(chgPct >= 2){
+        chgClass = 'up'; chgText = `+${chgPct.toFixed(1)}%`; trendIcon = '▲'; trendClass = 'up';
+      } else if(chgPct <= -2){
+        chgClass = 'down'; chgText = `${chgPct.toFixed(1)}%`; trendIcon = '▼'; trendClass = 'down';
+      } else {
+        chgClass = 'flat'; chgText = `${chgPct>=0?'+':''}${chgPct.toFixed(1)}%`; trendIcon = '→'; trendClass = 'flat';
+      }
+    }
+
+    const anom   = isAnom(s);
+    const pct    = Math.min(val / maxVal * 100, 100);
+    const fillColor = chgClass==='up'   ? 'var(--accent2)'
+                    : chgClass==='down' ? 'var(--danger)'
+                    : chgClass==='new-store' ? 'var(--accent)'
+                    : 'var(--warn)';
+    const cardClass = `rank-card rc-${chgClass}${anom?' rc-anom':''}`;
+    const zoneShort = ZONE_SHORT[s.zone] || s.zone.slice(0,3);
+
+    const card = document.createElement('div');
+    card.className = cardClass;
+    card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}：${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?prevMonth+'月日均：'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
+    card.innerHTML = `
+      <div class="rc-header">
+        <span class="rc-zone">${zoneShort}${anom?' ⚠':''}</span>
+        <span class="rc-trend ${trendClass}">${trendIcon}</span>
+      </div>
+      <div class="rc-name">${s.name}</div>
+      <div class="rc-main">${fmtMain(val)}<span class="rc-main-unit"> ${DIM_UNIT[dim]}</span></div>
+      <div class="rc-sub">${fmtTotal(s)} · ${days}天</div>
+      <span class="rc-chg ${chgClass}">${chgText}</span>
+      <div class="rc-bar-wrap"><div class="rc-bar-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+      <div class="rc-rank">#${idx+1}</div>
+    `;
+    wall.appendChild(card);
+  });
+}
 
 /* ══ WEEKLY COMPARE (今日現況頁) ══ */
 function renderWeeklyCompare(){
