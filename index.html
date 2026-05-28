@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202605280528";</script>
-<script id="data-script" src="data.js?v=202605280528"></script>
+<script>window.DATA_VERSION="202605280537";</script>
+<script id="data-script" src="data.js?v=202605280537"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202605280528"]*"/g, `DATA_VERSION="202605280528"`);
+                                .replace(/DATA_VERSION="202605280537"]*"/g, `DATA_VERSION="202605280537"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1091,7 +1091,7 @@ function renderWeeklyCompare(){
           { label:'每店日均（實績）', data:actualData.map(d=>d.avg),
             borderColor:C.a, backgroundColor:C.a+'22', fill:true,
             tension:0.3, pointRadius:6, pointHoverRadius:8, borderWidth:2.5 },
-          { label:'4週基線', data:baselineAligned,
+          { label:`${prevMonth}月基線`, data:baselineAligned,
             borderColor:C.b+'99', borderDash:[6,4], fill:false,
             tension:0.3, pointRadius:4, borderWidth:1.5, pointBackgroundColor:C.b+'66' }
         ]
@@ -1154,10 +1154,33 @@ function renderWeeklyCompare(){
       return { avg: Math.round(tot/stores/days), total: tot, stores, days };
     });
 
-    // 整體均線 = 全區間每店日均
+    // 基線 = 上個月各 dow 的每店日均，對齊到每週的主要 dow（週一）
+    const curMonthB  = state.dateStart.getMonth() + 1;
+    const prevMonthB = curMonthB === 1 ? 12 : curMonthB - 1;
+    const prevRowsB  = DATA.filter(r => storeFilter(r) && r.month === prevMonthB);
+
+    const prevDowAvg = Array(7).fill(0).map((_,dow) => {
+      const rows = prevRowsB.filter(r => r.dow === dow);
+      const daySet = new Set(rows.map(r=>r.date));
+      if(!daySet.size) return 0;
+      const tot = rows.reduce((s,r)=>s+r[dim], 0);
+      let storeSum=0;
+      daySet.forEach(date=>{storeSum+=new Set(rows.filter(r=>r.date===date).map(r=>r.store)).size;});
+      return Math.round(tot / daySet.size / (storeSum/daySet.size||1));
+    });
+
+    // 每週基線 = 該週所有天的上月同 dow 均值的加權平均
+    const avgLine = weeks.map(w => {
+      const dayAvgs = w.dates.map(date => {
+        const row = DATA.find(r => r.date === date);
+        return row ? prevDowAvg[row.dow] : 0;
+      }).filter(v => v > 0);
+      return dayAvgs.length ? Math.round(dayAvgs.reduce((a,b)=>a+b,0)/dayAvgs.length) : 0;
+    });
+
+    // 保留 overall 用於 tooltip 說明
     const allRows = DATA.filter(r=>storeFilter(r)&&ad.includes(r.date));
     const overall = getDailyAvg(allRows, ad);
-    const avgLine = weekData.map(()=>overall.avg);
 
     const weekLabels=weeks.map((w,i)=>{
       const[m,d]=w.label.split('/');
@@ -1171,10 +1194,10 @@ function renderWeeklyCompare(){
         datasets:[
           { type:'bar', label:'每店日均',
             data:weekData.map(d=>d.avg),
-            backgroundColor:weekData.map(d=>d.avg>=overall.avg?C.a+'bb':C.w+'bb'),
-            borderColor:    weekData.map(d=>d.avg>=overall.avg?C.a:C.w),
+            backgroundColor:weekData.map((d,i)=>d.avg>=(avgLine[i]||0)?C.a+'bb':C.w+'bb'),
+            borderColor:    weekData.map((d,i)=>d.avg>=(avgLine[i]||0)?C.a:C.w),
             borderWidth:1.5, borderRadius:5, order:2 },
-          { type:'line', label:`整體日均 ${fmtV(overall.avg)}${UNIT[state.dim]}`,
+          { type:'line', label:`${prevMonthB}月同期基線`,
             data:avgLine,
             borderColor:C.b, borderDash:[6,4], borderWidth:2,
             pointRadius:0, fill:false, tension:0, order:1 }
@@ -1195,13 +1218,15 @@ function renderWeeklyCompare(){
                     `週總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店×${d.days}天）`
                   ];
                 }
-                return [`整體日均：${fmtV(overall.avg)}${UNIT[state.dim]}（${overall.stores}店×${overall.days}天）`];
+                return [`${prevMonthB}月同期基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
               },
               afterBody: ctx=>{
                 const d=weekData[ctx[0]?.dataIndex];
                 if(!d||!overall.avg) return [];
-                const diff=d.avg-overall.avg, pct=((diff/overall.avg)*100).toFixed(1);
-                return [`vs 整體均：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
+                const base = avgLine[ctx[0]?.dataIndex] || 0;
+                if(!base) return [];
+                const diff=d.avg-base, pct=((diff/base)*100).toFixed(1);
+                return [`vs ${prevMonthB}月基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
