@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202605280611";</script>
-<script id="data-script" src="data.js?v=202605280611"></script>
+<script>window.DATA_VERSION="202605290735";</script>
+<script id="data-script" src="data.js?v=202605290735"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202605280611"]*"/g, `DATA_VERSION="202605280611"`);
+                                .replace(/DATA_VERSION="202605290735"]*"/g, `DATA_VERSION="202605290735"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1265,9 +1265,96 @@ function renderTrend(){
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();const byDate={};rows.forEach(r=>{byDate[r.date]=(byDate[r.date]||0)+r[dim];});
   mkChart('trend-line',{type:'line',data:{labels:ad,datasets:[{label:DIM_LABEL[state.dim],data:ad.map(d=>byDate[d]||0),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.35,pointRadius:1.5,pointHoverRadius:5}]},options:{...BO,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:20,font:{size:10}}},y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
-  const wdS=Array(7).fill(0),wdC=Array(7).fill(0);rows.forEach(r=>{wdS[r.dow]+=r[dim];wdC[r.dow]++;});
-  const wdAvg=wdS.map((s,i)=>wdC[i]?Math.round(s/wdC[i]):0);
-  mkChart('trend-weekday',{type:'bar',data:{labels:['週一','週二','週三','週四','週五','週六','週日'],datasets:[{label:'日平均',data:wdAvg,backgroundColor:[C.b+'88',C.b+'88',C.b+'88',C.b+'88',C.a+'88',C.w+'aa',C.w+'aa'],borderRadius:4}]},options:{...BO,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
+  // 週間分佈：本期 vs 前四週同 dow 平均
+  const activeDatesSet = new Set(ad);
+  // 前四週：在選定區間之前，往回取最多 28 天
+  const allSortedDates = ALL_DATES.filter(d => {
+    const yr = DATE_YEAR_MAP[d] || TODAY.getFullYear();
+    return internalToDate(d, yr) < state.dateStart;
+  }).slice(-28);
+  const prev4wSet = new Set(allSortedDates);
+
+  // 本期各 dow：每店日均
+  const curDow  = Array(7).fill(null).map(() => ({sum:0, storeSums:0, days:new Set()}));
+  rows.forEach(r => {
+    curDow[r.dow].sum += r[dim];
+    curDow[r.dow].days.add(r['date']);
+  });
+  const curDowAvg = curDow.map(d => {
+    if(!d.days.size) return 0;
+    const storeCount = new Set(rows.filter(r=>d.days.has(r['date'])).map(r=>r.store)).size || 1;
+    return Math.round(d.sum / d.days.size / storeCount);
+  });
+
+  // 前四週各 dow：每店日均（只取篩選門市）
+  const prevRows4w = DATA.filter(r =>
+    state.zones.has(r.zone) && state.stores.has(r.store) && prev4wSet.has(r.date)
+  );
+  const prevDow = Array(7).fill(null).map(() => ({sum:0, days:new Set()}));
+  prevRows4w.forEach(r => {
+    prevDow[r.dow].sum += r[dim];
+    prevDow[r.dow].days.add(r['date']);
+  });
+  const prevDowAvg = prevDow.map((d,i) => {
+    if(!d.days.size) return 0;
+    const storeCount = new Set(prevRows4w.filter(r=>d.days.has(r['date'])&&r.dow===i).map(r=>r.store)).size || 1;
+    return Math.round(d.sum / d.days.size / storeCount);
+  });
+
+  const DOW_LABELS = ['週一','週二','週三','週四','週五','週六','週日'];
+  const fmtW = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+
+  mkChart('trend-weekday',{
+    type:'bar',
+    data:{
+      labels: DOW_LABELS,
+      datasets:[
+        {
+          type:'bar', label:'本期每店日均',
+          data: curDowAvg,
+          backgroundColor: curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a+'99':C.w+'88'),
+          borderColor:     curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a:C.w),
+          borderWidth:1.5, borderRadius:4, maxBarThickness:38, order:2,
+        },
+        {
+          type:'line', label:'前4週基線',
+          data: prevDowAvg,
+          borderColor:C.b, borderWidth:2, borderDash:[5,4],
+          pointRadius:5, pointBackgroundColor:C.b,
+          pointBorderColor:'#161b27', pointBorderWidth:2,
+          pointHoverRadius:7, fill:false, tension:0.3, order:1,
+        }
+      ]
+    },
+    options:{
+      ...BO,
+      scales:{
+        x:{ grid:{ display:false } },
+        y:{ grid:{ color:'#1e2536' }, ticks:{ callback:v=>fmtW(v) } }
+      },
+      plugins:{
+        legend:{ labels:{ boxWidth:11 } },
+        tooltip:{
+          mode:'index', intersect:false,
+          callbacks:{
+            label: ctx => {
+              const v = ctx.raw;
+              return ctx.datasetIndex===0
+                ? `本期：${fmtW(v)}元/店`
+                : `前4週基線：${fmtW(v)}元/店`;
+            },
+            afterBody: ctx => {
+              if(ctx.length<2) return [];
+              const cur=ctx[0].raw, base=ctx[1].raw;
+              if(!base) return [];
+              const diff=cur-base, pct=((diff/base)*100).toFixed(1);
+              return [`差異：${diff>=0?'+':''}${fmtW(diff)} (${pct}%)`];
+            }
+          }
+        }
+      }
+    }
+  });
   const wMap={};rows.forEach(r=>{const w=r.weather||'晴';if(!wMap[w])wMap[w]={s:0,c:0};wMap[w].s+=r[dim];wMap[w].c++;});
   mkChart('trend-weather',{type:'bar',data:{labels:['晴','陰','雨'],datasets:[{label:'日平均',data:['晴','陰','雨'].map(w=>wMap[w]?Math.round(wMap[w].s/wMap[w].c):0),backgroundColor:[C.w+'99','#adb5bd99',C.a+'99'],borderRadius:4}]},options:{...BO,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
 }
