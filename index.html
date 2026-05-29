@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202605290735";</script>
-<script id="data-script" src="data.js?v=202605290735"></script>
+<script>window.DATA_VERSION="202605290744";</script>
+<script id="data-script" src="data.js?v=202605290744"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -318,7 +318,7 @@ canvas{max-height:300px;}
       <div id="data-info-trend"></div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub">依篩選門市與日期區間加總</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（日平均）</div><div class="chart-sub">週一–日平均值</div></div></div><canvas id="trend-weekday"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
       </div>
     </div>
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202605290735"]*"/g, `DATA_VERSION="202605290735"`);
+                                .replace(/DATA_VERSION="202605290744"]*"/g, `DATA_VERSION="202605290744"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1274,6 +1274,17 @@ function renderTrend(){
   }).slice(-28);
   const prev4wSet = new Set(allSortedDates);
 
+  // 更新副標題：顯示本期 & 前4週日期範圍
+  const subEl = document.getElementById('weekday-sub');
+  if(subEl){
+    const curStart = ad[0], curEnd = ad[ad.length-1];
+    const prevStart = allSortedDates[0], prevEnd = allSortedDates[allSortedDates.length-1];
+    const fmt = d => d ? d.replace(/^0/,'').replace('/','月').replace(/^(\d+)\/(.+)$/,'$1月$2日') : '-';
+    const curLabel  = `本期 ${fmt(curStart)}～${fmt(curEnd)}`;
+    const prevLabel = prevStart ? `基線 ${fmt(prevStart)}～${fmt(prevEnd)}（${allSortedDates.length}天）` : '基線 無資料';
+    subEl.textContent = `${curLabel}　｜　${prevLabel}`;
+  }
+
   // 本期各 dow：每店日均
   const curDow  = Array(7).fill(null).map(() => ({sum:0, storeSums:0, days:new Set()}));
   rows.forEach(r => {
@@ -1356,7 +1367,41 @@ function renderTrend(){
     }
   });
   const wMap={};rows.forEach(r=>{const w=r.weather||'晴';if(!wMap[w])wMap[w]={s:0,c:0};wMap[w].s+=r[dim];wMap[w].c++;});
-  mkChart('trend-weather',{type:'bar',data:{labels:['晴','陰','雨'],datasets:[{label:'日平均',data:['晴','陰','雨'].map(w=>wMap[w]?Math.round(wMap[w].s/wMap[w].c):0),backgroundColor:[C.w+'99','#adb5bd99',C.a+'99'],borderRadius:4}]},options:{...BO,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
+  const weatherLabels = ['晴','陰','雨'];
+  const weatherVals   = weatherLabels.map(w => wMap[w] ? Math.round(wMap[w].s/wMap[w].c) : 0);
+  const weatherDays   = weatherLabels.map(w => wMap[w] ? wMap[w].c : 0);
+  const weatherXLabels = weatherLabels.map((w,i) => weatherDays[i] ? `${w}（${weatherDays[i]}天）` : w);
+  const fmtWV = v => v>=10000?(v/10000).toFixed(0)+'萬':v.toLocaleString();
+
+  mkChart('trend-weather',{
+    type:'bar',
+    data:{
+      labels: weatherXLabels,
+      datasets:[{
+        label:'每店日均',
+        data: weatherVals,
+        backgroundColor:[C.w+'99','#adb5bd99',C.a+'99'],
+        borderColor:[C.w,'#adb5bd',C.a],
+        borderWidth:1.5, borderRadius:5, maxBarThickness:50,
+      }]
+    },
+    options:{
+      ...BO,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => `每店日均：${fmtWV(ctx.raw)}元`,
+            afterLabel: ctx => `共 ${weatherDays[ctx.dataIndex]} 天`,
+          }
+        }
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ font:{ size:11 } } },
+        y:{ grid:{ color:'#1e2536' }, ticks:{ callback:v=>fmtWV(v) } }
+      }
+    }
+  });
 }
 
 /* ══ COMPARE ══ */
