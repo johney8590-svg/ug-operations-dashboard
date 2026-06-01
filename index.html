@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606010155";</script>
-<script id="data-script" src="data.js?v=202606010155"></script>
+<script>window.DATA_VERSION="202606010307";</script>
+<script id="data-script" src="data.js?v=202606010307"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606010155"]*"/g, `DATA_VERSION="202606010155"`);
+                                .replace(/DATA_VERSION="202606010307"]*"/g, `DATA_VERSION="202606010307"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1264,7 +1264,43 @@ function renderTrend(){
   renderInfoBar('data-info-trend');
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();const byDate={};rows.forEach(r=>{byDate[r.date]=(byDate[r.date]||0)+r[dim];});
-  mkChart('trend-line',{type:'line',data:{labels:ad,datasets:[{label:DIM_LABEL[state.dim],data:ad.map(d=>byDate[d]||0),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.35,pointRadius:1.5,pointHoverRadius:5}]},options:{...BO,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:20,font:{size:10}}},y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
+  mkChart('trend-line',{
+    type:'line',
+    data:{labels:ad,datasets:[{
+      label:DIM_LABEL[state.dim],
+      data:ad.map(d=>byDate[d]||0),
+      borderColor:C.a,backgroundColor:C.a+'22',fill:true,
+      tension:0.35,pointRadius:2,pointHoverRadius:7,borderWidth:2,
+    }]},
+    options:{
+      ...BO,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          mode:'index',intersect:false,
+          callbacks:{
+            title:ctx=>{
+              const date=ctx[0]?.label||'';
+              const row=DATA.find(r=>r.date===date);
+              const DOW=['一','二','三','四','五','六','日'];
+              return row?`${date}（週${DOW[row.dow]}）`:date;
+            },
+            label:ctx=>{
+              const v=ctx.raw;
+              const u=state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+              const fv=state.dim==='revenue'?(v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString()):v.toLocaleString();
+              return `每店日均：${fv}${u}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{maxTicksLimit:20,font:{size:10}}},
+        y:{grid:{color:'#1e2536'},ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}
+      }
+    }
+  });
   // 週間分佈：本期 vs 前四週同 dow 平均
   const activeDatesSet = new Set(ad);
   // 前四週：在選定區間之前，往回取最多 28 天
@@ -1457,32 +1493,43 @@ function renderCompare(){
     data:{
       labels:['週一','週二','週三','週四','週五','週六','週日'],
       datasets:[
-        {label:'本週每店日均', data:twDowDailyAvg,
-          borderColor:C.a, backgroundColor:C.a+'22', fill:true,
-          tension:0.3, pointRadius:5, borderWidth:2.5},
-        {label:'前期基線（每店日均）', data:bClean,
-          borderColor:C.b+'99', borderDash:[6,4], fill:false,
-          tension:0.3, pointRadius:3, borderWidth:1.5}
+        {label:'本週每店日均',data:twDowDailyAvg,
+          borderColor:C.a,backgroundColor:C.a+'22',fill:true,
+          tension:0.3,pointRadius:5,pointHoverRadius:8,borderWidth:2.5},
+        {label:'前期基線（每店日均）',data:bClean,
+          borderColor:C.b+'99',borderDash:[6,4],fill:false,
+          tension:0.3,pointRadius:4,pointHoverRadius:7,borderWidth:1.5,
+          pointBackgroundColor:C.b+'88'}
       ]
     },
     options:{
       ...BO,
-      scales:{y:{ticks:{callback:v=>fmtV(v)}}},
+      interaction:{mode:'index',intersect:false},
       plugins:{
         legend:{labels:{boxWidth:11}},
         tooltip:{
+          mode:'index',intersect:false,
           callbacks:{
-            afterBody: ctx=>{
-              if(ctx.length===2){
-                const a=ctx[0].raw, b=ctx[1].raw;
-                if(!b) return [];
-                const diff=a-b, pct=((diff/b)*100).toFixed(1);
-                return [`vs 基線：${diff>=0?'+':''}${fmtV(diff)}${unit} (${pct}%)`];
-              }
-              return [];
+            label:ctx=>{
+              const v=ctx.raw;
+              const fv=v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+              const u=state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+              return ctx.datasetIndex===0?`本週：${fv}${u}`:`前期基線：${fv}${u}`;
+            },
+            afterBody:ctx=>{
+              if(ctx.length<2)return[];
+              const a=ctx[0].raw,b=ctx[1].raw;
+              if(!b)return[];
+              const diff=a-b,pct=((diff/b)*100).toFixed(1);
+              const fd=Math.abs(diff)>=10000?(diff/10000).toFixed(1)+'萬':Math.abs(diff).toLocaleString();
+              return[`差異：${diff>=0?'+':'−'}${fd} (${pct}%)`];
             }
           }
         }
+      },
+      scales:{
+        x:{grid:{display:false}},
+        y:{grid:{color:'#1e2536'},ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}
       }
     }
   });
