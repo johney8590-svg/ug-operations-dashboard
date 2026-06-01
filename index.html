@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606010520";</script>
-<script id="data-script" src="data.js?v=202606010520"></script>
+<script>window.DATA_VERSION="202606011330";</script>
+<script id="data-script" src="data.js?v=202606011330"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -128,6 +128,32 @@ canvas{max-height:300px;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+/* ── 渠道結構分析 ── */
+.ch-alert{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.25);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ch-alert-icon{font-size:18px;flex-shrink:0;}
+.ch-alert-main{flex:1;}
+.ch-alert-title{font-size:13px;font-weight:700;color:var(--danger);}
+.ch-alert-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.ch-alert-nums{display:flex;gap:18px;flex-wrap:wrap;}
+.ch-num{text-align:center;}
+.ch-num-val{font-size:18px;font-weight:700;font-family:var(--mono);}
+.ch-num-lbl{font-size:10px;color:var(--text3);margin-top:1px;}
+.ch-table-wrap{overflow-x:auto;}
+.ch-table{width:100%;border-collapse:collapse;font-size:12px;}
+.ch-table thead{position:sticky;top:0;z-index:2;}
+.ch-table th{padding:7px 11px;text-align:center;background:var(--bg3);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;border-bottom:1px solid var(--border);}
+.ch-table th.tl{text-align:left;}
+.ch-table td{padding:8px 11px;border-bottom:1px solid rgba(42,49,71,.4);text-align:center;vertical-align:middle;}
+.ch-table td.tl{text-align:left;}
+.ch-table tr:hover td{background:rgba(255,255,255,.018);}
+.ch-table .tsep{border-left:1px solid var(--border) !important;}
+.ch-loss{color:var(--danger);font-family:var(--mono);font-size:11px;}
+.ch-rv{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;display:inline-block;}
+.ch-rv.ok{background:rgba(81,207,102,.12);color:#51cf66;}
+.ch-rv.warn{background:rgba(255,212,59,.1);color:var(--warn);}
+.ch-rv.bad{background:rgba(255,107,107,.1);color:var(--danger);}
+.ch-rv.neutral{background:var(--bg3);color:var(--text3);}
 
 /* ── RANK CARD WALL ── */
 .rank-card{
@@ -312,6 +338,45 @@ canvas{max-height:300px;}
         </div>
         <canvas id="weekly-compare-chart"></canvas>
       </div>
+
+      <!-- 渠道結構分析（含抽傭） -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">渠道結構分析（含抽傭損失）</div>
+            <div class="chart-sub">UB 抽33%、FP 抽31% · 帳面營收 vs 實收對比 · 貢獻度 = 該渠道增減 ÷ 整體增減</div>
+          </div>
+        </div>
+        <div id="ch-alert-wrap"></div>
+        <div class="ch-table-wrap">
+          <table class="ch-table">
+            <thead>
+              <tr>
+                <th class="tl" rowspan="2">門市</th>
+                <th class="tsep tl" rowspan="2">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
+                <th class="tsep" colspan="2" style="color:#51cf66">現場</th>
+                <th class="tsep" colspan="3" style="color:var(--accent)">UberEats（抽33%）</th>
+                <th class="tsep" colspan="3" style="color:var(--purple)">Foodpanda（抽31%）</th>
+                <th class="tsep" colspan="2" style="color:var(--accent2)">ODO</th>
+                <th class="tsep" rowspan="2">判斷</th>
+              </tr>
+              <tr>
+                <th class="tsep" style="color:#51cf66">貢獻度</th><th style="color:#51cf66">佔比△</th>
+                <th class="tsep" style="color:var(--accent)">實收</th><th style="color:var(--accent)">抽傭損失</th><th style="color:var(--accent)">佔比△</th>
+                <th class="tsep" style="color:var(--purple)">實收</th><th style="color:var(--purple)">抽傭損失</th><th style="color:var(--purple)">佔比△</th>
+                <th class="tsep" style="color:var(--accent2)">貢獻度</th><th style="color:var(--accent2)">佔比△</th>
+              </tr>
+            </thead>
+            <tbody id="ch-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--text3);">
+          <span>📌 <b style="color:var(--text2)">實收</b> = 帳面金額 × (1－抽傭率)</span>
+          <span>📌 <b style="color:var(--text2)">佔比△</b> 外送↑紅色=獲利侵蝕；現場↑綠色=健康</span>
+          <span>📌 <b style="color:var(--text2)">貢獻度</b> 負值=該渠道拖累整體</span>
+        </div>
+      </div>
+
     </div>
     <!-- TREND -->
     <div class="tab-page" id="page-trend">
@@ -458,7 +523,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606010520"]*"/g, `DATA_VERSION="202606010520"`);
+                                .replace(/DATA_VERSION="202606011330"]*"/g, `DATA_VERSION="202606011330"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1625,6 +1690,7 @@ function renderCompare(){
       }
     }
   });
+  renderChannelAnalysis();
 }
 
 /* ══ 共用：計算選定區間的前 28 天基線 ══ */
@@ -1643,6 +1709,127 @@ function getPrev28Label(){
     return `${parseInt(m)}/${parseInt(day)}`;
   };
   return `${fmt(p[0])}～${fmt(p[p.length-1])}（${p.length}天）`;
+}
+
+/* ══ 渠道結構分析 ══ */
+const CH_COMM = {onsite:0, ub:0.33, fp:0.31, odo:0};
+
+function renderChannelAnalysis(){
+  const rows  = filterData(DATA);
+  const prev28 = getPrev28Days();
+  const p28Set = new Set(prev28);
+  const pRows  = DATA.filter(r => state.zones.has(r.zone) && state.stores.has(r.store) && p28Set.has(r.date));
+
+  if(!rows.length){ document.getElementById('ch-tbody').innerHTML=''; document.getElementById('ch-alert-wrap').innerHTML=''; return; }
+
+  // 加總（取各店平均日均，避免天數不同造成失真）
+  function storeAvg(dataset){
+    const map={};
+    dataset.forEach(r=>{
+      if(!map[r.store]) map[r.store]={rev:0,onsite:0,ub:0,fp:0,odo:0,days:new Set()};
+      const m=map[r.store];
+      m.rev+=r.revenue; m.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+      m.ub+=r.ub; m.fp+=r.fp; m.odo+=r.odo; m.days.add(r.date);
+    });
+    return Object.entries(map).map(([store,d])=>{
+      const days=d.days.size||1;
+      return {store, name:store, zone:DATA.find(r=>r.store===store)?.zone||'',
+        rev:Math.round(d.rev/days), onsite:Math.round(d.onsite/days),
+        ub:Math.round(d.ub/days), fp:Math.round(d.fp/days), odo:Math.round(d.odo/days)};
+    });
+  }
+
+  const curData = storeAvg(rows);
+  const prevMap = {};
+  storeAvg(pRows).forEach(s=>{ prevMap[s.store]=s; });
+
+  const fmtM = v => { const a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':a.toLocaleString()); };
+
+  // 全體加總
+  const totCR  = curData.reduce((a,s)=>a+s.rev,0);
+  const totPR  = Object.values(prevMap).reduce((a,s)=>a+s.rev,0)||1;
+  const totCommCur  = curData.reduce((a,s)=>a+s.ub*CH_COMM.ub+s.fp*CH_COMM.fp,0);
+  const totCommPrev = Object.values(prevMap).reduce((a,s)=>a+s.ub*CH_COMM.ub+s.fp*CH_COMM.fp,0)||1;
+  const totNetCur   = curData.reduce((a,s)=>a+s.rev-(s.ub*CH_COMM.ub+s.fp*CH_COMM.fp),0);
+  const commRatio   = totCR>0?totCommCur/totCR*100:0;
+  const commChg     = (totCommCur-totCommPrev)/totCommPrev*100;
+  const chgCls = commChg>=5?'var(--danger)':commChg>0?'var(--warn)':'#51cf66';
+
+  document.getElementById('ch-alert-wrap').innerHTML=`
+    <div class="ch-alert">
+      <div class="ch-alert-icon">⚠️</div>
+      <div class="ch-alert-main">
+        <div class="ch-alert-title">平台抽傭侵蝕提示</div>
+        <div class="ch-alert-sub">UB(33%) + FP(31%) 每店日均損失 <b style="color:var(--danger)">${fmtM(totCommCur/curData.length)}元</b>，佔整體 <b style="color:var(--danger)">${commRatio.toFixed(1)}%</b></div>
+      </div>
+      <div class="ch-alert-nums">
+        <div class="ch-num"><div class="ch-num-val" style="color:var(--danger)">−${fmtM(totCommCur/curData.length)}</div><div class="ch-num-lbl">每店日均損失</div></div>
+        <div class="ch-num"><div class="ch-num-val" style="color:var(--warn)">${commRatio.toFixed(1)}%</div><div class="ch-num-lbl">佔整體營收</div></div>
+        <div class="ch-num"><div class="ch-num-val" style="color:${chgCls}">${commChg>=0?'+':''}${commChg.toFixed(1)}%</div><div class="ch-num-lbl">vs 前28天</div></div>
+        <div class="ch-num"><div class="ch-num-val" style="color:var(--text)">${fmtM(totNetCur/curData.length)}</div><div class="ch-num-lbl">扣傭後每店日均</div></div>
+      </div>
+    </div>`;
+
+  function verdictOf(revChg,dShift,netChg){
+    if(revChg>=3&&dShift>=4)  return{cls:'bad', txt:'🔴 外送侵蝕獲利'};
+    if(revChg>=3&&dShift>=2)  return{cls:'warn',txt:'⚠️ 成長但傭金↑'};
+    if(revChg>=3&&dShift<1)   return{cls:'ok',  txt:'✅ 健康成長'};
+    if(revChg<=-3&&dShift>=2) return{cls:'bad', txt:'🔴 衰退+外送侵蝕'};
+    if(revChg<=-3)             return{cls:'bad', txt:'📉 整體衰退'};
+    if(Math.abs(revChg)<3&&Math.abs(dShift)<1.5) return{cls:'neutral',txt:'➡️ 結構穩定'};
+    if(dShift>=3)              return{cls:'bad', txt:'🔴 外送佔比失控'};
+    if(dShift<=-2)             return{cls:'ok',  txt:'🏪 現場回流'};
+    return{cls:'neutral',txt:'➡️ 持平觀察'};
+  }
+
+  const totDiff = totCR - totPR;
+  let tbodyHtml = '';
+
+  curData.sort((a,b)=>b.rev-a.rev).forEach(s=>{
+    const p = prevMap[s.store] || {rev:s.rev,onsite:s.onsite,ub:s.ub,fp:s.fp,odo:s.odo};
+    const cr=s.rev, pr=p.rev||1;
+    const revDiff=cr-pr, revChg=(revDiff/pr)*100;
+    const netCur=cr-(s.ub*CH_COMM.ub+s.fp*CH_COMM.fp);
+    const netPrev=pr-(p.ub*CH_COMM.ub+p.fp*CH_COMM.fp);
+    const netChg=netPrev>0?((netCur-netPrev)/netPrev*100):0;
+    const extCur=(s.ub+s.fp)/cr*100, extPrev=(p.ub+p.fp)/pr*100;
+    const v=verdictOf(revChg,extCur-extPrev,netChg);
+    const rCls=revChg>=3?'pos':revChg<=-3?'neg':'neu';
+    const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
+
+    function chCell(cur,prev,cRev,pRev,key){
+      const diff=cur-prev, contrib=revDiff!==0?(diff/revDiff*100):0;
+      const curR=cur/cRev*100, prevR=prev/(pRev||1)*100, rd=curR-prevR;
+      const isD=(key!=='onsite');
+      const cCls=contrib>=20?'pos':contrib<=-20?'neg':'neu';
+      const rCls2=Math.abs(rd)<0.5?'neu':(rd>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
+      const rIcon=Math.abs(rd)<0.5?'—':rd>0?'↑':'↓';
+      if(key==='ub'||key==='fp'){
+        const comm=CH_COMM[key], net=cur*(1-comm), loss=cur*comm;
+        return `<td class="tsep"><span style="font-family:var(--mono);font-size:11px">${fmtM(net)}元</span><br><span style="font-size:10px;color:var(--text3)">(帳${fmtM(cur)})</span></td>
+          <td><span class="ch-loss">−${fmtM(loss)}</span></td>
+          <td><span class="${rCls2}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>`;
+      }
+      return `<td class="tsep"><span class="${cCls}" style="font-family:var(--mono);font-weight:700;font-size:12px">${contrib>=0?'+':''}${contrib.toFixed(0)}%</span></td>
+        <td><span class="${rCls2}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>`;
+    }
+
+    tbodyHtml+=`<tr>
+      <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
+      <td class="tsep tl">
+        <span style="font-family:var(--mono);font-size:12px">${fmtM(cr)}元</span>
+        <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">帳面 ${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
+        <span class="${nCls}" style="font-size:10px;font-weight:600;display:block">實收 ${netChg>=0?'▲':'▼'}${Math.abs(netChg).toFixed(1)}%</span>
+      </td>
+      ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
+      ${chCell(s.ub,p.ub,cr,pr,'ub')}
+      ${chCell(s.fp,p.fp,cr,pr,'fp')}
+      ${chCell(s.odo,p.odo,cr,pr,'odo')}
+      <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
+    </tr>`;
+  });
+
+  document.getElementById('ch-tbody').innerHTML = tbodyHtml;
 }
 
 /* ══ RENDER ALL ══ */
