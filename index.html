@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606010307";</script>
-<script id="data-script" src="data.js?v=202606010307"></script>
+<script>window.DATA_VERSION="202606010428";</script>
+<script id="data-script" src="data.js?v=202606010428"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606010307"]*"/g, `DATA_VERSION="202606010307"`);
+                                .replace(/DATA_VERSION="202606010428"]*"/g, `DATA_VERSION="202606010428"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -650,8 +650,17 @@ function applyCustomRange(){
 }
 document.getElementById('dr-btn').addEventListener('click',e=>{e.stopPropagation();closeAll();document.getElementById('dr-panel').classList.toggle('open');});
 document.getElementById('dr-panel').addEventListener('click',e=>e.stopPropagation());
-document.getElementById('dr-start').addEventListener('change',()=>{document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));state.activeShortcut='custom';const sv=document.getElementById('dr-start').value,ev=document.getElementById('dr-end').value;if(sv&&ev){const s=inputToDate(sv),e=inputToDate(ev);if(s<=e){const cnt=ALL_DATES.filter(d=>{const dt=internalToDate(d);return dt>=s&&dt<=e;}).length;document.getElementById('dr-range-note').textContent=cnt>0?`此區間包含 ${cnt} 天資料`:'此區間無資料';}}});
-document.getElementById('dr-end').addEventListener('change',()=>{document.getElementById('dr-start').dispatchEvent(new Event('change'));});
+document.getElementById('dr-start').addEventListener('change',()=>{
+  document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));
+  state.activeShortcut='custom';
+  // 自動跳到結束日期欄位
+  setTimeout(()=>document.getElementById('dr-end').focus(), 50);
+  const sv=document.getElementById('dr-start').value,ev=document.getElementById('dr-end').value;
+  if(sv&&ev){const s=inputToDate(sv),e=inputToDate(ev);if(s<=e){const cnt=ALL_DATES.filter(d=>{const yr=DATE_YEAR_MAP[d]||TODAY.getFullYear();const dt=internalToDate(d,yr);return dt>=s&&dt<=e;}).length;document.getElementById('dr-range-note').textContent=cnt>0?`此區間包含 ${cnt} 天資料`:'此區間無資料';}}
+});
+document.getElementById('dr-end').addEventListener('change',()=>{
+  document.getElementById('dr-start').dispatchEvent(new Event('change'));
+});
 
 /* ══ STATE ══ */
 const initRange=computeShortcut('cur-month');
