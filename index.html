@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606011400";</script>
-<script id="data-script" src="data.js?v=202606011400"></script>
+<script>window.DATA_VERSION="202606011403";</script>
+<script id="data-script" src="data.js?v=202606011403"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -731,7 +731,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606011400"]*"/g, `DATA_VERSION="202606011400"`);
+                                .replace(/DATA_VERSION="202606011403"]*"/g, `DATA_VERSION="202606011403"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1018,9 +1018,15 @@ document.addEventListener('click',()=>closeAll());
 const PAGE_TITLES={upload:'更新資料',today:'今日現況',trend:'趨勢分析',compare:'門市對比'};
 function switchPage(p,el){
   state.page=p;
-  document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');
-  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));el.classList.add('active');
-  document.getElementById('page-title').textContent=PAGE_TITLES[p];renderAll();
+  document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('page-title').textContent=PAGE_TITLES[p];
+  // 同步底部 tab bar
+  const mTab=document.getElementById('mtab-'+p);
+  if(mTab){ document.querySelectorAll('.mobile-tab-item').forEach(t=>t.classList.remove('active')); mTab.classList.add('active'); }
+  renderAll();
 }
 function setDim(dim,btn){state.dim=dim;document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAll();}
 
@@ -2331,16 +2337,7 @@ function mobileTab(page, el){
   el.classList.add('active');
 }
 
-// 桌機 nav 點擊時也同步底部 tab
-const _origSwitchPage = switchPage;
-switchPage = function(p, el){
-  _origSwitchPage(p, el);
-  const mTab = document.getElementById('mtab-' + p);
-  if(mTab){
-    document.querySelectorAll('.mobile-tab-item').forEach(t => t.classList.remove('active'));
-    mTab.classList.add('active');
-  }
-};
+// 桌機 nav 點擊時同步底部 tab（透過 switchPage 內部處理）
 
 /* ══ INIT ══ */
 updateTokenStatus();
