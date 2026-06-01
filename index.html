@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606011330";</script>
-<script id="data-script" src="data.js?v=202606011330"></script>
+<script>window.DATA_VERSION="202606011335";</script>
+<script id="data-script" src="data.js?v=202606011335"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -154,6 +154,14 @@ canvas{max-height:300px;}
 .ch-rv.warn{background:rgba(255,212,59,.1);color:var(--warn);}
 .ch-rv.bad{background:rgba(255,107,107,.1);color:var(--danger);}
 .ch-rv.neutral{background:var(--bg3);color:var(--text3);}
+.ch-sort-btn{
+  background:rgba(255,255,255,.08);border:1px solid var(--border);
+  border-radius:4px;color:var(--text2);cursor:pointer;font-size:11px;
+  padding:1px 5px;margin-left:5px;font-family:var(--font);
+  transition:all .15s;vertical-align:middle;
+}
+.ch-sort-btn:hover{background:rgba(79,158,255,.2);color:var(--accent);border-color:var(--accent);}
+.ch-sort-btn.active{background:rgba(79,158,255,.25);color:var(--accent);border-color:var(--accent);}
 
 /* ── RANK CARD WALL ── */
 .rank-card{
@@ -354,17 +362,25 @@ canvas{max-height:300px;}
               <tr>
                 <th class="tl" rowspan="2">門市</th>
                 <th class="tsep tl" rowspan="2">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
-                <th class="tsep" colspan="2" style="color:#51cf66">現場</th>
-                <th class="tsep" colspan="3" style="color:var(--accent)">UberEats（抽33%）</th>
-                <th class="tsep" colspan="3" style="color:var(--purple)">Foodpanda（抽31%）</th>
-                <th class="tsep" colspan="2" style="color:var(--accent2)">ODO</th>
+                <th class="tsep" colspan="2" style="color:#51cf66">
+                  現場 <button class="ch-sort-btn" onclick="sortChTable('onsite')" title="依現場成長率排序">⇅</button>
+                </th>
+                <th class="tsep" colspan="3" style="color:var(--accent)">
+                  UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub')" title="依UB佔比△排序">⇅</button>
+                </th>
+                <th class="tsep" colspan="3" style="color:var(--purple)">
+                  Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp')" title="依FP佔比△排序">⇅</button>
+                </th>
+                <th class="tsep" colspan="2" style="color:var(--accent2)">
+                  ODO <button class="ch-sort-btn" onclick="sortChTable('odo')" title="依ODO成長率排序">⇅</button>
+                </th>
                 <th class="tsep" rowspan="2">判斷</th>
               </tr>
               <tr>
-                <th class="tsep" style="color:#51cf66">貢獻度</th><th style="color:#51cf66">佔比△</th>
+                <th class="tsep" style="color:#51cf66">佔比△</th><th style="color:#51cf66">成長率</th>
                 <th class="tsep" style="color:var(--accent)">實收</th><th style="color:var(--accent)">抽傭損失</th><th style="color:var(--accent)">佔比△</th>
                 <th class="tsep" style="color:var(--purple)">實收</th><th style="color:var(--purple)">抽傭損失</th><th style="color:var(--purple)">佔比△</th>
-                <th class="tsep" style="color:var(--accent2)">貢獻度</th><th style="color:var(--accent2)">佔比△</th>
+                <th class="tsep" style="color:var(--accent2)">佔比△</th><th style="color:var(--accent2)">成長率</th>
               </tr>
             </thead>
             <tbody id="ch-tbody"></tbody>
@@ -523,7 +539,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606011330"]*"/g, `DATA_VERSION="202606011330"`);
+                                .replace(/DATA_VERSION="202606011335"]*"/g, `DATA_VERSION="202606011335"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1830,6 +1846,118 @@ function renderChannelAnalysis(){
   });
 
   document.getElementById('ch-tbody').innerHTML = tbodyHtml;
+  // 儲存目前的 storeData 供排序使用
+  window._chStoreData = curData.sort((a,b)=>b.rev-a.rev).map(s=>({
+    s, p: prevMap[s.store] || s
+  }));
+  window._chPrevMap = prevMap;
+  window._chCurData = curData;
+  // 重設排序按鈕狀態
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('active'));
+  window._chSortKey = null;
+  window._chSortAsc = false;
+}
+
+/* ══ 渠道表格排序 ══ */
+function sortChTable(key){
+  if(!window._chStoreData) return;
+
+  // 切換升冪/降冪（同一 key 再點一次反向）
+  if(window._chSortKey === key){
+    window._chSortAsc = !window._chSortAsc;
+  } else {
+    window._chSortKey = key;
+    window._chSortAsc = false; // 預設降冪（成長最大的在最上面）
+  }
+
+  // 更新按鈕狀態
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  const asc = window._chSortAsc;
+
+  // 計算各店的排序值（依據佔比△，反映結構變化）
+  function getSortVal(item){
+    const s=item.s, p=item.p;
+    const cr=s.rev||1, pr=p.rev||1;
+    const curR = s[key]/cr*100;
+    const prevR= p[key]/pr*100;
+    return curR - prevR; // 佔比偏移（pp）
+  }
+
+  const sorted = [...window._chStoreData].sort((a,b)=>{
+    const va=getSortVal(a), vb=getSortVal(b);
+    return asc ? va-vb : vb-va;
+  });
+
+  // 重新渲染 tbody（直接重建 HTML）
+  const fmtM = v => { const a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':a.toLocaleString()); };
+
+  function verdictOf(revChg,dShift){
+    if(revChg>=3&&dShift>=4)  return{cls:'bad', txt:'🔴 外送侵蝕獲利'};
+    if(revChg>=3&&dShift>=2)  return{cls:'warn',txt:'⚠️ 成長但傭金↑'};
+    if(revChg>=3&&dShift<1)   return{cls:'ok',  txt:'✅ 健康成長'};
+    if(revChg<=-3&&dShift>=2) return{cls:'bad', txt:'🔴 衰退+外送侵蝕'};
+    if(revChg<=-3)             return{cls:'bad', txt:'📉 整體衰退'};
+    if(Math.abs(revChg)<3&&Math.abs(dShift)<1.5) return{cls:'neutral',txt:'➡️ 結構穩定'};
+    if(dShift>=3)              return{cls:'bad', txt:'🔴 外送佔比失控'};
+    if(dShift<=-2)             return{cls:'ok',  txt:'🏪 現場回流'};
+    return{cls:'neutral',txt:'➡️ 持平觀察'};
+  }
+
+  function chCell(cur,prev,cRev,pRev,k){
+    const diff=cur-prev;
+    const totDiff=cRev-pRev;
+    const contrib=totDiff!==0?(diff/totDiff*100):0;
+    const curR=cur/cRev*100, prevR=prev/(pRev||1)*100, rd=curR-prevR;
+    const isD=(k!=='onsite');
+    const cCls=contrib>=20?'pos':contrib<=-20?'neg':'neu';
+    const rCls=Math.abs(rd)<0.5?'neu':(rd>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
+    const rIcon=Math.abs(rd)<0.5?'—':rd>0?'↑':'↓';
+    // 被排序的欄位加底線高亮
+    const sortHL = k===window._chSortKey ? 'background:rgba(79,158,255,.06);' : '';
+    if(k==='ub'||k==='fp'){
+      const comm=CH_COMM[k], net=cur*(1-comm), loss=cur*comm;
+      return `<td class="tsep" style="${sortHL}"><span style="font-family:var(--mono);font-size:11px">${fmtM(net)}元</span><br><span style="font-size:10px;color:var(--text3)">(帳${fmtM(cur)})</span></td>
+        <td><span class="ch-loss">−${fmtM(loss)}</span></td>
+        <td style="${sortHL}"><span class="${rCls}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>`;
+    }
+    const chgPct = prev>0?((cur-prev)/prev*100):0;
+    return `<td class="tsep" style="${sortHL}"><span class="${rCls}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>
+      <td style="${sortHL}"><span class="${cCls}" style="font-family:var(--mono);font-weight:700;font-size:12px">${chgPct>=0?'+':''}${chgPct.toFixed(1)}%</span></td>`;
+  }
+
+  let tbodyHtml='';
+  sorted.forEach(({s,p})=>{
+    const cr=s.rev, pr=p.rev||1;
+    const revDiff=cr-pr, revChg=(revDiff/pr)*100;
+    const netCur=cr-(s.ub*CH_COMM.ub+s.fp*CH_COMM.fp);
+    const netPrev=pr-(p.ub*CH_COMM.ub+p.fp*CH_COMM.fp);
+    const netChg=netPrev>0?((netCur-netPrev)/netPrev*100):0;
+    const extCur=(s.ub+s.fp)/cr*100, extPrev=(p.ub+p.fp)/pr*100;
+    const v=verdictOf(revChg,extCur-extPrev);
+    const rCls=revChg>=3?'pos':revChg<=-3?'neg':'neu';
+    const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
+    tbodyHtml+=`<tr>
+      <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
+      <td class="tsep tl">
+        <span style="font-family:var(--mono);font-size:12px">${fmtM(cr)}元</span>
+        <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">帳面 ${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
+        <span class="${nCls}" style="font-size:10px;font-weight:600;display:block">實收 ${netChg>=0?'▲':'▼'}${Math.abs(netChg).toFixed(1)}%</span>
+      </td>
+      ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
+      ${chCell(s.ub,p.ub,cr,pr,'ub')}
+      ${chCell(s.fp,p.fp,cr,pr,'fp')}
+      ${chCell(s.odo,p.odo,cr,pr,'odo')}
+      <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
+    </tr>`;
+  });
+  document.getElementById('ch-tbody').innerHTML = tbodyHtml;
+
+  // 顯示目前排序說明
+  const keyLabel = {onsite:'現場',ub:'UberEats',fp:'Foodpanda',odo:'ODO'};
+  const dir = asc ? '↑ 佔比偏移最小' : '↓ 佔比偏移最大';
+  document.querySelector('.ch-table').title = `依 ${keyLabel[key]} 佔比偏移排序（${dir}）`;
 }
 
 /* ══ RENDER ALL ══ */
