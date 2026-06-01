@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606011335";</script>
-<script id="data-script" src="data.js?v=202606011335"></script>
+<script>window.DATA_VERSION="202606011348";</script>
+<script id="data-script" src="data.js?v=202606011348"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -128,6 +128,131 @@ canvas{max-height:300px;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+/* ════════════════════════════════
+   MOBILE RWD  ( ≤ 768px )
+════════════════════════════════ */
+@media (max-width: 768px){
+
+  /* 隱藏桌機導覽列 */
+  nav { display: none !important; }
+
+  /* main 變全寬 */
+  main { width: 100%; }
+
+  /* Header 縮小 */
+  header {
+    padding: 0 12px;
+    min-height: 52px;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  header::-webkit-scrollbar { display: none; }
+  .header-title { display: none; }
+  .hdr-divider { display: none; }
+
+  /* 篩選器改成小 pill */
+  .filter-label { display: none; }
+  .multi-select-btn { font-size: 11px; padding: 4px 8px; }
+  .dim-switcher { margin-left: 0; }
+  .dim-btn { padding: 4px 8px; font-size: 11px; }
+
+  /* Date range button */
+  .date-range-btn { font-size: 11px; padding: 4px 8px; }
+  #dr-display { max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* Dropdown panel 全寬從底部 */
+  .dropdown {
+    position: fixed !important;
+    left: 0 !important; right: 0 !important; bottom: 0 !important;
+    top: auto !important;
+    max-height: 60dvh;
+    border-radius: 16px 16px 0 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 40px rgba(0,0,0,.6);
+    min-width: 100%;
+    z-index: 999;
+  }
+  .date-range-panel {
+    position: fixed !important;
+    left: 0 !important; right: 0 !important; bottom: 0 !important;
+    top: auto !important;
+    border-radius: 16px 16px 0 0;
+    border: none;
+    border-top: 1px solid var(--border);
+    min-width: 100%;
+    padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 40px rgba(0,0,0,.6);
+  }
+
+  /* Content 加底部 padding 避免被 tab bar 遮住 */
+  .content {
+    padding: 14px 14px calc(72px + env(safe-area-inset-bottom));
+  }
+
+  /* KPI 2欄 */
+  .kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .kpi-value { font-size: 20px; }
+
+  /* 圖表面板 */
+  .chart-panel { padding: 14px; }
+  .chart-title { font-size: 13px; }
+
+  /* Grid 2欄 → 1欄 */
+  .grid-2 { grid-template-columns: 1fr; gap: 12px; }
+
+  /* Canvas 高度限制 */
+  canvas { max-height: 220px !important; }
+  .trend-canvas { max-height: 200px !important; }
+
+  /* 排名卡片 */
+  #rank-card-wall { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+  .rank-card { padding: 10px 11px; }
+  .rc-main { font-size: 16px; }
+  .rc-name { font-size: 11px; }
+
+  /* 渠道分析表格：手機版橫向滾動 + 字小一點 */
+  .ch-table-wrap { margin: 0 -14px; padding: 0 14px; }
+  .ch-table { font-size: 11px; }
+  .ch-table th { padding: 6px 8px; font-size: 9px; }
+  .ch-table td { padding: 7px 8px; }
+
+  /* 底部 Tab Bar */
+  .mobile-tab-bar {
+    display: flex !important;
+  }
+
+  /* 上傳頁 */
+  .upload-wrap { min-height: 50vh; padding: 0; }
+  .mapping-panel { padding: 16px; }
+  .mapping-grid { grid-template-columns: 1fr 16px 1fr; gap: 7px 4px; }
+}
+
+/* ── 底部 Tab Bar（手機專用） ── */
+.mobile-tab-bar {
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(58px + env(safe-area-inset-bottom));
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  z-index: 500;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.mobile-tab-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer; border: none;
+  background: transparent; color: var(--text3);
+  font-family: var(--font); padding: 8px 4px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .15s;
+}
+.mobile-tab-item.active { color: var(--accent); }
+.mobile-tab-item:active { background: rgba(255,255,255,.04); }
+.mobile-tab-icon { font-size: 18px; line-height: 1; }
+.mobile-tab-label { font-size: 10px; font-weight: 500; white-space: nowrap; }
 
 /* ── 渠道結構分析 ── */
 .ch-alert{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.25);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
@@ -539,7 +664,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606011335"]*"/g, `DATA_VERSION="202606011335"`);
+                                .replace(/DATA_VERSION="202606011348"]*"/g, `DATA_VERSION="202606011348"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1966,6 +2091,27 @@ function renderAll(){
   if(state.page==='trend')renderTrend();
   if(state.page==='compare')renderCompare();
 }
+
+/* ══ MOBILE TAB ══ */
+function mobileTab(page, el){
+  // 同步到桌機導覽列的 switchPage 邏輯
+  const navEl = document.getElementById('nav-' + page);
+  if(navEl) switchPage(page, navEl);
+  // 更新底部 tab 狀態
+  document.querySelectorAll('.mobile-tab-item').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// 桌機 nav 點擊時也同步底部 tab
+const _origSwitchPage = switchPage;
+switchPage = function(p, el){
+  _origSwitchPage(p, el);
+  const mTab = document.getElementById('mtab-' + p);
+  if(mTab){
+    document.querySelectorAll('.mobile-tab-item').forEach(t => t.classList.remove('active'));
+    mTab.classList.add('active');
+  }
+};
 
 /* ══ INIT ══ */
 updateTokenStatus();
