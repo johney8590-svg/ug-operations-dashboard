@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606011403";</script>
-<script id="data-script" src="data.js?v=202606011403"></script>
+<script>window.DATA_VERSION="202606011407";</script>
+<script id="data-script" src="data.js?v=202606011407"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -536,10 +536,10 @@ canvas{max-height:300px;}
               <tr>
                 <th class="tl" rowspan="2">門市</th>
                 <th class="tsep tl" rowspan="2">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
-                <th class="tsep" colspan="2" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',event)">⇅</button></th>
-                <th class="tsep" colspan="3" style="color:var(--accent)">UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub',event)">⇅</button></th>
-                <th class="tsep" colspan="3" style="color:var(--purple)">Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp',event)">⇅</button></th>
-                <th class="tsep" colspan="2" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',event)">⇅</button></th>
+                <th class="tsep" colspan="2" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button></th>
+                <th class="tsep" colspan="3" style="color:var(--accent)">UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub',this)">⇅</button></th>
+                <th class="tsep" colspan="3" style="color:var(--purple)">Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp',this)">⇅</button></th>
+                <th class="tsep" colspan="2" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button></th>
                 <th class="tsep" rowspan="2">判斷</th>
               </tr>
               <tr>
@@ -731,7 +731,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606011403"]*"/g, `DATA_VERSION="202606011403"`);
+                                .replace(/DATA_VERSION="202606011407"]*"/g, `DATA_VERSION="202606011407"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2058,7 +2058,7 @@ function renderChannelAnalysis(){
 }
 
 /* ══ 渠道表格排序 ══ */
-function sortChTable(key){
+function sortChTable(key,btnEl){
   if(!window._chStoreData) return;
 
   // 切換升冪/降冪（同一 key 再點一次反向）
@@ -2070,8 +2070,8 @@ function sortChTable(key){
   }
 
   // 更新按鈕狀態
-  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('active'));
-  event.currentTarget.classList.add('active');
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
+  if(btnEl) btnEl.classList.add('ch-active');
 
   const asc = window._chSortAsc;
 
@@ -2126,7 +2126,7 @@ function sortChTable(key){
       <td style="${sortHL}"><span class="${cCls}" style="font-family:var(--mono);font-weight:700;font-size:12px">${chgPct>=0?'+':''}${chgPct.toFixed(1)}%</span></td>`;
   }
 
-  let tbodyHtml='';
+  let rowsHtml2='';
   sorted.forEach(({s,p})=>{
     const cr=s.rev, pr=p.rev||1;
     const revDiff=cr-pr, revChg=(revDiff/pr)*100;
@@ -2137,7 +2137,7 @@ function sortChTable(key){
     const v=verdictOf(revChg,extCur-extPrev);
     const rCls=revChg>=3?'pos':revChg<=-3?'neg':'neu';
     const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
-    tbodyHtml+=`<tr>
+    rowsHtml2+=`<tr>
       <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
       <td class="tsep tl">
         <span style="font-family:var(--mono);font-size:12px">${fmtM(cr)}元</span>
@@ -2151,7 +2151,7 @@ function sortChTable(key){
       <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
     </tr>`;
   });
-  document.getElementById('ch-tbody').innerHTML = tbodyHtml;
+  document.getElementById('ch-tbody').innerHTML = rowsHtml2;
 
   // 顯示目前排序說明
   const keyLabel = {onsite:'現場',ub:'UberEats',fp:'Foodpanda',odo:'ODO'};
@@ -2263,7 +2263,7 @@ function buildChTableHTML(curData, prevMap, sortKey, sortAsc){
     sorted.sort((a,b)=>b.rev-a.rev);
   }
 
-  let html2='';
+  let rowsHtml='';
   sorted.forEach(s=>{
     const p=prevMap[s.store]||{rev:s.rev,onsite:s.onsite,ub:s.ub,fp:s.fp,odo:s.odo};
     const cr=s.rev, pr=p.rev||1, revDiff=cr-pr;
@@ -2293,7 +2293,7 @@ function buildChTableHTML(curData, prevMap, sortKey, sortAsc){
         <td style="${hl}"><span class="${rClsC}" style="font-family:var(--mono);font-weight:700;font-size:12px">${chgPct>=0?'+':''}${chgPct.toFixed(1)}%</span></td>`;
     }
 
-    html2+=`<tr>
+    rowsHtml+=`<tr>
       <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
       <td class="tsep tl">
         <span style="font-family:var(--mono);font-size:12px">${fmtM(cr)}元</span>
@@ -2307,7 +2307,7 @@ function buildChTableHTML(curData, prevMap, sortKey, sortAsc){
       <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
     </tr>`;
   });
-  tbodyEl.innerHTML=html2;
+  tbodyEl.innerHTML=rowsHtml;
 }
 
 function sortChTable(key, evt){
