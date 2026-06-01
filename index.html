@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606010431";</script>
-<script id="data-script" src="data.js?v=202606010431"></script>
+<script>window.DATA_VERSION="202606010520";</script>
+<script id="data-script" src="data.js?v=202606010520"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -458,7 +458,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606010431"]*"/g, `DATA_VERSION="202606010431"`);
+                                .replace(/DATA_VERSION="202606010520"]*"/g, `DATA_VERSION="202606010520"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -653,8 +653,12 @@ document.getElementById('dr-panel').addEventListener('click',e=>e.stopPropagatio
 document.getElementById('dr-start').addEventListener('change',()=>{
   document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));
   state.activeShortcut='custom';
-  // 自動跳到結束日期欄位
-  setTimeout(()=>document.getElementById('dr-end').focus(), 50);
+  // 自動打開結束日期的日曆
+  setTimeout(()=>{
+    const el = document.getElementById('dr-end');
+    if(el.showPicker) el.showPicker();
+    else el.focus();
+  }, 100);
   const sv=document.getElementById('dr-start').value,ev=document.getElementById('dr-end').value;
   if(sv&&ev){const s=inputToDate(sv),e=inputToDate(ev);if(s<=e){const cnt=ALL_DATES.filter(d=>{const yr=DATE_YEAR_MAP[d]||TODAY.getFullYear();const dt=internalToDate(d,yr);return dt>=s&&dt<=e;}).length;document.getElementById('dr-range-note').textContent=cnt>0?`此區間包含 ${cnt} 天資料`:'此區間無資料';}}
 });
@@ -1470,8 +1474,10 @@ function renderCompare(){
   // 基線：選定區間前 28 天，同 dow 每店日均
   const prev28C    = getPrev28Days();
   const prev28CSet = new Set(prev28C);
+  // FIX: 用 storeFilter（不含日期範圍）才能取到前28天資料
+  const storeFilterNoDate = r => state.zones.has(r.zone) && state.stores.has(r.store);
   const bClean = Array(7).fill(null).map((_,dow)=>{
-    const rows = filterData(DATA).filter(r=>prev28CSet.has(r.date)&&r.dow===dow);
+    const rows = DATA.filter(r=>storeFilterNoDate(r)&&prev28CSet.has(r.date)&&r.dow===dow);
     const daySet = new Set(rows.map(r=>r.date));
     if(!daySet.size) return 0;
     const tot = rows.reduce((a,r)=>a+r[dim],0);
