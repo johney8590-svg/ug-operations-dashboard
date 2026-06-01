@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>UG 茶飲 · 營運監控儀表板</title>
+<title>UG è¶é£² Â· çéç£æ§åè¡¨æ¿</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.DATA_VERSION="202605290744";</script>
-<script id="data-script" src="data.js?v=202605290744"></script>
+<script id="data-script" src="data.js?v=202606010149"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -129,7 +129,7 @@ canvas{max-height:300px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 
-/* ── RANK CARD WALL ── */
+/* ââ RANK CARD WALL ââ */
 .rank-card{
   background:var(--bg3);border:1px solid var(--border);border-radius:10px;
   padding:12px 13px;cursor:default;transition:all .18s;position:relative;overflow:hidden;
@@ -164,120 +164,120 @@ canvas{max-height:300px;}
 </head>
 <body>
 <nav>
-  <div class="nav-logo"><div class="brand">☕ UG 茶飲</div><div class="sub">Operations Dashboard</div></div>
-  <div class="nav-section">資料</div>
-  <div class="nav-item" id="nav-upload" onclick="checkPassword()"><span style="width:20px;text-align:center">🔒</span> 更新資料</div>
-  <div class="nav-section">分析</div>
-  <div class="nav-item active" id="nav-today" onclick="switchPage('today',this)"><span style="width:20px;text-align:center">📑</span> 今日現況</div>
-  <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">📈</span> 趨勢分析</div>
-  <div class="nav-item" id="nav-compare" onclick="switchPage('compare',this)"><span style="width:20px;text-align:center">📊</span> 門市對比</div>
-  <div class="nav-footer"><span class="pulse"></span>3–4月 真實資料 · 62家門市</div>
+  <div class="nav-logo"><div class="brand">â UG è¶é£²</div><div class="sub">Operations Dashboard</div></div>
+  <div class="nav-section">è³æ</div>
+  <div class="nav-item" id="nav-upload" onclick="checkPassword()"><span style="width:20px;text-align:center">ð</span> æ´æ°è³æ</div>
+  <div class="nav-section">åæ</div>
+  <div class="nav-item active" id="nav-today" onclick="switchPage('today',this)"><span style="width:20px;text-align:center">ð</span> ä»æ¥ç¾æ³</div>
+  <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">ð</span> è¶¨å¢åæ</div>
+  <div class="nav-item" id="nav-compare" onclick="switchPage('compare',this)"><span style="width:20px;text-align:center">ð</span> éå¸å°æ¯</div>
+  <div class="nav-footer"><span class="pulse"></span>3â4æ çå¯¦è³æ Â· 62å®¶éå¸</div>
 </nav>
 <main>
   <header>
-    <div class="header-title" id="page-title">今日現況</div>
+    <div class="header-title" id="page-title">ä»æ¥ç¾æ³</div>
     <div class="hdr-divider"></div>
     <div class="filter-group">
-      <span class="filter-label">日期</span>
+      <span class="filter-label">æ¥æ</span>
       <div class="date-range-wrap" id="dr-wrap">
         <div class="date-range-btn" id="dr-btn">
-          <span>📅</span><span id="dr-display">本月</span><span style="font-size:10px;color:var(--text3);margin-left:2px">▾</span>
+          <span>ð</span><span id="dr-display">æ¬æ</span><span style="font-size:10px;color:var(--text3);margin-left:2px">â¾</span>
         </div>
         <div class="date-range-panel" id="dr-panel">
           <div class="dr-shortcuts">
-            <div class="dr-shortcut active" data-key="cur-month" onclick="applyShortcut(this)">最新月</div>
-            <div class="dr-shortcut" data-key="last-month" onclick="applyShortcut(this)">上個月</div>
-            <div class="dr-shortcut" data-key="last7" onclick="applyShortcut(this)">近 7 天</div>
-            <div class="dr-shortcut" data-key="last30" onclick="applyShortcut(this)">近 30 天</div>
-            <div class="dr-shortcut" data-key="all" onclick="applyShortcut(this)">全部</div>
+            <div class="dr-shortcut active" data-key="cur-month" onclick="applyShortcut(this)">ææ°æ</div>
+            <div class="dr-shortcut" data-key="last-month" onclick="applyShortcut(this)">ä¸åæ</div>
+            <div class="dr-shortcut" data-key="last7" onclick="applyShortcut(this)">è¿ 7 å¤©</div>
+            <div class="dr-shortcut" data-key="last30" onclick="applyShortcut(this)">è¿ 30 å¤©</div>
+            <div class="dr-shortcut" data-key="all" onclick="applyShortcut(this)">å¨é¨</div>
           </div>
           <div class="dr-inputs">
-            <div><div class="dr-input-label">開始日期</div><input type="date" class="dr-input" id="dr-start"></div>
-            <div class="dr-sep">—</div>
-            <div><div class="dr-input-label">結束日期</div><input type="date" class="dr-input" id="dr-end"></div>
+            <div><div class="dr-input-label">éå§æ¥æ</div><input type="date" class="dr-input" id="dr-start"></div>
+            <div class="dr-sep">â</div>
+            <div><div class="dr-input-label">çµææ¥æ</div><input type="date" class="dr-input" id="dr-end"></div>
           </div>
-          <button class="dr-apply" onclick="applyCustomRange()">套用日期區間</button>
+          <button class="dr-apply" onclick="applyCustomRange()">å¥ç¨æ¥æåé</button>
           <div class="dr-range-note" id="dr-range-note"></div>
         </div>
       </div>
     </div>
     <div class="hdr-divider"></div>
     <div class="filter-group">
-      <span class="filter-label">分區</span>
+      <span class="filter-label">åå</span>
       <div class="multi-select-wrapper">
-        <div class="multi-select-btn" id="zone-btn"><span id="zone-label">全部分區</span>&nbsp;▾</div>
+        <div class="multi-select-btn" id="zone-btn"><span id="zone-label">å¨é¨åå</span>&nbsp;â¾</div>
         <div class="dropdown" id="zone-dd"></div>
       </div>
     </div>
     <div class="filter-group">
-      <span class="filter-label">門市</span>
+      <span class="filter-label">éå¸</span>
       <div class="multi-select-wrapper">
-        <div class="multi-select-btn" id="store-btn"><span id="store-label">全選</span>&nbsp;▾</div>
+        <div class="multi-select-btn" id="store-btn"><span id="store-label">å¨é¸</span>&nbsp;â¾</div>
         <div class="dropdown" id="store-dd"></div>
       </div>
     </div>
     <div class="dim-switcher">
-      <button class="dim-btn active" onclick="setDim('revenue',this)">營業淨額</button>
-      <button class="dim-btn" onclick="setDim('cups',this)">銷售杯數</button>
-      <button class="dim-btn" onclick="setDim('customers',this)">來客數</button>
+      <button class="dim-btn active" onclick="setDim('revenue',this)">çæ¥­æ·¨é¡</button>
+      <button class="dim-btn" onclick="setDim('cups',this)">é·å®æ¯æ¸</button>
+      <button class="dim-btn" onclick="setDim('customers',this)">ä¾å®¢æ¸</button>
     </div>
   </header>
   <div class="content">
     <!-- UPLOAD -->
     <div class="tab-page" id="page-upload">
 
-      <!-- Step 1: 選檔案 -->
+      <!-- Step 1: é¸æªæ¡ -->
       <div class="upload-wrap" id="upload-step-1">
         <div style="text-align:center">
-          <div style="font-size:21px;font-weight:700;margin-bottom:6px">更新營運資料</div>
-          <div style="font-size:13px;color:var(--text3)">上傳後自動合併進資料庫並推送至 GitHub，重新整理後資料永久保留。</div>
+          <div style="font-size:21px;font-weight:700;margin-bottom:6px">æ´æ°çéè³æ</div>
+          <div style="font-size:13px;color:var(--text3)">ä¸å³å¾èªååä½µé²è³æåº«ä¸¦æ¨éè³ GitHubï¼éæ°æ´çå¾è³ææ°¸ä¹ä¿çã</div>
         </div>
 
-        <!-- Token 設定區 -->
+        <!-- Token è¨­å®å -->
         <div style="width:100%;max-width:540px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">
           <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
-            🔑 GitHub Token
-            <span id="token-status" style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(56,217,169,.12);color:var(--accent2);border:1px solid rgba(56,217,169,.25)">已設定</span>
+            ð GitHub Token
+            <span id="token-status" style="font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(56,217,169,.12);color:var(--accent2);border:1px solid rgba(56,217,169,.25)">å·²è¨­å®</span>
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
-            <input type="password" id="gh-token-input" placeholder="ghp_xxxx（貼上新 Token）"
+            <input type="password" id="gh-token-input" placeholder="ghp_xxxxï¼è²¼ä¸æ° Tokenï¼"
               style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 12px;color:var(--text);font-family:var(--mono);font-size:12px;">
-            <button onclick="saveToken()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 14px;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;white-space:nowrap;">更新</button>
+            <button onclick="saveToken()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:7px 14px;color:var(--text2);font-size:12px;font-family:var(--font);cursor:pointer;white-space:nowrap;">æ´æ°</button>
           </div>
-          <div style="font-size:11px;color:var(--text3);margin-top:7px;">Token 僅存於此瀏覽器，不會上傳到任何伺服器。</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:7px;">Token åå­æ¼æ­¤çè¦½å¨ï¼ä¸æä¸å³å°ä»»ä½ä¼ºæå¨ã</div>
         </div>
 
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-          <div class="drop-icon">📊</div>
-          <div class="drop-title">點擊選擇或拖曳 Excel / CSV</div>
-          <div class="drop-sub">格式需與現有資料相同（門市、日期、淨額、杯數…）</div>
+          <div class="drop-icon">ð</div>
+          <div class="drop-title">é»æé¸ææææ³ Excel / CSV</div>
+          <div class="drop-sub">æ ¼å¼éèç¾æè³æç¸åï¼éå¸ãæ¥æãæ·¨é¡ãæ¯æ¸â¦ï¼</div>
           <div class="drop-formats"><span class="fmt-badge">.xlsx</span><span class="fmt-badge">.xls</span><span class="fmt-badge">.csv</span></div>
         </div>
         <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
-        <span class="sample-link" onclick="event.stopPropagation();downloadSampleCSV()">⬇ 下載範例 CSV 格式</span>
+        <span class="sample-link" onclick="event.stopPropagation();downloadSampleCSV()">â¬ ä¸è¼ç¯ä¾ CSV æ ¼å¼</span>
       </div>
 
-      <!-- Step 2: 欄位對應 -->
+      <!-- Step 2: æ¬ä½å°æ -->
       <div class="upload-wrap" id="upload-step-2" style="display:none">
         <div class="mapping-panel">
-          <div class="mapping-title">📋 欄位對應設定</div>
-          <div class="mapping-sub">請對應你的欄位（<span style="color:var(--danger)">*</span> 必填）</div>
+          <div class="mapping-title">ð æ¬ä½å°æè¨­å®</div>
+          <div class="mapping-sub">è«å°æä½ çæ¬ä½ï¼<span style="color:var(--danger)">*</span> å¿å¡«ï¼</div>
           <div id="mapping-grid" class="mapping-grid"></div>
           <div class="btn-row">
-            <button class="btn-secondary" onclick="resetUpload()">← 重新上傳</button>
-            <button class="btn-primary" onclick="applyMapping()">✓ 解析並推送至 GitHub</button>
+            <button class="btn-secondary" onclick="resetUpload()">â éæ°ä¸å³</button>
+            <button class="btn-primary" onclick="applyMapping()">â è§£æä¸¦æ¨éè³ GitHub</button>
           </div>
         </div>
       </div>
 
-      <!-- Step 3: 推送進度 -->
+      <!-- Step 3: æ¨éé²åº¦ -->
       <div class="upload-wrap" id="upload-step-3" style="display:none">
         <div style="text-align:center;max-width:480px;width:100%">
-          <div style="font-size:44px;margin-bottom:14px" id="push-icon">⏳</div>
-          <div style="font-size:19px;font-weight:700;margin-bottom:8px" id="push-title">正在推送至 GitHub…</div>
+          <div style="font-size:44px;margin-bottom:14px" id="push-icon">â³</div>
+          <div style="font-size:19px;font-weight:700;margin-bottom:8px" id="push-title">æ­£å¨æ¨éè³ GitHubâ¦</div>
           <div id="push-log" style="font-size:12px;color:var(--text3);margin-bottom:20px;line-height:2;text-align:left;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;width:100%;min-height:80px;font-family:var(--mono);"></div>
-          <button id="push-done-btn" class="btn-primary" style="display:none" onclick="switchPage('today',document.getElementById('nav-today'))">前往今日現況 →</button>
-          <button id="push-retry-btn" class="btn-secondary" style="display:none;margin-top:8px" onclick="resetUpload()">← 重試</button>
+          <button id="push-done-btn" class="btn-primary" style="display:none" onclick="switchPage('today',document.getElementById('nav-today'))">åå¾ä»æ¥ç¾æ³ â</button>
+          <button id="push-retry-btn" class="btn-secondary" style="display:none;margin-top:8px" onclick="resetUpload()">â éè©¦</button>
         </div>
       </div>
 
@@ -285,13 +285,13 @@ canvas{max-height:300px;}
     <!-- TODAY -->
     <div class="tab-page active" id="page-today">
       <div id="data-info-today"></div>
-      <div class="section-title" id="today-title">最新日期全門市加總</div>
+      <div class="section-title" id="today-title">ææ°æ¥æå¨éå¸å ç¸½</div>
       <div class="kpi-row" id="today-kpis"></div>
       <div class="chart-panel" id="rank-wall-panel">
         <div class="chart-header">
           <div>
-            <div class="chart-title">各門市表現一覽</div>
-            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以上月為基準</div>
+            <div class="chart-title">åéå¸è¡¨ç¾ä¸è¦½</div>
+            <div class="chart-sub" id="rank-wall-sub">ä¾æ¯åºæ¥åç±é«å°ä½æåº Â· æé·/è¡°éä»¥ä¸æçºåºæº</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
             <span id="rank-wall-count" style="font-size:11px;color:var(--text3)"></span>
@@ -299,16 +299,16 @@ canvas{max-height:300px;}
         </div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
       </div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道拆解（最新日）</div><div class="chart-sub">UberEats / Foodpanda / ODO 自取</div></div></div><canvas id="today-channel"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">æ¸ éæè§£ï¼ææ°æ¥ï¼</div><div class="chart-sub">UberEats / Foodpanda / ODO èªå</div></div></div><canvas id="today-channel"></canvas></div>
 
-      <!-- 週間業績對比 -->
+      <!-- é±éæ¥­ç¸¾å°æ¯ -->
       <div class="chart-panel" id="weekly-compare-panel">
         <div class="chart-header">
           <div>
-            <div class="chart-title" id="weekly-compare-title">週間業績對比</div>
-            <div class="chart-sub" id="weekly-compare-sub">近 7 天實績 vs 過去 4 週同期平均</div>
+            <div class="chart-title" id="weekly-compare-title">é±éæ¥­ç¸¾å°æ¯</div>
+            <div class="chart-sub" id="weekly-compare-sub">è¿ 7 å¤©å¯¦ç¸¾ vs éå» 4 é±åæå¹³å</div>
           </div>
-          <span class="chart-badge ok" id="weekly-compare-badge">近 7 天</span>
+          <span class="chart-badge ok" id="weekly-compare-badge">è¿ 7 å¤©</span>
         </div>
         <canvas id="weekly-compare-chart"></canvas>
       </div>
@@ -316,56 +316,56 @@ canvas{max-height:300px;}
     <!-- TREND -->
     <div class="tab-page" id="page-trend">
       <div id="data-info-trend"></div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub">依篩選門市與日期區間加總</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">æ¯æ¥èµ°å¢æç·å</div><div class="chart-sub">ä¾ç¯©é¸éå¸èæ¥æåéå ç¸½</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">é±éåä½ï¼æ¯åºæ¥åï¼</div><div class="chart-sub" id="weekday-sub">æ¬æ vs å4é±åºç·</div></div></div><canvas id="trend-weekday"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">å¤©æ°£å½±é¿åæ</div><div class="chart-sub">æ´ / é° / é¨ æ¥å¹³åå°æ¯</div></div></div><canvas id="trend-weather"></canvas></div>
       </div>
     </div>
     <!-- COMPARE -->
     <div class="tab-page" id="page-compare">
       <div id="anomaly-alerts"></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div><div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div></div></div><canvas id="chart-a"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">åè¡¨ A Â· ææ°é±èµ°å¢ vs åæåºç·</div><div class="chart-sub">å¯¦ç·=ææ°7å¤© Â· èç·=åæåææå¹³å</div></div></div><canvas id="chart-a"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">åè¡¨ B Â· å®¢å®å¹ç°å¸¸åµæ¸¬</div><div class="chart-sub">å·¦è»¸ï¼çæ¥­æ·¨é¡ Â· å³è»¸ï¼ä¾å®¢æ¸</div></div><span class="chart-badge warn" id="chartb-badge">åµæ¸¬ä¸­â¦</span></div><canvas id="chart-b"></canvas></div>
       </div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top10 / Bottom10</div><div class="chart-sub">依當前維度</div></div></div><canvas id="chart-c"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">100% 堆疊</div></div></div><canvas id="chart-d"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">åè¡¨ C Â· éå¸æå Top10 / Bottom10</div><div class="chart-sub">ä¾ç¶åç¶­åº¦</div></div></div><canvas id="chart-c"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">åè¡¨ D Â· æ¸ éçµæ§å¥åº·åº¦</div><div class="chart-sub">100% å ç</div></div></div><canvas id="chart-d"></canvas></div>
       </div>
     </div>
   </div>
 </main>
 <script>
-/* ══ LIVE CLOCK: 以瀏覽器當下時間為基準 ══ */
+/* ââ LIVE CLOCK: ä»¥çè¦½å¨ç¶ä¸æéçºåºæº ââ */
 const TODAY = new Date();
 
-/* ══ UPLOAD + GITHUB PUSH ══ */
+/* ââ UPLOAD + GITHUB PUSH ââ */
 const GH_USER = 'johney8590-svg';
 const GH_REPO = 'ug-operations-dashboard';
 const GH_FILE = 'data.js';
 
-// Token 管理（存在 localStorage）
+// Token ç®¡çï¼å­å¨ localStorageï¼
 function getToken(){ return localStorage.getItem('ug_gh_token') || ''; }
 function saveToken(){
   const t = document.getElementById('gh-token-input').value.trim();
-  if(!t){ alert('請輸入 Token'); return; }
+  if(!t){ alert('è«è¼¸å¥ Token'); return; }
   localStorage.setItem('ug_gh_token', t);
   document.getElementById('gh-token-input').value = '';
   updateTokenStatus();
-  alert('✅ Token 已儲存');
+  alert('â Token å·²å²å­');
 }
 function updateTokenStatus(){
   const el = document.getElementById('token-status');
   if(!el) return;
   const t = getToken();
-  if(t){ el.textContent='已設定'; el.style.color='var(--accent2)'; el.style.borderColor='rgba(56,217,169,.25)'; el.style.background='rgba(56,217,169,.12)'; }
-  else { el.textContent='未設定'; el.style.color='var(--danger)'; el.style.borderColor='rgba(255,107,107,.25)'; el.style.background='rgba(255,107,107,.08)'; }
+  if(t){ el.textContent='å·²è¨­å®'; el.style.color='var(--accent2)'; el.style.borderColor='rgba(56,217,169,.25)'; el.style.background='rgba(56,217,169,.12)'; }
+  else { el.textContent='æªè¨­å®'; el.style.color='var(--danger)'; el.style.borderColor='rgba(255,107,107,.25)'; el.style.background='rgba(255,107,107,.08)'; }
 }
 
 function downloadSampleCSV(){
-  const rows=['門市,日期,週期,天氣,營業淨額,杯數,來客數,總折扣金額,UB金額,FP金額,ODO金額,分區','忠孝敦化店,4月1日,週三,陰,60720,863,396,1727,25769,1008,6401,北北基宜花'].join('\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+rows],{type:'text/csv;charset=utf-8'}));a.download='UG_範例格式.csv';a.click();
+  const rows=['éå¸,æ¥æ,é±æ,å¤©æ°£,çæ¥­æ·¨é¡,æ¯æ¸,ä¾å®¢æ¸,ç¸½ææ£éé¡,UBéé¡,FPéé¡,ODOéé¡,åå','å¿ å­æ¦ååº,4æ1æ¥,é±ä¸,é°,60720,863,396,1727,25769,1008,6401,åååºå®è±'].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\uFEFF'+rows],{type:'text/csv;charset=utf-8'}));a.download='UG_ç¯ä¾æ ¼å¼.csv';a.click();
 }
 const fileInput=document.getElementById('file-input');
 const dropZoneEl=document.getElementById('drop-zone');
@@ -381,19 +381,19 @@ function processFile(file){
 }
 function parseCSV(text){
   const result=Papa.parse(text.trim(),{header:true,skipEmptyLines:true});
-  if(!result.data?.length){alert('無法解析檔案');return;}
+  if(!result.data?.length){alert('ç¡æ³è§£ææªæ¡');return;}
   rawRows=result.data;csvHeaders=result.meta.fields||[];showMappingStep();
 }
 
-/* ── GitHub 推送 ── */
+/* ââ GitHub æ¨é ââ */
 function pushLog(msg){ const el=document.getElementById('push-log'); if(el) el.innerHTML += msg+'\n'; }
 
 async function pushToGitHub(newRows){
   const token = getToken();
   if(!token){
-    pushLog('❌ 未設定 GitHub Token，請先在上方輸入 Token');
-    document.getElementById('push-icon').textContent='❌';
-    document.getElementById('push-title').textContent='推送失敗';
+    pushLog('â æªè¨­å® GitHub Tokenï¼è«åå¨ä¸æ¹è¼¸å¥ Token');
+    document.getElementById('push-icon').textContent='â';
+    document.getElementById('push-title').textContent='æ¨éå¤±æ';
     document.getElementById('push-retry-btn').style.display='';
     return;
   }
@@ -402,16 +402,16 @@ async function pushToGitHub(newRows){
   const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
 
   try {
-    // 1. 取得現有 data.js 的 SHA
-    pushLog('🔍 取得現有 data.js 資訊…');
+    // 1. åå¾ç¾æ data.js ç SHA
+    pushLog('ð åå¾ç¾æ data.js è³è¨â¦');
     const infoRes = await fetch(base, { headers });
-    if(!infoRes.ok) throw new Error(`無法讀取 data.js（${infoRes.status}）`);
+    if(!infoRes.ok) throw new Error(`ç¡æ³è®å data.jsï¼${infoRes.status}ï¼`);
     const info = await infoRes.json();
     const sha = info.sha;
-    pushLog(`✅ 取得 SHA：${sha.slice(0,10)}…`);
+    pushLog(`â åå¾ SHAï¼${sha.slice(0,10)}â¦`);
 
-    // 2. 合併新舊資料（去除重複：同 store + date 的以新資料覆蓋）
-    pushLog(`🔀 合併資料：現有 ${REAL_DATA.length} 筆 + 新增 ${newRows.length} 筆…`);
+    // 2. åä½µæ°èè³æï¼å»é¤éè¤ï¼å store + date çä»¥æ°è³æè¦èï¼
+    pushLog(`ð åä½µè³æï¼ç¾æ ${REAL_DATA.length} ç­ + æ°å¢ ${newRows.length} ç­â¦`);
     const mergedMap = new Map();
     REAL_DATA.forEach(r => mergedMap.set(r.store+'|'+r.date, r));
     let overwritten = 0, added = 0;
@@ -422,89 +422,89 @@ async function pushToGitHub(newRows){
       mergedMap.set(key, r);
     });
     const merged = [...mergedMap.values()].sort((a,b)=>a.date.localeCompare(b.date));
-    pushLog(`   ➕ 新增 ${added} 筆，🔄 更新 ${overwritten} 筆，合計 ${merged.length} 筆`);
+    pushLog(`   â æ°å¢ ${added} ç­ï¼ð æ´æ° ${overwritten} ç­ï¼åè¨ ${merged.length} ç­`);
 
-    // 3. 產生新 data.js 並 base64 編碼
-    pushLog('📦 產生新 data.js…');
+    // 3. ç¢çæ° data.js ä¸¦ base64 ç·¨ç¢¼
+    pushLog('ð¦ ç¢çæ° data.jsâ¦');
     const dataJs = 'const REAL_DATA = ' + JSON.stringify(merged) + ';';
     const b64 = btoa(unescape(encodeURIComponent(dataJs)));
 
-    // 4. 推送至 GitHub
-    pushLog('🚀 推送至 GitHub…');
+    // 4. æ¨éè³ GitHub
+    pushLog('ð æ¨éè³ GitHubâ¦');
     const pushRes = await fetch(base, {
       method: 'PUT',
       headers,
       body: JSON.stringify({
-        message: `📊 資料更新：新增 ${added} 筆，更新 ${overwritten} 筆（共 ${merged.length} 筆）`,
+        message: `ð è³ææ´æ°ï¼æ°å¢ ${added} ç­ï¼æ´æ° ${overwritten} ç­ï¼å± ${merged.length} ç­ï¼`,
         content: b64,
         sha
       })
     });
     if(!pushRes.ok){
       const err = await pushRes.json();
-      throw new Error(err.message || `推送失敗（${pushRes.status}）`);
+      throw new Error(err.message || `æ¨éå¤±æï¼${pushRes.status}ï¼`);
     }
     const pushed = await pushRes.json();
     const commitUrl = pushed.commit?.html_url || '';
-    pushLog(`✅ data.js 推送成功！`);
-    pushLog(`🔗 Commit：${commitUrl}`);
+    pushLog(`â data.js æ¨éæåï¼`);
+    pushLog(`ð Commitï¼${commitUrl}`);
 
-    // 更新 index.html 裡的版本號，讓下次重新整理自動載入新 data.js
-    pushLog('🔢 更新版本號…');
+    // æ´æ° index.html è£¡ççæ¬èï¼è®ä¸æ¬¡éæ°æ´çèªåè¼å¥æ° data.js
+    pushLog('ð¢ æ´æ°çæ¬èâ¦');
     try {
       const newVer = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
       const idxBase = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/index.html`;
       const idxInfo = await fetch(idxBase, {headers}).then(r=>r.json());
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
-      // 替換版本號
+      // æ¿æçæ¬è
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
                                 .replace(/DATA_VERSION="202605290744"]*"/g, `DATA_VERSION="202605290744"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
         body: JSON.stringify({
-          message: `🔢 更新 data.js 版本號 v${newVer}`,
+          message: `ð¢ æ´æ° data.js çæ¬è v${newVer}`,
           content: newIdxB64,
           sha: idxInfo.sha
         })
       });
-      if(idxPush.ok) pushLog(`✅ 版本號已更新（v${newVer}）`);
-      else pushLog(`⚠ 版本號更新失敗，建議手動重整（Ctrl+Shift+R）`);
+      if(idxPush.ok) pushLog(`â çæ¬èå·²æ´æ°ï¼v${newVer}ï¼`);
+      else pushLog(`â  çæ¬èæ´æ°å¤±æï¼å»ºè­°æåéæ´ï¼Ctrl+Shift+Rï¼`);
     } catch(e) {
-      pushLog(`⚠ 版本號更新失敗：${e.message}`);
+      pushLog(`â  çæ¬èæ´æ°å¤±æï¼${e.message}`);
     }
 
-    pushLog('⏳ GitHub Pages 部署中，約 1–2 分鐘後直接按 F5 重整即可！');
-    document.getElementById('push-icon').textContent = '✅';
-    document.getElementById('push-title').textContent = `成功！新增 ${added} 筆，更新 ${overwritten} 筆`;
+    pushLog('â³ GitHub Pages é¨ç½²ä¸­ï¼ç´ 1â2 åéå¾ç´æ¥æ F5 éæ´å³å¯ï¼');
+    document.getElementById('push-icon').textContent = 'â';
+    document.getElementById('push-title').textContent = `æåï¼æ°å¢ ${added} ç­ï¼æ´æ° ${overwritten} ç­`;
     document.getElementById('push-done-btn').style.display = '';
 
-    // 同步更新當前頁面的 DATA（不等部署也能即時看到）
+    // åæ­¥æ´æ°ç¶åé é¢ç DATAï¼ä¸ç­é¨ç½²ä¹è½å³æçå°ï¼
     DATA = merged;
     rebuildMeta();
     buildDropdowns();
     renderAll();
 
   } catch(e) {
-    pushLog(`❌ 錯誤：${e.message}`);
-    document.getElementById('push-icon').textContent = '❌';
-    document.getElementById('push-title').textContent = '推送失敗';
+    pushLog(`â é¯èª¤ï¼${e.message}`);
+    document.getElementById('push-icon').textContent = 'â';
+    document.getElementById('push-title').textContent = 'æ¨éå¤±æ';
     document.getElementById('push-retry-btn').style.display = '';
   }
 }
 const REQUIRED_FIELDS=[
-  {key:'store',   label:'門市名稱',    required:true,  exact:['門市'],                  hints:['store']},
-  {key:'date',    label:'日期',        required:true,  exact:['日期'],                  hints:['date']},
-  {key:'dow',     label:'星期週期',    required:false, exact:['週期','星期'],           hints:['weekday']},
-  {key:'weather', label:'天氣',        required:false, exact:['天氣'],                  hints:['weather']},
-  {key:'revenue', label:'營業淨額',    required:true,  exact:['營業淨額'],              hints:['淨額','revenue']},
-  {key:'cups',    label:'杯數',        required:true,  exact:['杯數'],                  hints:['cups']},
-  {key:'customers',label:'來客數',     required:true,  exact:['來客數'],                hints:['customers']},
-  {key:'discount',label:'總折扣金額',  required:false, exact:['總折扣金額','折扣金額'], hints:['discount']},
-  {key:'ub',      label:'UberEats金額',required:false, exact:['UB金額'],               hints:['ubereats']},
-  {key:'fp',      label:'Foodpanda金額',required:false,exact:['FP金額'],               hints:['foodpanda']},
-  {key:'odo',     label:'ODO金額',     required:false, exact:['ODO金額'],              hints:['odo']},
-  {key:'zone',    label:'分區',        required:false, exact:['分區'],                  hints:['zone']},
+  {key:'store',   label:'éå¸åç¨±',    required:true,  exact:['éå¸'],                  hints:['store']},
+  {key:'date',    label:'æ¥æ',        required:true,  exact:['æ¥æ'],                  hints:['date']},
+  {key:'dow',     label:'ææé±æ',    required:false, exact:['é±æ','ææ'],           hints:['weekday']},
+  {key:'weather', label:'å¤©æ°£',        required:false, exact:['å¤©æ°£'],                  hints:['weather']},
+  {key:'revenue', label:'çæ¥­æ·¨é¡',    required:true,  exact:['çæ¥­æ·¨é¡'],              hints:['æ·¨é¡','revenue']},
+  {key:'cups',    label:'æ¯æ¸',        required:true,  exact:['æ¯æ¸'],                  hints:['cups']},
+  {key:'customers',label:'ä¾å®¢æ¸',     required:true,  exact:['ä¾å®¢æ¸'],                hints:['customers']},
+  {key:'discount',label:'ç¸½ææ£éé¡',  required:false, exact:['ç¸½ææ£éé¡','ææ£éé¡'], hints:['discount']},
+  {key:'ub',      label:'UberEatséé¡',required:false, exact:['UBéé¡'],               hints:['ubereats']},
+  {key:'fp',      label:'Foodpandaéé¡',required:false,exact:['FPéé¡'],               hints:['foodpanda']},
+  {key:'odo',     label:'ODOéé¡',     required:false, exact:['ODOéé¡'],              hints:['odo']},
+  {key:'zone',    label:'åå',        required:false, exact:['åå'],                  hints:['zone']},
 ];
 function showMappingStep(){
   document.getElementById('upload-step-1').style.display='none';
@@ -512,14 +512,14 @@ function showMappingStep(){
   const grid=document.getElementById('mapping-grid');grid.innerHTML='';
   REQUIRED_FIELDS.forEach(field=>{
     const lbl=document.createElement('div');lbl.className='map-label';lbl.innerHTML=field.label+(field.required?'<span class="map-required">*</span>':'');
-    const arr=document.createElement('div');arr.className='map-arrow';arr.textContent='→';
+    const arr=document.createElement('div');arr.className='map-arrow';arr.textContent='â';
     const sel=document.createElement('select');sel.className='map-select';sel.id='map_'+field.key;
-    const none=document.createElement('option');none.value='';none.textContent='— 不匯入 —';sel.appendChild(none);
+    const none=document.createElement('option');none.value='';none.textContent='â ä¸å¯å¥ â';sel.appendChild(none);
     csvHeaders.forEach(h=>{
       const o=document.createElement('option');o.value=h;o.textContent=h;
-      // 優先：exact 完整比對（避免「UB金額佔比」誤觸「UB金額」）
+      // åªåï¼exact å®æ´æ¯å°ï¼é¿åãUBéé¡ä½æ¯ãèª¤è§¸ãUBéé¡ãï¼
       const exactMatch = field.exact?.some(e => h === e);
-      // 次要：hints 模糊比對（exact 沒有才用）
+      // æ¬¡è¦ï¼hints æ¨¡ç³æ¯å°ï¼exact æ²ææç¨ï¼
       const hintMatch  = !field.exact && field.hints.some(hint=>h.includes(hint));
       if(exactMatch || hintMatch) o.selected=true;
       sel.appendChild(o);
@@ -531,45 +531,45 @@ function applyMapping(){
   const mapping={};
   REQUIRED_FIELDS.forEach(f=>{const s=document.getElementById('map_'+f.key);if(s?.value)mapping[f.key]=s.value;});
   const missing=REQUIRED_FIELDS.filter(f=>f.required&&!mapping[f.key]).map(f=>f.label);
-  if(missing.length){alert('請對應必填欄位：'+missing.join('、'));return;}
-  const DOW_MAP={'週一':0,'週二':1,'週三':2,'週四':3,'週五':4,'週六':5,'週日':6};
+  if(missing.length){alert('è«å°æå¿å¡«æ¬ä½ï¼'+missing.join('ã'));return;}
+  const DOW_MAP={'é±ä¸':0,'é±äº':1,'é±ä¸':2,'é±å':3,'é±äº':4,'é±å­':5,'é±æ¥':6};
   const newRows=[];
   rawRows.forEach(row=>{
     const get=key=>mapping[key]?String(row[mapping[key]]??'').trim():'';
     const getNum=key=>{const v=get(key);return parseFloat(v.replace(/[,$%]/g,''))||0;};
-    const dateStr=get('date');const m=dateStr.match(/(\d+)月(\d+)日/);if(!m)return;
+    const dateStr=get('date');const m=dateStr.match(/(\d+)æ(\d+)æ¥/);if(!m)return;
     const mon=parseInt(m[1]),day=parseInt(m[2]);
     const dateKey=`${String(mon).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
     const dowRaw=get('dow');const dow=DOW_MAP[dowRaw]??parseInt(dowRaw)??0;
-    const wRaw=get('weather');const weather=wRaw.includes('雨')?'雨':wRaw.includes('陰')?'陰':'晴';
-    const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
+    const wRaw=get('weather');const weather=wRaw.includes('é¨')?'é¨':wRaw.includes('é°')?'é°':'æ´';
+    const r={zone:get('zone')||'æªåå',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
       revenue:getNum('revenue'),cups:getNum('cups'),customers:getNum('customers'),discount:Math.abs(getNum('discount')),
       ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo')};
     if(r.store&&r.revenue>0)newRows.push(r);
   });
-  if(!newRows.length){alert('轉換失敗，請確認欄位對應');return;}
+  if(!newRows.length){alert('è½æå¤±æï¼è«ç¢ºèªæ¬ä½å°æ');return;}
 
-  // 顯示推送進度畫面
+  // é¡¯ç¤ºæ¨éé²åº¦ç«é¢
   document.getElementById('upload-step-2').style.display='none';
   document.getElementById('upload-step-3').style.display='flex';
-  document.getElementById('push-icon').textContent='⏳';
-  document.getElementById('push-title').textContent='正在推送至 GitHub…';
+  document.getElementById('push-icon').textContent='â³';
+  document.getElementById('push-title').textContent='æ­£å¨æ¨éè³ GitHubâ¦';
   document.getElementById('push-log').textContent='';
   document.getElementById('push-done-btn').style.display='none';
   document.getElementById('push-retry-btn').style.display='none';
 
-  // 推送
+  // æ¨é
   pushToGitHub(newRows);
 }
 function resetUpload(){document.getElementById('upload-step-2').style.display='none';document.getElementById('upload-step-1').style.display='flex';fileInput.value='';}
 
-/* ══ DATA META ══ */
+/* ââ DATA META ââ */
 let DATA=[...REAL_DATA];
 let ALL_DATES,LATEST_DATE,ZONES,STORE_LIST,DATE_YEAR_MAP={};
 function rebuildMeta(){
   ALL_DATES=[...new Set(DATA.map(r=>r.date))].sort();
   LATEST_DATE=ALL_DATES[ALL_DATES.length-1];
-  // Build date→year map from actual data rows
+  // Build dateâyear map from actual data rows
   DATE_YEAR_MAP={};
   DATA.forEach(r=>{if(r.year)DATE_YEAR_MAP[r.date]=r.year;});
   ZONES=[...new Set(DATA.map(r=>r.zone).filter(Boolean))].sort();
@@ -579,7 +579,7 @@ function rebuildMeta(){
 }
 rebuildMeta();
 
-/* ══ DATE RANGE ══ */
+/* ââ DATE RANGE ââ */
 function internalToDate(d,year){
   // year can be passed explicitly; otherwise infer from today
   const[m,day]=d.split('/');
@@ -592,7 +592,7 @@ function internalToDate(d,year){
 function dateToInput(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function inputToDate(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
 function computeShortcut(key){
-  // 以「資料最新日期」所在月為基準，避免當月無資料時顯示空白
+  // ä»¥ãè³æææ°æ¥æãæå¨æçºåºæºï¼é¿åç¶æç¡è³ææé¡¯ç¤ºç©ºç½
   const latestDataDate = internalToDate(LATEST_DATE, DATE_YEAR_MAP[LATEST_DATE] || TODAY.getFullYear());
   const mo = latestDataDate.getMonth();
   const yr = latestDataDate.getFullYear();
@@ -616,17 +616,17 @@ function updateDRDisplay(){
   const s=state.dateStart,e=state.dateEnd;
   const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
   let label='';
-  if(state.activeShortcut==='cur-month') label=`${s.getFullYear()}/${String(s.getMonth()+1).padStart(2,'0')}（最新月）`;
-  else if(state.activeShortcut==='last-month') label=`${s.getMonth()+1}月（上個月）`;
-  else if(state.activeShortcut==='last7') label=`近 7 天（${fmt(s)}–${fmt(e)}）`;
-  else if(state.activeShortcut==='last30') label=`近 30 天（${fmt(s)}–${fmt(e)}）`;
-  else if(state.activeShortcut==='all') label=`全部（${fmt(s)}–${fmt(e)}）`;
-  else label=`${fmt(s)} – ${fmt(e)}（自訂）`;
+  if(state.activeShortcut==='cur-month') label=`${s.getFullYear()}/${String(s.getMonth()+1).padStart(2,'0')}ï¼ææ°æï¼`;
+  else if(state.activeShortcut==='last-month') label=`${s.getMonth()+1}æï¼ä¸åæï¼`;
+  else if(state.activeShortcut==='last7') label=`è¿ 7 å¤©ï¼${fmt(s)}â${fmt(e)}ï¼`;
+  else if(state.activeShortcut==='last30') label=`è¿ 30 å¤©ï¼${fmt(s)}â${fmt(e)}ï¼`;
+  else if(state.activeShortcut==='all') label=`å¨é¨ï¼${fmt(s)}â${fmt(e)}ï¼`;
+  else label=`${fmt(s)} â ${fmt(e)}ï¼èªè¨ï¼`;
   document.getElementById('dr-display').textContent=label;
   document.getElementById('dr-start').value=dateToInput(s);
   document.getElementById('dr-end').value=dateToInput(e);
   const cnt=getActiveDates().length;
-  document.getElementById('dr-range-note').textContent=cnt>0?`此區間包含 ${cnt} 天資料`:'此區間無資料';
+  document.getElementById('dr-range-note').textContent=cnt>0?`æ­¤åéåå« ${cnt} å¤©è³æ`:'æ­¤åéç¡è³æ';
 }
 function applyShortcut(el){
   const key=el.dataset.key;
@@ -639,9 +639,9 @@ function applyShortcut(el){
 function applyCustomRange(){
   const sv=document.getElementById('dr-start').value;
   const ev=document.getElementById('dr-end').value;
-  if(!sv||!ev){alert('請選擇開始與結束日期');return;}
+  if(!sv||!ev){alert('è«é¸æéå§èçµææ¥æ');return;}
   const s=inputToDate(sv),e=inputToDate(ev);
-  if(s>e){alert('開始日期不能晚於結束日期');return;}
+  if(s>e){alert('éå§æ¥æä¸è½ææ¼çµææ¥æ');return;}
   state.dateStart=s;state.dateEnd=e;state.activeShortcut='custom';
   document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));
   updateDRDisplay();
@@ -650,10 +650,10 @@ function applyCustomRange(){
 }
 document.getElementById('dr-btn').addEventListener('click',e=>{e.stopPropagation();closeAll();document.getElementById('dr-panel').classList.toggle('open');});
 document.getElementById('dr-panel').addEventListener('click',e=>e.stopPropagation());
-document.getElementById('dr-start').addEventListener('change',()=>{document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));state.activeShortcut='custom';const sv=document.getElementById('dr-start').value,ev=document.getElementById('dr-end').value;if(sv&&ev){const s=inputToDate(sv),e=inputToDate(ev);if(s<=e){const cnt=ALL_DATES.filter(d=>{const dt=internalToDate(d);return dt>=s&&dt<=e;}).length;document.getElementById('dr-range-note').textContent=cnt>0?`此區間包含 ${cnt} 天資料`:'此區間無資料';}}});
+document.getElementById('dr-start').addEventListener('change',()=>{document.querySelectorAll('.dr-shortcut').forEach(b=>b.classList.remove('active'));state.activeShortcut='custom';const sv=document.getElementById('dr-start').value,ev=document.getElementById('dr-end').value;if(sv&&ev){const s=inputToDate(sv),e=inputToDate(ev);if(s<=e){const cnt=ALL_DATES.filter(d=>{const dt=internalToDate(d);return dt>=s&&dt<=e;}).length;document.getElementById('dr-range-note').textContent=cnt>0?`æ­¤åéåå« ${cnt} å¤©è³æ`:'æ­¤åéç¡è³æ';}}});
 document.getElementById('dr-end').addEventListener('change',()=>{document.getElementById('dr-start').dispatchEvent(new Event('change'));});
 
-/* ══ STATE ══ */
+/* ââ STATE ââ */
 const initRange=computeShortcut('cur-month');
 let state={
   page:'today',zones:new Set(ZONES),stores:new Set(STORE_LIST.map(s=>s.id)),
@@ -662,14 +662,14 @@ let state={
 const charts={};
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
 function mkChart(id,cfg){destroyChart(id);const ctx=document.getElementById(id);if(!ctx)return;charts[id]=new Chart(ctx,cfg);return charts[id];}
-const DIM_LABEL={revenue:'營業淨額 (元)',cups:'銷售杯數 (杯)',customers:'來客數 (人)'};
+const DIM_LABEL={revenue:'çæ¥­æ·¨é¡ (å)',cups:'é·å®æ¯æ¸ (æ¯)',customers:'ä¾å®¢æ¸ (äºº)'};
 const DIM_KEY={revenue:'revenue',cups:'cups',customers:'customers'};
 const C={a:'#4f9eff',b:'#38d9a9',w:'#ffd43b',d:'#ff6b6b',p:'#b197fc'};
 Chart.defaults.color='#8892a4';Chart.defaults.borderColor='#2a3147';
 Chart.defaults.font.family="'Noto Sans TC',sans-serif";Chart.defaults.font.size=12;
 const BO={responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{boxWidth:11,padding:12}}}};
 
-/* ══ DROPDOWNS ══ */
+/* ââ DROPDOWNS ââ */
 function buildDropdowns(){buildZoneDD();buildStoreDD();}
 function buildZoneDD(){
   const zdd=document.getElementById('zone-dd');zdd.innerHTML='';
@@ -686,7 +686,7 @@ function buildStoreDD(){
   const vis=STORE_LIST.filter(s=>state.zones.has(s.zone));
   const allChecked=vis.every(s=>state.stores.has(s.id));
   const allItem=document.createElement('div');allItem.className='dropdown-item select-all';allItem.id='store-select-all';
-  allItem.innerHTML=`<input type="checkbox" id="cb-select-all" ${allChecked?'checked':''}><label>全選 / 取消全選</label>`;
+  allItem.innerHTML=`<input type="checkbox" id="cb-select-all" ${allChecked?'checked':''}><label>å¨é¸ / åæ¶å¨é¸</label>`;
   allItem.addEventListener('click',e=>{e.stopPropagation();const cb=allItem.querySelector('input');cb.checked=!cb.checked;onSelectAll(cb.checked);});
   sdd.appendChild(allItem);
   vis.forEach(s=>{
@@ -717,9 +717,9 @@ function onStoreChange(){
   updateLabels();renderAll();
 }
 function updateLabels(){
-  const zc=state.zones.size;document.getElementById('zone-label').textContent=zc===ZONES.length?'全部分區':'已選 '+zc+' 區';
+  const zc=state.zones.size;document.getElementById('zone-label').textContent=zc===ZONES.length?'å¨é¨åå':'å·²é¸ '+zc+' å';
   const total=STORE_LIST.filter(s=>state.zones.has(s.zone)).length;const sc=state.stores.size;
-  document.getElementById('store-label').textContent=sc===total?`全選 (${total})`:`已選 ${sc}/${total} 店`;
+  document.getElementById('store-label').textContent=sc===total?`å¨é¸ (${total})`:`å·²é¸ ${sc}/${total} åº`;
 }
 document.getElementById('zone-btn').addEventListener('click',e=>{e.stopPropagation();closeAll();document.getElementById('zone-dd').classList.toggle('open');});
 document.getElementById('store-btn').addEventListener('click',e=>{e.stopPropagation();closeAll();document.getElementById('store-dd').classList.toggle('open');});
@@ -728,8 +728,8 @@ document.getElementById('store-dd').addEventListener('click',e=>e.stopPropagatio
 function closeAll(){['zone-dd','store-dd','dr-panel'].forEach(id=>document.getElementById(id).classList.remove('open'));}
 document.addEventListener('click',()=>closeAll());
 
-/* ══ PAGE / DIM ══ */
-const PAGE_TITLES={upload:'更新資料',today:'今日現況',trend:'趨勢分析',compare:'門市對比'};
+/* ââ PAGE / DIM ââ */
+const PAGE_TITLES={upload:'æ´æ°è³æ',today:'ä»æ¥ç¾æ³',trend:'è¶¨å¢åæ',compare:'éå¸å°æ¯'};
 function switchPage(p,el){
   state.page=p;
   document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');
@@ -738,7 +738,7 @@ function switchPage(p,el){
 }
 function setDim(dim,btn){state.dim=dim;document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAll();}
 
-/* ══ FILTER ══ */
+/* ââ FILTER ââ */
 function filterData(rows,extraDate=null){
   const ad=new Set(getActiveDates());
   return rows.filter(r=>state.zones.has(r.zone)&&state.stores.has(r.store)&&ad.has(r.date)&&(!extraDate||r.date===extraDate));
@@ -754,40 +754,40 @@ function sumByStore(rows){
 function sumTotal(rows){return rows.reduce((a,r)=>{a.revenue+=r.revenue;a.cups+=r.cups;a.customers+=r.customers;a.discount+=r.discount;a.ub+=r.ub;a.fp+=r.fp;a.odo+=r.odo;a.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));return a;},{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0});}
 function isAnom(s){const t=s.revenue+s.discount;return(t>0&&s.discount/t>0.20)||(s.revenue>0&&(s.ub+s.fp)/s.revenue>0.65);}
 
-/* ══ INFO BAR ══ */
+/* ââ INFO BAR ââ */
 function renderInfoBar(id){
   const rows=filterData(DATA);
   const stores=new Set(rows.map(r=>r.store)),dates=new Set(rows.map(r=>r.date));
   const s=state.dateStart,e=state.dateEnd;const fmt=d=>`${d.getMonth()+1}/${d.getDate()}`;
-  document.getElementById(id).innerHTML=`<div class="data-info-bar"><span>📅 <span class="info-num">${dates.size}</span> 天</span><span>🏪 <span class="info-num">${stores.size}</span> 門市</span><span>📊 <span class="info-num">${rows.length.toLocaleString()}</span> 筆</span><span style="margin-left:auto;font-size:11px;color:var(--text3)">${fmt(s)} – ${fmt(e)}</span></div>`;
+  document.getElementById(id).innerHTML=`<div class="data-info-bar"><span>ð <span class="info-num">${dates.size}</span> å¤©</span><span>ðª <span class="info-num">${stores.size}</span> éå¸</span><span>ð <span class="info-num">${rows.length.toLocaleString()}</span> ç­</span><span style="margin-left:auto;font-size:11px;color:var(--text3)">${fmt(s)} â ${fmt(e)}</span></div>`;
 }
 
-/* ══ TODAY ══ */
+/* ââ TODAY ââ */
 function renderToday(){
   renderInfoBar('data-info-today');
   const ad = getActiveDates();
   const dayCount = ad.length || 1;
   const ld = getLatestDate();
 
-  // 最新日資料（渠道、KPI 輔助用）
+  // ææ°æ¥è³æï¼æ¸ éãKPI è¼å©ç¨ï¼
   const latestRows = filterData(DATA, ld);
-  // 全區間資料（計算日均用）
+  // å¨åéè³æï¼è¨ç®æ¥åç¨ï¼
   const allRows = filterData(DATA);
 
   if(!allRows.length){
-    // 自動提示並顯示資料最新日期
+    // èªåæç¤ºä¸¦é¡¯ç¤ºè³æææ°æ¥æ
     const latestStr = LATEST_DATE || '';
     document.getElementById('today-kpis').innerHTML=`
       <div style="color:var(--text3);padding:20px 0;font-size:13px;line-height:2">
-        ⚠ 所選日期區間（${state.dateStart.getMonth()+1}月）尚無資料。<br>
-        資料最新日期為 <b style="color:var(--accent)">${latestStr}</b>，請切換至「最新月」或調整日期區間。
+        â  æé¸æ¥æåéï¼${state.dateStart.getMonth()+1}æï¼å°ç¡è³æã<br>
+        è³æææ°æ¥æçº <b style="color:var(--accent)">${latestStr}</b>ï¼è«åæè³ãææ°æãæèª¿æ´æ¥æåéã
       </div>`;
     destroyChart('today-channel');
     document.getElementById('rank-card-wall').innerHTML='';
     return;
   }
 
-  // ── 各店日均（每店總營收 ÷ 該店在區間內有資料的天數）──
+  // ââ ååºæ¥åï¼æ¯åºç¸½çæ¶ Ã· è©²åºå¨åéå§æè³æçå¤©æ¸ï¼ââ
   const byStore = sumByStore(allRows);
   byStore.forEach(s => {
     const storeDays = new Set(allRows.filter(r=>r.store===s.store).map(r=>r.date)).size || 1;
@@ -797,31 +797,31 @@ function renderToday(){
     s.storeDays = storeDays;
   });
 
-  // ── 全體加總 ──
+  // ââ å¨é«å ç¸½ ââ
   const tot = sumTotal(allRows);
   const storeCount = byStore.length || 1;
-  // 整體日均 = 全體總營收 ÷ 店家數 ÷ 天數
+  // æ´é«æ¥å = å¨é«ç¸½çæ¶ Ã· åºå®¶æ¸ Ã· å¤©æ¸
   const avgDailyRev = Math.round(tot.revenue / storeCount / dayCount);
   const avgDailyCups= Math.round(tot.cups    / storeCount / dayCount);
   const avgDailyCust= Math.round(tot.customers/ storeCount/ dayCount);
   const avgAov = tot.customers > 0 ? Math.round(tot.revenue / tot.customers) : 0;
   const discR  = (tot.revenue+tot.discount)>0 ? (tot.discount/(tot.revenue+tot.discount)*100).toFixed(1) : 0;
 
-  // ── KPI 卡片：主顯示每店日均，副顯示總計 ──
-  const dimLabel = state.dim==='revenue'?'每店日均淨額':state.dim==='cups'?'每店日均杯數':'每店日均來客';
+  // ââ KPI å¡çï¼ä¸»é¡¯ç¤ºæ¯åºæ¥åï¼å¯é¡¯ç¤ºç¸½è¨ ââ
+  const dimLabel = state.dim==='revenue'?'æ¯åºæ¥åæ·¨é¡':state.dim==='cups'?'æ¯åºæ¥åæ¯æ¸':'æ¯åºæ¥åä¾å®¢';
   const dimAvg   = state.dim==='revenue'?avgDailyRev:state.dim==='cups'?avgDailyCups:avgDailyCust;
   const dimTotal = state.dim==='revenue'?tot.revenue:state.dim==='cups'?tot.cups:tot.customers;
-  const dimUnit  = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+  const dimUnit  = state.dim==='revenue'?'å':state.dim==='cups'?'æ¯':'äºº';
 
   const fmtMain = v => state.dim==='revenue'
-    ? (v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString())
+    ? (v>=10000?(v/10000).toFixed(1)+'è¬':v.toLocaleString())
     : v.toLocaleString();
   const fmtSub  = v => state.dim==='revenue'
-    ? `總計 ${(v/10000).toFixed(1)}萬元`
-    : `總計 ${v.toLocaleString()}${dimUnit}`;
+    ? `ç¸½è¨ ${(v/10000).toFixed(1)}è¬å`
+    : `ç¸½è¨ ${v.toLocaleString()}${dimUnit}`;
 
   document.getElementById('today-title').textContent =
-    `${ld}（近 ${dayCount} 天）· ${storeCount} 家門市`;
+    `${ld}ï¼è¿ ${dayCount} å¤©ï¼Â· ${storeCount} å®¶éå¸`;
 
   document.getElementById('today-kpis').innerHTML = `
     <div class="kpi-card blue">
@@ -830,23 +830,23 @@ function renderToday(){
       <div class="kpi-sub">${fmtSub(dimTotal)}</div>
     </div>
     <div class="kpi-card green">
-      <div class="kpi-label">每店日均杯數</div>
-      <div class="kpi-value green">${avgDailyCups.toLocaleString()}<span style="font-size:13px;color:var(--text2)">杯</span></div>
-      <div class="kpi-sub">總計 ${tot.cups.toLocaleString()} 杯</div>
+      <div class="kpi-label">æ¯åºæ¥åæ¯æ¸</div>
+      <div class="kpi-value green">${avgDailyCups.toLocaleString()}<span style="font-size:13px;color:var(--text2)">æ¯</span></div>
+      <div class="kpi-sub">ç¸½è¨ ${tot.cups.toLocaleString()} æ¯</div>
     </div>
     <div class="kpi-card warn">
-      <div class="kpi-label">每店日均來客</div>
-      <div class="kpi-value warn">${avgDailyCust.toLocaleString()}<span style="font-size:13px;color:var(--text2)">人</span></div>
-      <div class="kpi-sub">客單價 ${avgAov.toLocaleString()} 元</div>
+      <div class="kpi-label">æ¯åºæ¥åä¾å®¢</div>
+      <div class="kpi-value warn">${avgDailyCust.toLocaleString()}<span style="font-size:13px;color:var(--text2)">äºº</span></div>
+      <div class="kpi-sub">å®¢å®å¹ ${avgAov.toLocaleString()} å</div>
     </div>
     <div class="kpi-card danger">
-      <div class="kpi-label">折扣佔比</div>
+      <div class="kpi-label">ææ£ä½æ¯</div>
       <div class="kpi-value danger">${discR}<span style="font-size:13px;color:var(--text2)">%</span></div>
-      <div class="kpi-sub">折讓 ${(tot.discount/10000).toFixed(1)}萬元</div>
+      <div class="kpi-sub">æè® ${(tot.discount/10000).toFixed(1)}è¬å</div>
     </div>
   `;
 
-  // ── 各門市表現：主顯日均，Tooltip 顯總營收 ──
+  // ââ åéå¸è¡¨ç¾ï¼ä¸»é¡¯æ¥åï¼Tooltip é¡¯ç¸½çæ¶ ââ
   const DIM_DAILY = {
     revenue: s => s.dailyAvgRevenue,
     cups:    s => s.dailyAvgCups,
@@ -857,24 +857,24 @@ function renderToday(){
     cups:    s => s.cups,
     customers: s => s.customers,
   };
-  const DAILY_LABEL = {revenue:'每店日均淨額 (元)', cups:'每店日均杯數 (杯)', customers:'每店日均來客 (人)'};
+  const DAILY_LABEL = {revenue:'æ¯åºæ¥åæ·¨é¡ (å)', cups:'æ¯åºæ¥åæ¯æ¸ (æ¯)', customers:'æ¯åºæ¥åä¾å®¢ (äºº)'};
 
   byStore.sort((a,b) => DIM_DAILY[state.dim](b) - DIM_DAILY[state.dim](a));
 
   renderRankWall(byStore, allRows, dayCount);
 
-  // ── 渠道圖：用全區間加總 ──
+  // ââ æ¸ éåï¼ç¨å¨åéå ç¸½ ââ
   const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
-  // 防呆：四渠道全為 0 時不渲染（避免顯示假資料）
+  // é²åï¼åæ¸ éå¨çº 0 æä¸æ¸²æï¼é¿åé¡¯ç¤ºåè³æï¼
   if(tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0){
     destroyChart('today-channel');
     const ctx=document.getElementById('today-channel');
-    if(ctx){ const p=ctx.parentElement; p.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">此區間無渠道資料</div>'; }
+    if(ctx){ const p=ctx.parentElement; p.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">æ­¤åéç¡æ¸ éè³æ</div>'; }
   } else
   mkChart('today-channel', {
     type: 'doughnut',
     data: {
-      labels: ['現場','UberEats','Foodpanda','ODO 自取'],
+      labels: ['ç¾å ´','UberEats','Foodpanda','ODO èªå'],
       datasets: [{
         data: [onsiteTotal, tot.ub, tot.fp, tot.odo],
         backgroundColor: ['#51cf66cc', C.a+'cc', C.p+'cc', C.b+'cc'],
@@ -892,9 +892,9 @@ function renderToday(){
               const v = ctx.raw;
               const dayAvg = Math.round(v / storeCount / dayCount);
               return [
-                `${ctx.label}：${(v/10000).toFixed(1)}萬元`,
-                `佔比 ${tot.revenue>0?(v/tot.revenue*100).toFixed(1):0}%`,
-                `每店日均 ${dayAvg>=10000?(dayAvg/10000).toFixed(1)+'萬':dayAvg.toLocaleString()}元`,
+                `${ctx.label}ï¼${(v/10000).toFixed(1)}è¬å`,
+                `ä½æ¯ ${tot.revenue>0?(v/tot.revenue*100).toFixed(1):0}%`,
+                `æ¯åºæ¥å ${dayAvg>=10000?(dayAvg/10000).toFixed(1)+'è¬':dayAvg.toLocaleString()}å`,
               ];
             }
           }
@@ -908,7 +908,7 @@ function renderToday(){
 }
 
 
-/* ══ RANK CARD WALL ══ */
+/* ââ RANK CARD WALL ââ */
 function renderRankWall(byStore, allRows, dayCount){
   const dim    = state.dim;
   const wall   = document.getElementById('rank-card-wall');
@@ -916,13 +916,13 @@ function renderRankWall(byStore, allRows, dayCount){
   const cntEl  = document.getElementById('rank-wall-count');
   if(!wall) return;
 
-  // 計算每店各維度日均
+  // è¨ç®æ¯åºåç¶­åº¦æ¥å
   function storeDailyAvg(s, d){
     const days = new Set(allRows.filter(r=>r.store===s.store).map(r=>r.date)).size || 1;
     return { val: Math.round(s[d] / days), days };
   }
 
-  // 上月每店日均（用 DATA 全集，不受日期篩選限制）
+  // ä¸ææ¯åºæ¥åï¼ç¨ DATA å¨éï¼ä¸åæ¥æç¯©é¸éå¶ï¼
   const curMonth  = state.dateStart.getMonth() + 1; // 1-based
   const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
 
@@ -945,28 +945,28 @@ function renderRankWall(byStore, allRows, dayCount){
     };
   });
 
-  // 排序：依當前維度日均由大到小
+  // æåºï¼ä¾ç¶åç¶­åº¦æ¥åç±å¤§å°å°
   const sorted = [...byStore].sort((a,b) => storeDailyAvg(b,dim).val - storeDailyAvg(a,dim).val);
   const maxVal = storeDailyAvg(sorted[0], dim).val || 1;
 
-  const DIM_LABEL_SHORT = { revenue:'日均淨額', cups:'日均杯數', customers:'日均來客' };
-  const DIM_UNIT = { revenue:'元', cups:'杯', customers:'人' };
+  const DIM_LABEL_SHORT = { revenue:'æ¥åæ·¨é¡', cups:'æ¥åæ¯æ¸', customers:'æ¥åä¾å®¢' };
+  const DIM_UNIT = { revenue:'å', cups:'æ¯', customers:'äºº' };
   const ZONE_SHORT = {
-    '北北基宜花':'北基宜', '桃竹苗':'桃竹苗', '中彰投':'中彰投', '雲嘉南高屏':'雲嘉南'
+    'åååºå®è±':'ååºå®', 'æ¡ç«¹è':'æ¡ç«¹è', 'ä¸­å½°æ':'ä¸­å½°æ', 'é²ååé«å±':'é²åå'
   };
 
   const fmtMain = (v) => {
-    if(dim==='revenue') return v>=10000 ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+    if(dim==='revenue') return v>=10000 ? (v/10000).toFixed(1)+'è¬' : v.toLocaleString();
     return v.toLocaleString();
   };
   const fmtTotal = (s) => {
     const tot = dim==='revenue'?s.revenue:dim==='cups'?s.cups:s.customers;
-    if(dim==='revenue') return '總計 '+(tot/10000).toFixed(1)+'萬元';
-    return '總計 '+tot.toLocaleString()+DIM_UNIT[dim];
+    if(dim==='revenue') return 'ç¸½è¨ '+(tot/10000).toFixed(1)+'è¬å';
+    return 'ç¸½è¨ '+tot.toLocaleString()+DIM_UNIT[dim];
   };
 
-  subEl.textContent = `依${DIM_LABEL_SHORT[dim]}由高到低 · 成長/衰退以${prevMonth}月為基準`;
-  cntEl.textContent = `${sorted.length} 家門市`;
+  subEl.textContent = `ä¾${DIM_LABEL_SHORT[dim]}ç±é«å°ä½ Â· æé·/è¡°éä»¥${prevMonth}æçºåºæº`;
+  cntEl.textContent = `${sorted.length} å®¶éå¸`;
 
   wall.innerHTML = '';
 
@@ -975,18 +975,18 @@ function renderRankWall(byStore, allRows, dayCount){
     const prev = prevMap[s.store];
     const prevVal = prev ? prev[dim] : null;
 
-    // 成長率
-    let chgPct = null, chgClass = 'flat', chgText = '—', trendIcon = '→', trendClass = 'flat';
+    // æé·ç
+    let chgPct = null, chgClass = 'flat', chgText = 'â', trendIcon = 'â', trendClass = 'flat';
     if(prevVal === null){
-      chgClass = 'new-store'; chgText = '新店'; trendIcon = '★'; trendClass = 'new-store';
+      chgClass = 'new-store'; chgText = 'æ°åº'; trendIcon = 'â'; trendClass = 'new-store';
     } else if(prevVal > 0){
       chgPct = ((val - prevVal) / prevVal * 100);
       if(chgPct >= 2){
-        chgClass = 'up'; chgText = `+${chgPct.toFixed(1)}%`; trendIcon = '▲'; trendClass = 'up';
+        chgClass = 'up'; chgText = `+${chgPct.toFixed(1)}%`; trendIcon = 'â²'; trendClass = 'up';
       } else if(chgPct <= -2){
-        chgClass = 'down'; chgText = `${chgPct.toFixed(1)}%`; trendIcon = '▼'; trendClass = 'down';
+        chgClass = 'down'; chgText = `${chgPct.toFixed(1)}%`; trendIcon = 'â¼'; trendClass = 'down';
       } else {
-        chgClass = 'flat'; chgText = `${chgPct>=0?'+':''}${chgPct.toFixed(1)}%`; trendIcon = '→'; trendClass = 'flat';
+        chgClass = 'flat'; chgText = `${chgPct>=0?'+':''}${chgPct.toFixed(1)}%`; trendIcon = 'â'; trendClass = 'flat';
       }
     }
 
@@ -1001,15 +1001,15 @@ function renderRankWall(byStore, allRows, dayCount){
 
     const card = document.createElement('div');
     card.className = cardClass;
-    card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}：${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?prevMonth+'月日均：'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
+    card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}ï¼${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?prevMonth+'ææ¥åï¼'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
     card.innerHTML = `
       <div class="rc-header">
-        <span class="rc-zone">${zoneShort}${anom?' ⚠':''}</span>
+        <span class="rc-zone">${zoneShort}${anom?' â ':''}</span>
         <span class="rc-trend ${trendClass}">${trendIcon}</span>
       </div>
       <div class="rc-name">${s.name}</div>
       <div class="rc-main">${fmtMain(val)}<span class="rc-main-unit"> ${DIM_UNIT[dim]}</span></div>
-      <div class="rc-sub">${fmtTotal(s)} · ${days}天</div>
+      <div class="rc-sub">${fmtTotal(s)} Â· ${days}å¤©</div>
       <span class="rc-chg ${chgClass}">${chgText}</span>
       <div class="rc-bar-wrap"><div class="rc-bar-fill" style="width:${pct}%;background:${fillColor}"></div></div>
       <div class="rc-rank">#${idx+1}</div>
@@ -1018,15 +1018,15 @@ function renderRankWall(byStore, allRows, dayCount){
   });
 }
 
-/* ══ WEEKLY COMPARE (今日現況頁) ══ */
+/* ââ WEEKLY COMPARE (ä»æ¥ç¾æ³é ) ââ */
 function renderWeeklyCompare(){
   const dim     = DIM_KEY[state.dim];
   const ad      = getActiveDates();
   const rangeLen= ad.length;
   const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
 
-  // ── 共用：計算每店日均（主）& 總計（輔）──
-  // 每店日均 = 全體總值 ÷ 店家數 ÷ 天數
+  // ââ å±ç¨ï¼è¨ç®æ¯åºæ¥åï¼ä¸»ï¼& ç¸½è¨ï¼è¼ï¼ââ
+  // æ¯åºæ¥å = å¨é«ç¸½å¼ Ã· åºå®¶æ¸ Ã· å¤©æ¸
   function getDailyAvg(rows, dateList){
     const tot = rows.reduce((s,r)=>s+r[dim],0);
     const stores = new Set(rows.map(r=>r.store)).size || 1;
@@ -1034,21 +1034,21 @@ function renderWeeklyCompare(){
     return { avg: Math.round(tot / stores / days), total: tot, stores, days };
   }
 
-  const DAILY_LABEL = {revenue:'每店日均淨額', cups:'每店日均杯數', customers:'每店日均來客'};
-  const UNIT = {revenue:'元', cups:'杯', customers:'人'};
-  const fmtV = v => v>=10000 ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+  const DAILY_LABEL = {revenue:'æ¯åºæ¥åæ·¨é¡', cups:'æ¯åºæ¥åæ¯æ¸', customers:'æ¯åºæ¥åä¾å®¢'};
+  const UNIT = {revenue:'å', cups:'æ¯', customers:'äºº'};
+  const fmtV = v => v>=10000 ? (v/10000).toFixed(1)+'è¬' : v.toLocaleString();
 
   if(rangeLen <= 7){
-    // ── 模式 A：逐日折線，Y 軸改為每店日均 ──
-    document.getElementById('weekly-compare-title').textContent = '週間業績對比（逐日每店日均）';
-    document.getElementById('weekly-compare-sub').textContent   = '近 7 天每店日均 vs 過去 4 週同期平均';
-    document.getElementById('weekly-compare-badge').textContent = '近 7 天';
+    // ââ æ¨¡å¼ Aï¼éæ¥æç·ï¼Y è»¸æ¹çºæ¯åºæ¥å ââ
+    document.getElementById('weekly-compare-title').textContent = 'é±éæ¥­ç¸¾å°æ¯ï¼éæ¥æ¯åºæ¥åï¼';
+    document.getElementById('weekly-compare-sub').textContent   = 'è¿ 7 å¤©æ¯åºæ¥å vs éå» 4 é±åæå¹³å';
+    document.getElementById('weekly-compare-badge').textContent = 'è¿ 7 å¤©';
     document.getElementById('weekly-compare-badge').className   = 'chart-badge ok';
 
     const latest7    = ALL_DATES.slice(-7);
     const baselineDates = ALL_DATES.slice(0, -7);
 
-    // 實績：各天的每店日均（該天總值 ÷ 有資料店家數）
+    // å¯¦ç¸¾ï¼åå¤©çæ¯åºæ¥åï¼è©²å¤©ç¸½å¼ Ã· æè³æåºå®¶æ¸ï¼
     const actualData = latest7.map(date => {
       const rows   = DATA.filter(r => storeFilter(r) && r.date === date);
       const stores = new Set(rows.map(r=>r.store)).size || 1;
@@ -1056,20 +1056,20 @@ function renderWeeklyCompare(){
       return { avg: Math.round(tot/stores), total: tot, stores };
     });
 
-    // 基線：各 dow 的 4週日均（同 dow 總值 ÷ 出現次數 ÷ 當天有資料店家數均值）
+    // åºç·ï¼å dow ç 4é±æ¥åï¼å dow ç¸½å¼ Ã· åºç¾æ¬¡æ¸ Ã· ç¶å¤©æè³æåºå®¶æ¸åå¼ï¼
     const dowAvgData = Array(7).fill(null).map(()=>({sum:0,cnt:0,storeSums:0}));
     DATA.filter(r => storeFilter(r) && baselineDates.includes(r.date)).forEach(r=>{
       dowAvgData[r.dow].sum += r[dim]; dowAvgData[r.dow].cnt++;
     });
-    // 估每 dow 的平均店家數（用實際資料算）
+    // ä¼°æ¯ dow çå¹³ååºå®¶æ¸ï¼ç¨å¯¦éè³æç®ï¼
     const dowStores = Array(7).fill(0).map((_,i)=>{
       const s=new Set(DATA.filter(r=>storeFilter(r)&&baselineDates.includes(r.date)&&r.dow===i).map(r=>r.store));
       return s.size||1;
     });
     const dowAvg = dowAvgData.map((d,i)=>{
       if(!d.cnt) return 0;
-      // total÷天數 = 每天所有店總值，再÷店家數 = 每店日均
-      const dayCount = d.cnt / dowStores[i]; // cnt/stores ≈ 出現天數
+      // totalÃ·å¤©æ¸ = æ¯å¤©ææåºç¸½å¼ï¼åÃ·åºå®¶æ¸ = æ¯åºæ¥å
+      const dayCount = d.cnt / dowStores[i]; // cnt/stores â åºç¾å¤©æ¸
       return Math.round(d.sum / dowStores[i] / Math.max(dayCount,1));
     });
 
@@ -1077,10 +1077,10 @@ function renderWeeklyCompare(){
       const row = DATA.find(r=>r.date===date); return row ? dowAvg[row.dow] : 0;
     });
 
-    const DOW_ZH=['一','二','三','四','五','六','日'];
+    const DOW_ZH=['ä¸','äº','ä¸','å','äº','å­','æ¥'];
     const labels = latest7.map(date=>{
       const row=DATA.find(r=>r.date===date); const dow=row?row.dow:0;
-      return date+'\n週'+DOW_ZH[dow];
+      return date+'\né±'+DOW_ZH[dow];
     });
 
     mkChart('weekly-compare-chart',{
@@ -1090,7 +1090,7 @@ function renderWeeklyCompare(){
         datasets:[
           {
             type:'bar',
-            label:'每店日均（實績）',
+            label:'æ¯åºæ¥åï¼å¯¦ç¸¾ï¼',
             data: actualData.map(d=>d.avg),
             backgroundColor: actualData.map((d,i)=>
               d.avg>=(baselineAligned[i]||0) ? C.a+'bb' : C.w+'88'),
@@ -1100,7 +1100,7 @@ function renderWeeklyCompare(){
           },
           {
             type:'line',
-            label:`${prevMonth}月基線`,
+            label:`${prevMonth}æåºç·`,
             data: baselineAligned,
             borderColor: C.b, borderWidth:2, borderDash:[5,4],
             pointRadius:5, pointBackgroundColor:C.b,
@@ -1124,16 +1124,16 @@ function renderWeeklyCompare(){
               label: ctx=>{
                 if(ctx.datasetIndex===0){
                   const d=actualData[ctx.dataIndex];
-                  return `實績：${fmtV(d.avg)}${UNIT[state.dim]}（${d.stores}店）`;
+                  return `å¯¦ç¸¾ï¼${fmtV(d.avg)}${UNIT[state.dim]}ï¼${d.stores}åºï¼`;
                 }
-                return `${prevMonth}月基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`;
+                return `${prevMonth}æåºç·ï¼${fmtV(ctx.raw)}${UNIT[state.dim]}`;
               },
               afterBody: ctx=>{
                 if(ctx.length<2) return [];
                 const actual=ctx[0].raw, base=ctx[1].raw;
                 if(!base) return [];
                 const diff=actual-base, pct=((diff/base)*100).toFixed(1);
-                return [`差異：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
+                return [`å·®ç°ï¼${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
@@ -1142,13 +1142,13 @@ function renderWeeklyCompare(){
     })
 
   } else {
-    // ── 模式 B：週加總長條，Y 軸改為每店日均，長條顯示週內日均 ──
-    document.getElementById('weekly-compare-title').textContent = '週間業績對比（週每店日均）';
-    document.getElementById('weekly-compare-sub').textContent   = '每週每店日均長條 + 整體均線';
-    document.getElementById('weekly-compare-badge').textContent = `${rangeLen} 天`;
+    // ââ æ¨¡å¼ Bï¼é±å ç¸½é·æ¢ï¼Y è»¸æ¹çºæ¯åºæ¥åï¼é·æ¢é¡¯ç¤ºé±å§æ¥å ââ
+    document.getElementById('weekly-compare-title').textContent = 'é±éæ¥­ç¸¾å°æ¯ï¼é±æ¯åºæ¥åï¼';
+    document.getElementById('weekly-compare-sub').textContent   = 'æ¯é±æ¯åºæ¥åé·æ¢ + æ´é«åç·';
+    document.getElementById('weekly-compare-badge').textContent = `${rangeLen} å¤©`;
     document.getElementById('weekly-compare-badge').className   = 'chart-badge warn';
 
-    // 將 activeDates 分組成週（Mon 起始）
+    // å° activeDates åçµæé±ï¼Mon èµ·å§ï¼
     const weeks=[];
     let curWeek=null, curLabel=null;
     ad.forEach(date=>{
@@ -1160,7 +1160,7 @@ function renderWeeklyCompare(){
     });
     if(curWeek&&curWeek.length>0) weeks.push({label:curLabel,dates:curWeek});
 
-    // 每週：每店日均 & 總計
+    // æ¯é±ï¼æ¯åºæ¥å & ç¸½è¨
     const weekData = weeks.map(w=>{
       const rows   = DATA.filter(r=>storeFilter(r)&&w.dates.includes(r.date));
       const stores = new Set(rows.map(r=>r.store)).size||1;
@@ -1169,7 +1169,7 @@ function renderWeeklyCompare(){
       return { avg: Math.round(tot/stores/days), total: tot, stores, days };
     });
 
-    // 基線 = 上個月各 dow 的每店日均，對齊到每週的主要 dow（週一）
+    // åºç· = ä¸åæå dow çæ¯åºæ¥åï¼å°é½å°æ¯é±çä¸»è¦ dowï¼é±ä¸ï¼
     const curMonthB  = state.dateStart.getMonth() + 1;
     const prevMonthB = curMonthB === 1 ? 12 : curMonthB - 1;
     const prevRowsB  = DATA.filter(r => storeFilter(r) && r.month === prevMonthB);
@@ -1184,7 +1184,7 @@ function renderWeeklyCompare(){
       return Math.round(tot / daySet.size / (storeSum/daySet.size||1));
     });
 
-    // 每週基線 = 該週所有天的上月同 dow 均值的加權平均
+    // æ¯é±åºç· = è©²é±ææå¤©çä¸æå dow åå¼çå æ¬å¹³å
     const avgLine = weeks.map(w => {
       const dayAvgs = w.dates.map(date => {
         const row = DATA.find(r => r.date === date);
@@ -1193,7 +1193,7 @@ function renderWeeklyCompare(){
       return dayAvgs.length ? Math.round(dayAvgs.reduce((a,b)=>a+b,0)/dayAvgs.length) : 0;
     });
 
-    // 保留 overall 用於 tooltip 說明
+    // ä¿ç overall ç¨æ¼ tooltip èªªæ
     const allRows = DATA.filter(r=>storeFilter(r)&&ad.includes(r.date));
     const overall = getDailyAvg(allRows, ad);
 
@@ -1202,9 +1202,9 @@ function renderWeeklyCompare(){
       const endDate=w.dates[w.dates.length-1];
       const[em,ed]=endDate.split('/');
       const dayCount=w.dates.length;
-      // 不完整的週加上天數說明
-      const suffix = dayCount<7 ? `（${dayCount}天）` : '';
-      return `第${i+1}週 ${suffix}\n${parseInt(m)}/${parseInt(d)}～${parseInt(em)}/${parseInt(ed)}`;
+      // ä¸å®æ´çé±å ä¸å¤©æ¸èªªæ
+      const suffix = dayCount<7 ? `ï¼${dayCount}å¤©ï¼` : '';
+      return `ç¬¬${i+1}é± ${suffix}\n${parseInt(m)}/${parseInt(d)}ï½${parseInt(em)}/${parseInt(ed)}`;
     });
 
     mkChart('weekly-compare-chart',{
@@ -1212,12 +1212,12 @@ function renderWeeklyCompare(){
       data:{
         labels:weekLabels,
         datasets:[
-          { type:'bar', label:'每店日均',
+          { type:'bar', label:'æ¯åºæ¥å',
             data:weekData.map(d=>d.avg),
             backgroundColor:weekData.map((d,i)=>d.avg>=(avgLine[i]||0)?C.a+'bb':C.w+'bb'),
             borderColor:    weekData.map((d,i)=>d.avg>=(avgLine[i]||0)?C.a:C.w),
             borderWidth:1.5, borderRadius:5, maxBarThickness:40, order:2 },
-          { type:'line', label:`${prevMonthB}月同期基線`,
+          { type:'line', label:`${prevMonthB}æåæåºç·`,
             data:avgLine,
             borderColor:C.b, borderDash:[5,4], borderWidth:2,
             pointRadius:5, pointBackgroundColor:C.b,
@@ -1237,11 +1237,11 @@ function renderWeeklyCompare(){
                 if(ctx.datasetIndex===0){
                   const d=weekData[ctx.dataIndex];
                   return [
-                    `每店日均：${fmtV(d.avg)}${UNIT[state.dim]}`,
-                    `週總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店×${d.days}天）`
+                    `æ¯åºæ¥åï¼${fmtV(d.avg)}${UNIT[state.dim]}`,
+                    `é±ç¸½è¨ï¼${fmtV(d.total)}${UNIT[state.dim]}ï¼${d.stores}åºÃ${d.days}å¤©ï¼`
                   ];
                 }
-                return [`${prevMonthB}月同期基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
+                return [`${prevMonthB}æåæåºç·ï¼${fmtV(ctx.raw)}${UNIT[state.dim]}`];
               },
               afterBody: ctx=>{
                 const d=weekData[ctx[0]?.dataIndex];
@@ -1249,7 +1249,7 @@ function renderWeeklyCompare(){
                 const base = avgLine[ctx[0]?.dataIndex] || 0;
                 if(!base) return [];
                 const diff=d.avg-base, pct=((diff/base)*100).toFixed(1);
-                return [`vs ${prevMonthB}月基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
+                return [`vs ${prevMonthB}æåºç·ï¼${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
@@ -1259,33 +1259,33 @@ function renderWeeklyCompare(){
   }
 }
 
-/* ══ TREND ══ */
+/* ââ TREND ââ */
 function renderTrend(){
   renderInfoBar('data-info-trend');
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();const byDate={};rows.forEach(r=>{byDate[r.date]=(byDate[r.date]||0)+r[dim];});
-  mkChart('trend-line',{type:'line',data:{labels:ad,datasets:[{label:DIM_LABEL[state.dim],data:ad.map(d=>byDate[d]||0),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.35,pointRadius:1.5,pointHoverRadius:5}]},options:{...BO,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:20,font:{size:10}}},y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}}}});
-  // 週間分佈：本期 vs 前四週同 dow 平均
+  mkChart('trend-line',{type:'line',data:{labels:ad,datasets:[{label:DIM_LABEL[state.dim],data:ad.map(d=>byDate[d]||0),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.35,pointRadius:1.5,pointHoverRadius:5}]},options:{...BO,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:20,font:{size:10}}},y:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'è¬':v}}}}});
+  // é±éåä½ï¼æ¬æ vs ååé±å dow å¹³å
   const activeDatesSet = new Set(ad);
-  // 前四週：在選定區間之前，往回取最多 28 天
+  // ååé±ï¼å¨é¸å®åéä¹åï¼å¾ååæå¤ 28 å¤©
   const allSortedDates = ALL_DATES.filter(d => {
     const yr = DATE_YEAR_MAP[d] || TODAY.getFullYear();
     return internalToDate(d, yr) < state.dateStart;
   }).slice(-28);
   const prev4wSet = new Set(allSortedDates);
 
-  // 更新副標題：顯示本期 & 前4週日期範圍
+  // æ´æ°å¯æ¨é¡ï¼é¡¯ç¤ºæ¬æ & å4é±æ¥æç¯å
   const subEl = document.getElementById('weekday-sub');
   if(subEl){
     const curStart = ad[0], curEnd = ad[ad.length-1];
     const prevStart = allSortedDates[0], prevEnd = allSortedDates[allSortedDates.length-1];
-    const fmt = d => d ? d.replace(/^0/,'').replace('/','月').replace(/^(\d+)\/(.+)$/,'$1月$2日') : '-';
-    const curLabel  = `本期 ${fmt(curStart)}～${fmt(curEnd)}`;
-    const prevLabel = prevStart ? `基線 ${fmt(prevStart)}～${fmt(prevEnd)}（${allSortedDates.length}天）` : '基線 無資料';
-    subEl.textContent = `${curLabel}　｜　${prevLabel}`;
+    const fmt = d => d ? d.replace(/^0/,'').replace('/','æ').replace(/^(\d+)\/(.+)$/,'$1æ$2æ¥') : '-';
+    const curLabel  = `æ¬æ ${fmt(curStart)}ï½${fmt(curEnd)}`;
+    const prevLabel = prevStart ? `åºç· ${fmt(prevStart)}ï½${fmt(prevEnd)}ï¼${allSortedDates.length}å¤©ï¼` : 'åºç· ç¡è³æ';
+    subEl.textContent = `${curLabel}ãï½ã${prevLabel}`;
   }
 
-  // 本期各 dow：每店日均
+  // æ¬æå dowï¼æ¯åºæ¥å
   const curDow  = Array(7).fill(null).map(() => ({sum:0, storeSums:0, days:new Set()}));
   rows.forEach(r => {
     curDow[r.dow].sum += r[dim];
@@ -1297,7 +1297,7 @@ function renderTrend(){
     return Math.round(d.sum / d.days.size / storeCount);
   });
 
-  // 前四週各 dow：每店日均（只取篩選門市）
+  // ååé±å dowï¼æ¯åºæ¥åï¼åªåç¯©é¸éå¸ï¼
   const prevRows4w = DATA.filter(r =>
     state.zones.has(r.zone) && state.stores.has(r.store) && prev4wSet.has(r.date)
   );
@@ -1312,8 +1312,8 @@ function renderTrend(){
     return Math.round(d.sum / d.days.size / storeCount);
   });
 
-  const DOW_LABELS = ['週一','週二','週三','週四','週五','週六','週日'];
-  const fmtW = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+  const DOW_LABELS = ['é±ä¸','é±äº','é±ä¸','é±å','é±äº','é±å­','é±æ¥'];
+  const fmtW = v => v>=10000?(v/10000).toFixed(1)+'è¬':v.toLocaleString();
 
   mkChart('trend-weekday',{
     type:'bar',
@@ -1321,14 +1321,14 @@ function renderTrend(){
       labels: DOW_LABELS,
       datasets:[
         {
-          type:'bar', label:'本期每店日均',
+          type:'bar', label:'æ¬ææ¯åºæ¥å',
           data: curDowAvg,
           backgroundColor: curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a+'99':C.w+'88'),
           borderColor:     curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a:C.w),
           borderWidth:1.5, borderRadius:4, maxBarThickness:38, order:2,
         },
         {
-          type:'line', label:'前4週基線',
+          type:'line', label:'å4é±åºç·',
           data: prevDowAvg,
           borderColor:C.b, borderWidth:2, borderDash:[5,4],
           pointRadius:5, pointBackgroundColor:C.b,
@@ -1351,34 +1351,34 @@ function renderTrend(){
             label: ctx => {
               const v = ctx.raw;
               return ctx.datasetIndex===0
-                ? `本期：${fmtW(v)}元/店`
-                : `前4週基線：${fmtW(v)}元/店`;
+                ? `æ¬æï¼${fmtW(v)}å/åº`
+                : `å4é±åºç·ï¼${fmtW(v)}å/åº`;
             },
             afterBody: ctx => {
               if(ctx.length<2) return [];
               const cur=ctx[0].raw, base=ctx[1].raw;
               if(!base) return [];
               const diff=cur-base, pct=((diff/base)*100).toFixed(1);
-              return [`差異：${diff>=0?'+':''}${fmtW(diff)} (${pct}%)`];
+              return [`å·®ç°ï¼${diff>=0?'+':''}${fmtW(diff)} (${pct}%)`];
             }
           }
         }
       }
     }
   });
-  const wMap={};rows.forEach(r=>{const w=r.weather||'晴';if(!wMap[w])wMap[w]={s:0,c:0};wMap[w].s+=r[dim];wMap[w].c++;});
-  const weatherLabels = ['晴','陰','雨'];
+  const wMap={};rows.forEach(r=>{const w=r.weather||'æ´';if(!wMap[w])wMap[w]={s:0,c:0};wMap[w].s+=r[dim];wMap[w].c++;});
+  const weatherLabels = ['æ´','é°','é¨'];
   const weatherVals   = weatherLabels.map(w => wMap[w] ? Math.round(wMap[w].s/wMap[w].c) : 0);
   const weatherDays   = weatherLabels.map(w => wMap[w] ? wMap[w].c : 0);
-  const weatherXLabels = weatherLabels.map((w,i) => weatherDays[i] ? `${w}（${weatherDays[i]}天）` : w);
-  const fmtWV = v => v>=10000?(v/10000).toFixed(0)+'萬':v.toLocaleString();
+  const weatherXLabels = weatherLabels.map((w,i) => weatherDays[i] ? `${w}ï¼${weatherDays[i]}å¤©ï¼` : w);
+  const fmtWV = v => v>=10000?(v/10000).toFixed(0)+'è¬':v.toLocaleString();
 
   mkChart('trend-weather',{
     type:'bar',
     data:{
       labels: weatherXLabels,
       datasets:[{
-        label:'每店日均',
+        label:'æ¯åºæ¥å',
         data: weatherVals,
         backgroundColor:[C.w+'99','#adb5bd99',C.a+'99'],
         borderColor:[C.w,'#adb5bd',C.a],
@@ -1391,8 +1391,8 @@ function renderTrend(){
         legend:{ display:false },
         tooltip:{
           callbacks:{
-            label: ctx => `每店日均：${fmtWV(ctx.raw)}元`,
-            afterLabel: ctx => `共 ${weatherDays[ctx.dataIndex]} 天`,
+            label: ctx => `æ¯åºæ¥åï¼${fmtWV(ctx.raw)}å`,
+            afterLabel: ctx => `å± ${weatherDays[ctx.dataIndex]} å¤©`,
           }
         }
       },
@@ -1404,43 +1404,43 @@ function renderTrend(){
   });
 }
 
-/* ══ COMPARE ══ */
+/* ââ COMPARE ââ */
 function renderCompare(){
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();const lastWeek=ad.slice(-7);const prevDates=ad.slice(0,-7);
-  // 本週：各 dow 的每店日均（該 dow 總值 ÷ 當天有資料店家數）
+  // æ¬é±ï¼å dow çæ¯åºæ¥åï¼è©² dow ç¸½å¼ Ã· ç¶å¤©æè³æåºå®¶æ¸ï¼
   const twDowAvg = Array(7).fill(0);
   const twDowStores = Array(7).fill(0);
   filterData(DATA).filter(r=>new Set(lastWeek).has(r.date)).forEach(r=>{
     twDowAvg[r.dow]+=r[dim]; twDowStores[r.dow]++;
   });
-  // twDowStores[i] = 總筆數，÷ 出現天數 ≈ 每天店家數
-  // 同一 dow 在 lastWeek 最多出現 1 次，所以直接是該天店家數
+  // twDowStores[i] = ç¸½ç­æ¸ï¼Ã· åºç¾å¤©æ¸ â æ¯å¤©åºå®¶æ¸
+  // åä¸ dow å¨ lastWeek æå¤åºç¾ 1 æ¬¡ï¼æä»¥ç´æ¥æ¯è©²å¤©åºå®¶æ¸
   const twDowDailyAvg = twDowAvg.map((s,i)=>twDowStores[i]?Math.round(s/twDowStores[i]):0);
 
-  // 基線：各 dow 的每店日均（歷史同 dow 總值 ÷ 出現次數 ÷ 各次有資料店家數均值）
+  // åºç·ï¼å dow çæ¯åºæ¥åï¼æ­·å²å dow ç¸½å¼ Ã· åºç¾æ¬¡æ¸ Ã· åæ¬¡æè³æåºå®¶æ¸åå¼ï¼
   const bS=Array(7).fill(0), bStores=Array(7).fill(0), bDays=Array(7).fill(0);
   filterData(DATA).filter(r=>new Set(prevDates).has(r.date)).forEach(r=>{
     bS[r.dow]+=r[dim]; bStores[r.dow]++;
   });
-  // 每個 dow 出現幾天
+  // æ¯å dow åºç¾å¹¾å¤©
   prevDates.forEach(date=>{
     const row=DATA.find(r=>r.date===date); if(row) bDays[row.dow]=(bDays[row.dow]||0)+1;
   });
   const baseline=bS.map((s,i)=>{
     const stores=bStores[i], days=bDays[i]||1;
-    // stores = 該 dow 所有筆數，days = 出現天數，stores/days = 平均每天店家數
+    // stores = è©² dow ææç­æ¸ï¼days = åºç¾å¤©æ¸ï¼stores/days = å¹³åæ¯å¤©åºå®¶æ¸
     const avgStoresPerDay = days ? Math.round(stores/days) : 1;
     return avgStoresPerDay ? Math.round(s/stores*avgStoresPerDay) : 0;
-    // 等效：總值 ÷ 天數 ÷ 平均店家數
+    // ç­æï¼ç¸½å¼ Ã· å¤©æ¸ Ã· å¹³ååºå®¶æ¸
   });
-  // 更直接的算法：重算 baseline
+  // æ´ç´æ¥çç®æ³ï¼éç® baseline
   const bClean = Array(7).fill(null).map((_,dow)=>{
     const rows = filterData(DATA).filter(r=>new Set(prevDates).has(r.date)&&r.dow===dow);
     const daySet = new Set(rows.map(r=>r.date));
     if(!daySet.size) return 0;
     const tot = rows.reduce((a,r)=>a+r[dim],0);
-    // 每天的店家數平均
+    // æ¯å¤©çåºå®¶æ¸å¹³å
     let storeSum=0;
     daySet.forEach(date=>{
       storeSum += new Set(rows.filter(r=>r.date===date).map(r=>r.store)).size;
@@ -1449,18 +1449,18 @@ function renderCompare(){
     return Math.round(tot/daySet.size/avgStores);
   });
 
-  const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
-  const unit={revenue:'元',cups:'杯',customers:'人'}[state.dim];
+  const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'è¬':v.toLocaleString();
+  const unit={revenue:'å',cups:'æ¯',customers:'äºº'}[state.dim];
 
   mkChart('chart-a',{
     type:'line',
     data:{
-      labels:['週一','週二','週三','週四','週五','週六','週日'],
+      labels:['é±ä¸','é±äº','é±ä¸','é±å','é±äº','é±å­','é±æ¥'],
       datasets:[
-        {label:'本週每店日均', data:twDowDailyAvg,
+        {label:'æ¬é±æ¯åºæ¥å', data:twDowDailyAvg,
           borderColor:C.a, backgroundColor:C.a+'22', fill:true,
           tension:0.3, pointRadius:5, borderWidth:2.5},
-        {label:'前期基線（每店日均）', data:bClean,
+        {label:'åæåºç·ï¼æ¯åºæ¥åï¼', data:bClean,
           borderColor:C.b+'99', borderDash:[6,4], fill:false,
           tension:0.3, pointRadius:3, borderWidth:1.5}
       ]
@@ -1477,7 +1477,7 @@ function renderCompare(){
                 const a=ctx[0].raw, b=ctx[1].raw;
                 if(!b) return [];
                 const diff=a-b, pct=((diff/b)*100).toFixed(1);
-                return [`vs 基線：${diff>=0?'+':''}${fmtV(diff)}${unit} (${pct}%)`];
+                return [`vs åºç·ï¼${diff>=0?'+':''}${fmtV(diff)}${unit} (${pct}%)`];
               }
               return [];
             }
@@ -1487,22 +1487,22 @@ function renderCompare(){
     }
   });
   const byStore=sumByStore(rows);const anomStores=byStore.filter(s=>isAnom(s));
-  document.getElementById('chartb-badge').textContent=anomStores.length?'⚠ '+anomStores.length+' 家異常':'✓ 無異常';
+  document.getElementById('chartb-badge').textContent=anomStores.length?'â  '+anomStores.length+' å®¶ç°å¸¸':'â ç¡ç°å¸¸';
   document.getElementById('chartb-badge').className='chart-badge '+(anomStores.length?'warn':'ok');
   const top15=[...byStore].sort((a,b)=>b.revenue-a.revenue).slice(0,15);
-  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'營業淨額',data:top15.map(s=>s.revenue),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'來客數',data:top15.map(s=>s.customers),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},tooltip:{mode:'index',intersect:false}}}});
-  document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">⚠</span><div><b>${s.name}</b>（${s.zone}）— 折扣率 ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%，外送佔比 ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
+  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'çæ¥­æ·¨é¡',data:top15.map(s=>s.revenue),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'ä¾å®¢æ¸',data:top15.map(s=>s.customers),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'è¬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},tooltip:{mode:'index',intersect:false}}}});
+  document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">â </span><div><b>${s.name}</b>ï¼${s.zone}ï¼â ææ£ç ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%ï¼å¤éä½æ¯ ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
   const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top10=sorted.slice(0,10);const bot10=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,10);
-  mkChart('chart-c',{type:'bar',data:{labels:[...top10.map(s=>'🏆 '+s.name),...bot10.map(s=>'⚠ '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top10.map(s=>s[dim]),...bot10.map(s=>s[dim])],backgroundColor:[...top10.map(()=>C.a+'bb'),...bot10.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top10.map(()=>C.a),...bot10.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
-  // 圖表D：各店渠道佔比（%為主，金額為輔，用每店日均）
-  // 先算各店在整個篩選區間的天數
+  mkChart('chart-c',{type:'bar',data:{labels:[...top10.map(s=>'ð '+s.name),...bot10.map(s=>'â  '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top10.map(s=>s[dim]),...bot10.map(s=>s[dim])],backgroundColor:[...top10.map(()=>C.a+'bb'),...bot10.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top10.map(()=>C.a),...bot10.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'è¬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
+  // åè¡¨Dï¼ååºæ¸ éä½æ¯ï¼%çºä¸»ï¼éé¡çºè¼ï¼ç¨æ¯åºæ¥åï¼
+  // åç®ååºå¨æ´åç¯©é¸åéçå¤©æ¸
   const storeDayMap = {};
   rows.forEach(r=>{
     if(!storeDayMap[r.store]) storeDayMap[r.store]=new Set();
     storeDayMap[r.store].add(r.date);
   });
 
-  // 每店各渠道日均金額 & 佔比
+  // æ¯åºåæ¸ éæ¥åéé¡ & ä½æ¯
   const dStores = byStore.map(s=>{
     const days    = storeDayMap[s.store]?.size || 1;
     const onsiteD = Math.round((s.onsite||Math.max(0,s.revenue-s.ub-s.fp-s.odo)) / days);
@@ -1519,26 +1519,26 @@ function renderCompare(){
       onsiteD, ubD, fpD, odoD, totD, days
     };
   });
-  // 修正加總誤差（讓每店合計 = 100%，差值補在現場）
+  // ä¿®æ­£å ç¸½èª¤å·®ï¼è®æ¯åºåè¨ = 100%ï¼å·®å¼è£å¨ç¾å ´ï¼
   dStores.forEach(s=>{
     const sum = s.onsitePct + s.ubPct + s.fpPct + s.odoPct;
     if(sum !== 100) s.onsitePct += (100 - sum);
   });
 
-  const fmtM = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+  const fmtM = v => v>=10000?(v/10000).toFixed(1)+'è¬':v.toLocaleString();
 
   mkChart('chart-d',{
     type:'bar',
     data:{
       labels: dStores.map(s=>s.name),
       datasets:[
-        { label:'現場 %',      data:dStores.map(s=>s.onsitePct),
+        { label:'ç¾å ´ %',      data:dStores.map(s=>s.onsitePct),
           backgroundColor:'#51cf66cc', stack:'ch' },
         { label:'UberEats %',  data:dStores.map(s=>s.ubPct),
           backgroundColor:C.a+'cc', stack:'ch' },
         { label:'Foodpanda %', data:dStores.map(s=>s.fpPct),
           backgroundColor:C.p+'cc', stack:'ch' },
-        { label:'ODO 自取 %', data:dStores.map(s=>s.odoPct),
+        { label:'ODO èªå %', data:dStores.map(s=>s.odoPct),
           backgroundColor:C.b+'cc', stack:'ch' },
       ]
     },
@@ -1561,13 +1561,13 @@ function renderCompare(){
                 ? [s.ubPct,  s.ubD,  'UberEats']
                 : ch===1
                 ? [s.fpPct,  s.fpD,  'Foodpanda']
-                : [s.odoPct, s.odoD, 'ODO 自取'];
-              return `${label}：${pct}%（日均 ${fmtM(daily)}元）`;
+                : [s.odoPct, s.odoD, 'ODO èªå'];
+              return `${label}ï¼${pct}%ï¼æ¥å ${fmtM(daily)}åï¼`;
             },
             afterBody: ctx=>{
               const s = dStores[ctx[0]?.dataIndex];
               if(!s) return [];
-              return [`總渠道日均：${fmtM(s.totD)}元 × ${s.days}天`];
+              return [`ç¸½æ¸ éæ¥åï¼${fmtM(s.totD)}å Ã ${s.days}å¤©`];
             }
           }
         }
@@ -1576,36 +1576,36 @@ function renderCompare(){
   });
 }
 
-/* ══ RENDER ALL ══ */
+/* ââ RENDER ALL ââ */
 function renderAll(){
   if(state.page==='today')renderToday();
   if(state.page==='trend')renderTrend();
   if(state.page==='compare')renderCompare();
 }
 
-/* ══ INIT ══ */
+/* ââ INIT ââ */
 updateTokenStatus();
 buildDropdowns();updateDRDisplay();renderAll();
 </script>
-<!-- 密碼彈窗 -->
+<!-- å¯ç¢¼å½çª -->
 <div id="pw-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:none;align-items:center;justify-content:center;">
   <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:32px 36px;width:320px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.6);">
-    <div style="font-size:36px;margin-bottom:12px">🔒</div>
-    <div style="font-size:16px;font-weight:700;margin-bottom:6px">管理員驗證</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">請輸入密碼以進入資料管理頁面</div>
-    <input type="password" id="pw-input" placeholder="輸入密碼"
+    <div style="font-size:36px;margin-bottom:12px">ð</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">ç®¡çå¡é©è­</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:20px">è«è¼¸å¥å¯ç¢¼ä»¥é²å¥è³æç®¡çé é¢</div>
+    <input type="password" id="pw-input" placeholder="è¼¸å¥å¯ç¢¼"
       style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:14px;font-family:var(--font);margin-bottom:8px;text-align:center;letter-spacing:.1em;"
       onkeydown="if(event.key==='Enter')verifyPassword()">
     <div id="pw-error" style="font-size:12px;color:var(--danger);height:18px;margin-bottom:8px;"></div>
     <div style="display:flex;gap:8px;">
-      <button onclick="closePwOverlay()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;">取消</button>
-      <button onclick="verifyPassword()" style="flex:1;background:var(--accent);border:none;border-radius:8px;padding:9px;color:#fff;font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer;">確認</button>
+      <button onclick="closePwOverlay()" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px;color:var(--text2);font-size:13px;font-family:var(--font);cursor:pointer;">åæ¶</button>
+      <button onclick="verifyPassword()" style="flex:1;background:var(--accent);border:none;border-radius:8px;padding:9px;color:#fff;font-size:13px;font-family:var(--font);font-weight:600;cursor:pointer;">ç¢ºèª</button>
     </div>
   </div>
 </div>
 
 <script>
-/* ══ 密碼保護 ══ */
+/* ââ å¯ç¢¼ä¿è­· ââ */
 const PW_HASH = '1d5f47eb7886e1f3e3fe0c3ef1720ff46693389d658be9ec68688db1cf4a23a0';
 const SESSION_KEY = 'ug_admin_auth';
 
@@ -1615,12 +1615,12 @@ async function sha256(str){
 }
 
 function checkPassword(){
-  // 本次 session 已驗證過，直接進入
+  // æ¬æ¬¡ session å·²é©è­éï¼ç´æ¥é²å¥
   if(sessionStorage.getItem(SESSION_KEY)==='1'){
     doEnterUpload();
     return;
   }
-  // 顯示彈窗
+  // é¡¯ç¤ºå½çª
   const overlay = document.getElementById('pw-overlay');
   overlay.style.display = 'flex';
   document.getElementById('pw-input').value = '';
@@ -1630,14 +1630,14 @@ function checkPassword(){
 
 async function verifyPassword(){
   const val = document.getElementById('pw-input').value;
-  if(!val){ document.getElementById('pw-error').textContent='請輸入密碼'; return; }
+  if(!val){ document.getElementById('pw-error').textContent='è«è¼¸å¥å¯ç¢¼'; return; }
   const h = await sha256(val);
   if(h === PW_HASH){
     sessionStorage.setItem(SESSION_KEY, '1');
     closePwOverlay();
     doEnterUpload();
   } else {
-    document.getElementById('pw-error').textContent = '❌ 密碼錯誤，請再試一次';
+    document.getElementById('pw-error').textContent = 'â å¯ç¢¼é¯èª¤ï¼è«åè©¦ä¸æ¬¡';
     document.getElementById('pw-input').value = '';
     document.getElementById('pw-input').focus();
   }
