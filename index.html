@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606011348";</script>
-<script id="data-script" src="data.js?v=202606011348"></script>
+<script>window.DATA_VERSION="202606011400";</script>
+<script id="data-script" src="data.js?v=202606011400"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -128,6 +128,33 @@ canvas{max-height:300px;}
 ::-webkit-scrollbar{width:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+/* ── 渠道結構分析 ── */
+.ch-alert{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.25);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ch-alert-icon{font-size:18px;flex-shrink:0;}
+.ch-alert-main{flex:1;}
+.ch-alert-title{font-size:13px;font-weight:700;color:var(--danger);}
+.ch-alert-sub{font-size:12px;color:var(--text2);margin-top:2px;}
+.ch-alert-nums{display:flex;gap:18px;flex-wrap:wrap;}
+.ch-num{text-align:center;}
+.ch-num-val{font-size:18px;font-weight:700;font-family:var(--mono);}
+.ch-num-lbl{font-size:10px;color:var(--text3);margin-top:1px;}
+.ch-table-wrap{overflow-x:auto;}
+.ch-table{width:100%;border-collapse:collapse;font-size:12px;}
+.ch-table th{padding:7px 11px;text-align:center;background:var(--bg3);font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;border-bottom:1px solid var(--border);}
+.ch-table th.tl{text-align:left;}
+.ch-table td{padding:8px 11px;border-bottom:1px solid rgba(42,49,71,.4);text-align:center;vertical-align:middle;}
+.ch-table td.tl{text-align:left;}
+.ch-table tr:hover td{background:rgba(255,255,255,.018);}
+.ch-table .tsep{border-left:1px solid var(--border) !important;}
+.ch-loss{color:var(--danger);font-family:var(--mono);font-size:11px;}
+.ch-rv{font-size:11px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;display:inline-block;}
+.ch-rv.ok{background:rgba(81,207,102,.12);color:#51cf66;}
+.ch-rv.warn{background:rgba(255,212,59,.1);color:var(--warn);}
+.ch-rv.bad{background:rgba(255,107,107,.1);color:var(--danger);}
+.ch-rv.neutral{background:var(--bg3);color:var(--text3);}
+.ch-sort-btn{background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;margin-left:5px;font-family:var(--font);transition:all .15s;vertical-align:middle;}
+.ch-sort-btn:hover{background:rgba(79,158,255,.2);color:var(--accent);border-color:var(--accent);}
+.ch-sort-btn.ch-active{background:rgba(79,158,255,.25);color:var(--accent);border-color:var(--accent);}
 /* ════════════════════════════════
    MOBILE RWD  ( ≤ 768px )
 ════════════════════════════════ */
@@ -472,7 +499,68 @@ canvas{max-height:300px;}
         <canvas id="weekly-compare-chart"></canvas>
       </div>
 
+    </div>
+    <!-- TREND -->
+    <div class="tab-page" id="page-trend">
+      <div id="data-info-trend"></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub">依篩選門市與日期區間加總</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
+      <div class="grid-2">
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
+      </div>
+    </div>
+    <!-- COMPARE -->
+    <div class="tab-page" id="page-compare">
+      <div id="anomaly-alerts"></div>
+      <div class="grid-2">
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div><div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div></div></div><canvas id="chart-a"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
+      </div>
+      <div class="grid-2">
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top10 / Bottom10</div><div class="chart-sub">依當前維度</div></div></div><canvas id="chart-c"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">100% 堆疊</div></div></div><canvas id="chart-d"></canvas></div>
+      </div>
+
       <!-- 渠道結構分析（含抽傭） -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">渠道結構分析（含抽傭損失）</div>
+            <div class="chart-sub">UB 抽33%、FP 抽31% · 帳面 vs 實收 · 貢獻度 = 該渠道增減 ÷ 整體增減</div>
+          </div>
+        </div>
+        <div id="ch-alert-wrap"></div>
+        <div class="ch-table-wrap">
+          <table class="ch-table">
+            <thead>
+              <tr>
+                <th class="tl" rowspan="2">門市</th>
+                <th class="tsep tl" rowspan="2">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
+                <th class="tsep" colspan="2" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',event)">⇅</button></th>
+                <th class="tsep" colspan="3" style="color:var(--accent)">UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub',event)">⇅</button></th>
+                <th class="tsep" colspan="3" style="color:var(--purple)">Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp',event)">⇅</button></th>
+                <th class="tsep" colspan="2" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',event)">⇅</button></th>
+                <th class="tsep" rowspan="2">判斷</th>
+              </tr>
+              <tr>
+                <th class="tsep" style="color:#51cf66">佔比△</th><th style="color:#51cf66">成長率</th>
+                <th class="tsep" style="color:var(--accent)">實收</th><th style="color:var(--accent)">抽傭損失</th><th style="color:var(--accent)">佔比△</th>
+                <th class="tsep" style="color:var(--purple)">實收</th><th style="color:var(--purple)">抽傭損失</th><th style="color:var(--purple)">佔比△</th>
+                <th class="tsep" style="color:var(--accent2)">佔比△</th><th style="color:var(--accent2)">成長率</th>
+              </tr>
+            </thead>
+            <tbody id="ch-tbody"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--text3);">
+          <span>📌 <b style="color:var(--text2)">實收</b> = 帳面 × (1－抽傭率)</span>
+          <span>📌 外送佔比△↑紅=獲利侵蝕；現場↑綠=健康</span>
+          <span>📌 <b style="color:var(--text2)">⇅</b> 點擊依該渠道佔比偏移排序</span>
+        </div>
+      </div>
+
+
+<!-- 渠道結構分析（含抽傭） -->
       <div class="chart-panel">
         <div class="chart-header">
           <div>
@@ -518,27 +606,6 @@ canvas{max-height:300px;}
         </div>
       </div>
 
-    </div>
-    <!-- TREND -->
-    <div class="tab-page" id="page-trend">
-      <div id="data-info-trend"></div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub">依篩選門市與日期區間加總</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
-      <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
-      </div>
-    </div>
-    <!-- COMPARE -->
-    <div class="tab-page" id="page-compare">
-      <div id="anomaly-alerts"></div>
-      <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div><div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div></div></div><canvas id="chart-a"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
-      </div>
-      <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top10 / Bottom10</div><div class="chart-sub">依當前維度</div></div></div><canvas id="chart-c"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">100% 堆疊</div></div></div><canvas id="chart-d"></canvas></div>
-      </div>
     </div>
   </div>
 </main>
@@ -664,7 +731,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606011348"]*"/g, `DATA_VERSION="202606011348"`);
+                                .replace(/DATA_VERSION="202606011400"]*"/g, `DATA_VERSION="202606011400"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1832,6 +1899,7 @@ function renderCompare(){
     }
   });
   renderChannelAnalysis();
+  renderChannelAnalysis();
 }
 
 /* ══ 共用：計算選定區間的前 28 天基線 ══ */
@@ -2083,6 +2151,167 @@ function sortChTable(key){
   const keyLabel = {onsite:'現場',ub:'UberEats',fp:'Foodpanda',odo:'ODO'};
   const dir = asc ? '↑ 佔比偏移最小' : '↓ 佔比偏移最大';
   document.querySelector('.ch-table').title = `依 ${keyLabel[key]} 佔比偏移排序（${dir}）`;
+}
+
+
+/* ══ 渠道結構分析（含抽傭） ══ */
+const CH_COMM = {onsite:0, ub:0.33, fp:0.31, odo:0};
+
+function storeAvgData(dataset){
+  const map={};
+  dataset.forEach(r=>{
+    if(!map[r.store]) map[r.store]={rev:0,onsite:0,ub:0,fp:0,odo:0,days:new Set()};
+    const m=map[r.store];
+    m.rev+=r.revenue;
+    m.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+    m.ub+=r.ub; m.fp+=r.fp; m.odo+=r.odo; m.days.add(r.date);
+  });
+  return Object.entries(map).map(([store,d])=>{
+    const days=d.days.size||1;
+    const zone=DATA.find(r=>r.store===store)?.zone||'';
+    return {store,name:store,zone,
+      rev:Math.round(d.rev/days), onsite:Math.round(d.onsite/days),
+      ub:Math.round(d.ub/days), fp:Math.round(d.fp/days), odo:Math.round(d.odo/days)};
+  });
+}
+
+function renderChannelAnalysis(){
+  const alertEl=document.getElementById('ch-alert-wrap');
+  const tbodyEl=document.getElementById('ch-tbody');
+  if(!alertEl||!tbodyEl) return;
+
+  const rows=filterData(DATA);
+  const prev28=getPrev28Days();
+  const p28Set=new Set(prev28);
+  const pRows=DATA.filter(r=>state.zones.has(r.zone)&&state.stores.has(r.store)&&p28Set.has(r.date));
+
+  if(!rows.length){alertEl.innerHTML='';tbodyEl.innerHTML='';return;}
+
+  const curData=storeAvgData(rows);
+  const prevMap={};
+  storeAvgData(pRows).forEach(s=>{prevMap[s.store]=s;});
+
+  // 儲存供排序用
+  window._chCurData=curData;
+  window._chPrevMap=prevMap;
+  window._chSortKey=null;
+  window._chSortAsc=false;
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
+
+  const fmtM=v=>{const a=Math.abs(v);return(v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':a.toLocaleString());};
+
+  // 警示 bar
+  const totCR=curData.reduce((a,s)=>a+s.rev,0);
+  const totPR=Object.values(prevMap).reduce((a,s)=>a+s.rev,0)||1;
+  const totCommCur=curData.reduce((a,s)=>a+s.ub*CH_COMM.ub+s.fp*CH_COMM.fp,0);
+  const totCommPrev=Object.values(prevMap).reduce((a,s)=>a+s.ub*CH_COMM.ub+s.fp*CH_COMM.fp,0)||1;
+  const totNetCur=curData.reduce((a,s)=>a+s.rev-(s.ub*CH_COMM.ub+s.fp*CH_COMM.fp),0);
+  const commRatio=totCR>0?totCommCur/totCR*100:0;
+  const commChg=(totCommCur-totCommPrev)/totCommPrev*100;
+  const chgColor=commChg>=5?'var(--danger)':commChg>0?'var(--warn)':'#51cf66';
+  const n=curData.length||1;
+  alertEl.innerHTML=`<div class="ch-alert">
+    <div class="ch-alert-icon">⚠️</div>
+    <div class="ch-alert-main">
+      <div class="ch-alert-title">平台抽傭侵蝕提示</div>
+      <div class="ch-alert-sub">UB(33%)+FP(31%) 每店日均損失 <b style="color:var(--danger)">${fmtM(totCommCur/n)}元</b>，佔整體 <b style="color:var(--danger)">${commRatio.toFixed(1)}%</b></div>
+    </div>
+    <div class="ch-alert-nums">
+      <div class="ch-num"><div class="ch-num-val" style="color:var(--danger)">−${fmtM(totCommCur/n)}</div><div class="ch-num-lbl">每店日均損失</div></div>
+      <div class="ch-num"><div class="ch-num-val" style="color:var(--warn)">${commRatio.toFixed(1)}%</div><div class="ch-num-lbl">佔整體營收</div></div>
+      <div class="ch-num"><div class="ch-num-val" style="color:${chgColor}">${commChg>=0?'+':''}${commChg.toFixed(1)}%</div><div class="ch-num-lbl">vs 前28天</div></div>
+      <div class="ch-num"><div class="ch-num-val">${fmtM(totNetCur/n)}</div><div class="ch-num-lbl">扣傭後每店日均</div></div>
+    </div>
+  </div>`;
+
+  buildChTableHTML(curData, prevMap, null, false);
+}
+
+function buildChTableHTML(curData, prevMap, sortKey, sortAsc){
+  const tbodyEl=document.getElementById('ch-tbody');
+  if(!tbodyEl) return;
+  const fmtM=v=>{const a=Math.abs(v);return(v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':a.toLocaleString());};
+
+  function verdictOf(revChg,dShift){
+    if(revChg>=3&&dShift>=4)  return{cls:'bad', txt:'🔴 外送侵蝕獲利'};
+    if(revChg>=3&&dShift>=2)  return{cls:'warn',txt:'⚠️ 成長但傭金↑'};
+    if(revChg>=3&&dShift<1)   return{cls:'ok',  txt:'✅ 健康成長'};
+    if(revChg<=-3&&dShift>=2) return{cls:'bad', txt:'🔴 衰退+外送侵蝕'};
+    if(revChg<=-3)             return{cls:'bad', txt:'📉 整體衰退'};
+    if(Math.abs(revChg)<3&&Math.abs(dShift)<1.5) return{cls:'neutral',txt:'➡️ 結構穩定'};
+    if(dShift>=3)              return{cls:'bad', txt:'🔴 外送佔比失控'};
+    if(dShift<=-2)             return{cls:'ok',  txt:'🏪 現場回流'};
+    return{cls:'neutral',txt:'➡️ 持平觀察'};
+  }
+
+  // 排序
+  let sorted=[...curData];
+  if(sortKey){
+    sorted.sort((a,b)=>{
+      const pa=prevMap[a.store]||a, pb=prevMap[b.store]||b;
+      const ra=a[sortKey]/(a.rev||1)*100 - pa[sortKey]/(pa.rev||1)*100;
+      const rb=b[sortKey]/(b.rev||1)*100 - pb[sortKey]/(pb.rev||1)*100;
+      return sortAsc?ra-rb:rb-ra;
+    });
+  } else {
+    sorted.sort((a,b)=>b.rev-a.rev);
+  }
+
+  let html2='';
+  sorted.forEach(s=>{
+    const p=prevMap[s.store]||{rev:s.rev,onsite:s.onsite,ub:s.ub,fp:s.fp,odo:s.odo};
+    const cr=s.rev, pr=p.rev||1, revDiff=cr-pr;
+    const revChg=revDiff/pr*100;
+    const netCur=cr-(s.ub*CH_COMM.ub+s.fp*CH_COMM.fp);
+    const netPrev=pr-(p.ub*CH_COMM.ub+p.fp*CH_COMM.fp);
+    const netChg=netPrev>0?(netCur-netPrev)/netPrev*100:0;
+    const extCur=(s.ub+s.fp)/cr*100, extPrev=(p.ub+p.fp)/pr*100;
+    const v=verdictOf(revChg,extCur-extPrev);
+    const rCls=revChg>=3?'pos':revChg<=-3?'neg':'neu';
+    const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
+
+    function chCell(cur,prev_,cRev,pRev,key){
+      const diff=cur-prev_, rd_=(cur/cRev*100)-(prev_/(pRev||1)*100);
+      const isD=key!=='onsite';
+      const rClsC=Math.abs(rd_)<0.5?'neu':(rd_>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
+      const rIcon=Math.abs(rd_)<0.5?'—':rd_>0?'↑':'↓';
+      const hl=key===sortKey?'background:rgba(79,158,255,.06);':'';
+      if(key==='ub'||key==='fp'){
+        const comm=CH_COMM[key],net=cur*(1-comm),loss=cur*comm;
+        return `<td class="tsep" style="${hl}"><span style="font-family:var(--mono);font-size:11px">${fmtM(net)}元</span><br><span style="font-size:10px;color:var(--text3)">(帳${fmtM(cur)})</span></td>
+          <td><span class="ch-loss">−${fmtM(loss)}</span></td>
+          <td style="${hl}"><span class="${rClsC}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd_).toFixed(1)}pp</span></td>`;
+      }
+      const chgPct=prev_>0?(cur-prev_)/prev_*100:0;
+      return `<td class="tsep" style="${hl}"><span class="${rClsC}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd_).toFixed(1)}pp</span></td>
+        <td style="${hl}"><span class="${rClsC}" style="font-family:var(--mono);font-weight:700;font-size:12px">${chgPct>=0?'+':''}${chgPct.toFixed(1)}%</span></td>`;
+    }
+
+    html2+=`<tr>
+      <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
+      <td class="tsep tl">
+        <span style="font-family:var(--mono);font-size:12px">${fmtM(cr)}元</span>
+        <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">帳面 ${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
+        <span class="${nCls}" style="font-size:10px;font-weight:600;display:block">實收 ${netChg>=0?'▲':'▼'}${Math.abs(netChg).toFixed(1)}%</span>
+      </td>
+      ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
+      ${chCell(s.ub,p.ub,cr,pr,'ub')}
+      ${chCell(s.fp,p.fp,cr,pr,'fp')}
+      ${chCell(s.odo,p.odo,cr,pr,'odo')}
+      <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
+    </tr>`;
+  });
+  tbodyEl.innerHTML=html2;
+}
+
+function sortChTable(key, evt){
+  if(evt) evt.stopPropagation();
+  if(!window._chCurData) return;
+  window._chSortAsc = window._chSortKey===key ? !window._chSortAsc : false;
+  window._chSortKey = key;
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
+  if(evt) evt.currentTarget.classList.add('ch-active');
+  buildChTableHTML(window._chCurData, window._chPrevMap, key, window._chSortAsc);
 }
 
 /* ══ RENDER ALL ══ */
