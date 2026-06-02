@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020116";</script>
-<script id="data-script" src="data.js?v=202606020116"></script>
+<script>window.DATA_VERSION="202606020158";</script>
+<script id="data-script" src="data.js?v=202606020158"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -517,8 +517,8 @@ canvas{max-height:300px;}
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
       </div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top10 / Bottom10</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c" style="min-height:520px"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">UB+FP 占比最高前10（外送依賴最重）& 最低後10（外送最少）</div></div></div><canvas id="chart-d" style="min-height:520px"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">UB+FP 占比最高前5（外送依賴最重）& 最低後5（外送最少）</div></div></div><canvas id="chart-d"></canvas></div>
       </div>
 
       <!-- 渠道結構分析（含抽傭） -->
@@ -677,7 +677,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020116"]*"/g, `DATA_VERSION="202606020116"`);
+                                .replace(/DATA_VERSION="202606020158"]*"/g, `DATA_VERSION="202606020158"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1775,43 +1775,8 @@ function renderCompare(){
   const top15=[...byStore].sort((a,b)=>b.revenue-a.revenue).slice(0,15);
   mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'營業淨額',data:top15.map(s=>s.revenue),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'來客數',data:top15.map(s=>s.customers),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},tooltip:{mode:'index',intersect:false}}}});
   document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">⚠</span><div><b>${s.name}</b>（${s.zone}）— 折扣率 ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%，外送佔比 ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
-  const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top10=sorted.slice(0,10);const bot10=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,10);
-  mkChart('chart-c',{
-    type:'bar',
-    data:{
-      labels:[
-        ...top10.map((s,i)=>`#${i+1} ${s.name}`),
-        ...bot10.map((s,i)=>`#${sorted.length-i} ${s.name}`)
-      ],
-      datasets:[{
-        label:DIM_LABEL[state.dim],
-        data:[...top10.map(s=>DIM_DAILY[state.dim](s)),...bot10.map(s=>DIM_DAILY[state.dim](s))],
-        backgroundColor:[...top10.map(()=>C.a+'cc'),...bot10.map(s=>isAnom(s)?C.d+'cc':C.w+'99')],
-        borderColor:[...top10.map(()=>C.a),...bot10.map(s=>isAnom(s)?C.d:C.w)],
-        borderWidth:1.5, borderRadius:4, maxBarThickness:22,
-      }]
-    },
-    options:{
-      indexAxis:'y', ...BO,
-      maintainAspectRatio:false,
-      scales:{
-        x:{ grid:{color:'#1e2536'}, ticks:{callback:v=>fmtV(v)} },
-        y:{ grid:{display:false}, ticks:{font:{size:13}, color:'#c8cdd8'} }
-      },
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:ctx=>{
-              const isTop = ctx.dataIndex < 10;
-              const s = isTop ? top10[ctx.dataIndex] : bot10[ctx.dataIndex-10];
-              return [`日均：${fmtV(DIM_DAILY[state.dim](s))}${UNIT[state.dim]}`,`總計 ${s.storeDays} 天`];
-            }
-          }
-        }
-      }
-    }
-  });
+  const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top5=sorted.slice(0,5);const bot5=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,5);
+  mkChart('chart-c',{type:'bar',data:{labels:[...top5.map(s=>'🏆 '+s.name),...bot5.map(s=>'⚠ '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top5.map(s=>DIM_DAILY[state.dim](s)),...bot5.map(s=>DIM_DAILY[state.dim](s))],backgroundColor:[...top5.map(()=>C.a+'bb'),...bot5.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top5.map(()=>C.a),...bot5.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
   // 圖表D：各店渠道佔比（%為主，金額為輔，用每店日均）
   // 先算各店在整個篩選區間的天數
   const storeDayMap = {};
@@ -1848,9 +1813,9 @@ function renderCompare(){
   // 依 UB+FP 占比排序：前10（外送最重）+ 後10（外送最少）
   const dSorted = [...dStores].map(s=>({...s, delivPct: s.ubPct+s.fpPct}))
                                .sort((a,b)=>b.delivPct-a.delivPct);
-  const dTop10 = dSorted.slice(0,10);
-  const dBot10 = [...dSorted].sort((a,b)=>a.delivPct-b.delivPct).slice(0,10).reverse();
-  const dDisplay = [...dTop10, ...dBot10];
+  const dTop5 = dSorted.slice(0,5);
+  const dBot5 = [...dSorted].sort((a,b)=>a.delivPct-b.delivPct).slice(0,5).reverse();
+  const dDisplay = [...dTop5, ...dBot5];
 
   mkChart('chart-d',{
     type:'bar',
