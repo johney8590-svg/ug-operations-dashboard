@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020231";</script>
-<script id="data-script" src="data.js?v=202606020231"></script>
+<script>window.DATA_VERSION="202606020249";</script>
+<script id="data-script" src="data.js?v=202606020249"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -536,10 +536,10 @@ canvas{max-height:300px;}
               <tr>
                 <th class="tl">門市</th>
                 <th class="tsep tl">整體業績</th>
-                <th class="tsep" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△</span></th>
-                <th class="tsep" style="color:var(--accent)">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△ / 抽傭</span></th>
-                <th class="tsep" style="color:var(--purple)">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△ / 抽傭</span></th>
-                <th class="tsep" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△</span></th>
+                <th class="tsep" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
+                <th class="tsep" style="color:var(--accent)">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
+                <th class="tsep" style="color:var(--purple)">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
+                <th class="tsep" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
                 <th class="tsep">判斷</th>
               </tr>
             </thead>
@@ -677,7 +677,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020231"]*"/g, `DATA_VERSION="202606020231"`);
+                                .replace(/DATA_VERSION="202606020249"]*"/g, `DATA_VERSION="202606020249"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1980,12 +1980,19 @@ function renderChannelAnalysis(){
       const curR = cRev>0 ? cur/cRev*100 : 0;
       const prevR= pRev>0 ? prev_/(pRev||1)*100 : 0;
       const rd   = curR - prevR;
-      const rCls = Math.abs(rd)<0.5 ? 'neu' : (rd>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
-      const rIcon= Math.abs(rd)<0.5 ? '—' : rd>0 ? '↑' : '↓';
-      const loss = comm>0 ? cur*comm : 0;
+      // 顏色：外送↑=紅(危險)；現場↑=綠(健康)；外送↓=綠；現場↓=紅；持平=灰
+      const rdColor = Math.abs(rd)<0.5 ? 'var(--text3)'
+                    : (rd>0 ? (isD?'var(--danger)':'#51cf66')
+                             : (isD?'#51cf66':'var(--danger)'));
+      const rdIcon  = Math.abs(rd)<0.5 ? '—' : rd>0 ? '↑' : '↓';
+      const rdTxt   = Math.abs(rd)<0.5 ? '持平' : `${rdIcon}${Math.abs(rd).toFixed(1)}%`;
+      const loss    = comm>0 ? cur*comm : 0;
+      const ratioColor = isD
+        ? (rd>1?'var(--danger)':rd<-1?'#51cf66':'var(--text)')
+        : (rd>1?'#51cf66':rd<-1?'var(--danger)':'var(--text)');
       return `<td class="tsep" style="text-align:center;white-space:nowrap">
-        <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:${isD?(rd>1?'var(--danger)':rd<-1?'#51cf66':'var(--text)'):(rd>1?'#51cf66':rd<-1?'var(--danger)':'var(--text)')}">${curR.toFixed(1)}%</span>
-        <span class="${rCls}" style="font-size:11px;display:block">${rIcon}${Math.abs(rd).toFixed(1)}pp</span>
+        <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:${ratioColor}">${curR.toFixed(1)}%</span>
+        <span style="font-size:11px;font-weight:600;display:block;color:${rdColor}">${rdTxt}</span>
         ${comm>0?`<span style="font-size:10px;color:var(--danger)">−${fmtM(loss)}</span>`:''}
       </td>`;
     }
