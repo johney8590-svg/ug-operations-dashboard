@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020110";</script>
-<script id="data-script" src="data.js?v=202606020110"></script>
+<script>window.DATA_VERSION="202606020114";</script>
+<script id="data-script" src="data.js?v=202606020114"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -677,7 +677,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020110"]*"/g, `DATA_VERSION="202606020110"`);
+                                .replace(/DATA_VERSION="202606020114"]*"/g, `DATA_VERSION="202606020114"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1684,6 +1684,14 @@ function renderTrend(){
 /* ══ COMPARE ══ */
 function renderCompare(){
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
+  // 局部定義（renderToday 的同名變數在這裡需要複製）
+  const DIM_DAILY={
+    revenue:s=>s.dailyAvgRevenue||Math.round(s.revenue/(s.storeDays||1)),
+    cups:   s=>s.dailyAvgCups   ||Math.round(s.cups   /(s.storeDays||1)),
+    customers:s=>s.dailyAvgCustomers||Math.round(s.customers/(s.storeDays||1)),
+  };
+  const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+  const UNIT={revenue:'元',cups:'杯',customers:'人'};
   const ad=getActiveDates();const lastWeek=ad.slice(-7);const prevDates=ad.slice(0,-7);
   // 本週：各 dow 的每店日均（該 dow 總值 ÷ 當天有資料店家數）
   const twDowAvg = Array(7).fill(0);
