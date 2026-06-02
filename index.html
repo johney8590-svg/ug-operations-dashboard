@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020227";</script>
-<script id="data-script" src="data.js?v=202606020227"></script>
+<script>window.DATA_VERSION="202606020231";</script>
+<script id="data-script" src="data.js?v=202606020231"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -535,11 +535,11 @@ canvas{max-height:300px;}
             <thead>
               <tr>
                 <th class="tl">門市</th>
-                <th class="tsep tl">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
-                <th class="tsep" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button></th>
-                <th class="tsep" style="color:var(--accent)">UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub',this)">⇅</button></th>
-                <th class="tsep" style="color:var(--purple)">Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp',this)">⇅</button></th>
-                <th class="tsep" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button></th>
+                <th class="tsep tl">整體業績</th>
+                <th class="tsep" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△</span></th>
+                <th class="tsep" style="color:var(--accent)">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△ / 抽傭</span></th>
+                <th class="tsep" style="color:var(--purple)">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△ / 抽傭</span></th>
+                <th class="tsep" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / pp△</span></th>
                 <th class="tsep">判斷</th>
               </tr>
             </thead>
@@ -677,7 +677,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020227"]*"/g, `DATA_VERSION="202606020227"`);
+                                .replace(/DATA_VERSION="202606020231"]*"/g, `DATA_VERSION="202606020231"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1974,29 +1974,27 @@ function renderChannelAnalysis(){
     const rCls=revChg>=3?'pos':revChg<=-3?'neg':'neu';
     const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
 
-    function chCell(cur,prev,cRev,pRev,key){
-      const diff=cur-prev, contrib=revDiff!==0?(diff/revDiff*100):0;
-      const curR=cur/cRev*100, prevR=prev/(pRev||1)*100, rd=curR-prevR;
-      const isD=(key!=='onsite');
-      const cCls=contrib>=20?'pos':contrib<=-20?'neg':'neu';
-      const rCls2=Math.abs(rd)<0.5?'neu':(rd>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
-      const rIcon=Math.abs(rd)<0.5?'—':rd>0?'↑':'↓';
-      if(key==='ub'||key==='fp'){
-        const comm=CH_COMM[key], net=cur*(1-comm), loss=cur*comm;
-        return `<td class="tsep"><span style="font-family:var(--mono);font-size:11px">${fmtM(net)}元</span><br><span style="font-size:10px;color:var(--text3)">(帳${fmtM(cur)})</span></td>
-          <td><span class="ch-loss">−${fmtM(loss)}</span></td>
-          <td><span class="${rCls2}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>`;
-      }
-      return `<td class="tsep"><span class="${cCls}" style="font-family:var(--mono);font-weight:700;font-size:12px">${contrib>=0?'+':''}${contrib.toFixed(0)}%</span></td>
-        <td><span class="${rCls2}" style="font-weight:700">${rIcon}</span><span style="font-size:10px;color:var(--text3);margin-left:3px">${Math.abs(rd).toFixed(1)}pp</span></td>`;
+    function chCell(cur,prev_,cRev,pRev,key){
+      const isD  = key!=='onsite';
+      const comm = CH_COMM[key]||0;
+      const curR = cRev>0 ? cur/cRev*100 : 0;
+      const prevR= pRev>0 ? prev_/(pRev||1)*100 : 0;
+      const rd   = curR - prevR;
+      const rCls = Math.abs(rd)<0.5 ? 'neu' : (rd>0?(isD?'neg':'pos'):(isD?'pos':'neg'));
+      const rIcon= Math.abs(rd)<0.5 ? '—' : rd>0 ? '↑' : '↓';
+      const loss = comm>0 ? cur*comm : 0;
+      return `<td class="tsep" style="text-align:center;white-space:nowrap">
+        <span style="font-size:14px;font-weight:700;font-family:var(--mono);color:${isD?(rd>1?'var(--danger)':rd<-1?'#51cf66':'var(--text)'):(rd>1?'#51cf66':rd<-1?'var(--danger)':'var(--text)')}">${curR.toFixed(1)}%</span>
+        <span class="${rCls}" style="font-size:11px;display:block">${rIcon}${Math.abs(rd).toFixed(1)}pp</span>
+        ${comm>0?`<span style="font-size:10px;color:var(--danger)">−${fmtM(loss)}</span>`:''}
+      </td>`;
     }
 
     tbodyHtml+=`<tr>
       <td class="tl"><div style="font-size:12px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.zone}</div></td>
       <td class="tsep tl">
-        <div style="font-family:var(--mono);font-size:13px;font-weight:600">${fmtM(cr)}元</div>
-        <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">帳面 ${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
-        <span class="${nCls}" style="font-size:10px;font-weight:600;display:block">實收 ${netChg>=0?'▲':'▼'}${Math.abs(netChg).toFixed(1)}%</span>
+        <span style="font-family:var(--mono);font-size:12px;font-weight:600">${fmtM(cr)}元</span>
+        <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
       </td>
       ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
       ${chCell(s.ub,p.ub,cr,pr,'ub')}
