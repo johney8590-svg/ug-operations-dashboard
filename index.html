@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020031";</script>
-<script id="data-script" src="data.js?v=202606020031"></script>
+<script>window.DATA_VERSION="202606020037";</script>
+<script id="data-script" src="data.js?v=202606020037"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -558,54 +558,6 @@ canvas{max-height:300px;}
           <span>📌 <b style="color:var(--text2)">⇅</b> 點擊依該渠道佔比偏移排序</span>
         </div>
       </div>
-
-
-<!-- 渠道結構分析（含抽傭） -->
-      <div class="chart-panel">
-        <div class="chart-header">
-          <div>
-            <div class="chart-title">渠道結構分析（含抽傭損失）</div>
-            <div class="chart-sub">UB 抽33%、FP 抽31% · 帳面營收 vs 實收對比 · 貢獻度 = 該渠道增減 ÷ 整體增減</div>
-          </div>
-        </div>
-        <div id="ch-alert-wrap"></div>
-        <div class="ch-table-wrap">
-          <table class="ch-table">
-            <thead>
-              <tr>
-                <th class="tl" rowspan="2">門市</th>
-                <th class="tsep tl" rowspan="2">整體業績<br><span style="font-weight:400;opacity:.7">帳面 / 實收</span></th>
-                <th class="tsep" colspan="2" style="color:#51cf66">
-                  現場 <button class="ch-sort-btn" onclick="sortChTable('onsite')" title="依現場成長率排序">⇅</button>
-                </th>
-                <th class="tsep" colspan="3" style="color:var(--accent)">
-                  UberEats（抽33%）<button class="ch-sort-btn" onclick="sortChTable('ub')" title="依UB佔比△排序">⇅</button>
-                </th>
-                <th class="tsep" colspan="3" style="color:var(--purple)">
-                  Foodpanda（抽31%）<button class="ch-sort-btn" onclick="sortChTable('fp')" title="依FP佔比△排序">⇅</button>
-                </th>
-                <th class="tsep" colspan="2" style="color:var(--accent2)">
-                  ODO <button class="ch-sort-btn" onclick="sortChTable('odo')" title="依ODO成長率排序">⇅</button>
-                </th>
-                <th class="tsep" rowspan="2">判斷</th>
-              </tr>
-              <tr>
-                <th class="tsep" style="color:#51cf66">佔比△</th><th style="color:#51cf66">成長率</th>
-                <th class="tsep" style="color:var(--accent)">實收</th><th style="color:var(--accent)">抽傭損失</th><th style="color:var(--accent)">佔比△</th>
-                <th class="tsep" style="color:var(--purple)">實收</th><th style="color:var(--purple)">抽傭損失</th><th style="color:var(--purple)">佔比△</th>
-                <th class="tsep" style="color:var(--accent2)">佔比△</th><th style="color:var(--accent2)">成長率</th>
-              </tr>
-            </thead>
-            <tbody id="ch-tbody"></tbody>
-          </table>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:18px;flex-wrap:wrap;font-size:11px;color:var(--text3);">
-          <span>📌 <b style="color:var(--text2)">實收</b> = 帳面金額 × (1－抽傭率)</span>
-          <span>📌 <b style="color:var(--text2)">佔比△</b> 外送↑紅色=獲利侵蝕；現場↑綠色=健康</span>
-          <span>📌 <b style="color:var(--text2)">貢獻度</b> 負值=該渠道拖累整體</span>
-        </div>
-      </div>
-
     </div>
   </div>
 </main>
@@ -731,7 +683,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020031"]*"/g, `DATA_VERSION="202606020031"`);
+                                .replace(/DATA_VERSION="202606020037"]*"/g, `DATA_VERSION="202606020037"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
