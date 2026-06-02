@@ -7,8 +7,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606020100";</script>
-<script id="data-script" src="data.js?v=202606020100"></script>
+<script>window.DATA_VERSION="202606020110";</script>
+<script id="data-script" src="data.js?v=202606020110"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -677,7 +677,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606020100"]*"/g, `DATA_VERSION="202606020100"`);
+                                .replace(/DATA_VERSION="202606020110"]*"/g, `DATA_VERSION="202606020110"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1837,6 +1837,13 @@ function renderCompare(){
   });
 
   const fmtM = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+
+  // 依 UB+FP 占比排序：前10（外送最重）+ 後10（外送最少）
+  const dSorted = [...dStores].map(s=>({...s, delivPct: s.ubPct+s.fpPct}))
+                               .sort((a,b)=>b.delivPct-a.delivPct);
+  const dTop10 = dSorted.slice(0,10);
+  const dBot10 = [...dSorted].sort((a,b)=>a.delivPct-b.delivPct).slice(0,10).reverse();
+  const dDisplay = [...dTop10, ...dBot10];
 
   mkChart('chart-d',{
     type:'bar',
