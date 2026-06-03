@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030042";</script>
-<script id="data-script" src="data.js?v=202606030042"></script>
+<script>window.DATA_VERSION="202606030049";</script>
+<script id="data-script" src="data.js?v=202606030049"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -678,7 +678,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030042"]*"/g, `DATA_VERSION="202606030042"`);
+                                .replace(/DATA_VERSION="202606030049"]*"/g, `DATA_VERSION="202606030049"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1597,10 +1597,14 @@ function renderTrend(){
   const diffLabels = curDowAvg.map((v,i)=>{
     const base = prevDowAvg[i]||0;
     if(!base) return '';
-    const pct = ((v-base)/base*100);
+    const pct = ((base-v)/base*100);  // 前期 - 本期
     return (pct>=0?'+':'')+pct.toFixed(1)+'%';
   });
-  const diffColors = curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?'#51cf66':'var(--danger)');
+  // 前期>本期（正數）= 本期下滑 = 紅；前期<本期（負數）= 本期成長 = 綠
+  const diffColors = curDowAvg.map((v,i)=>{
+    const base = prevDowAvg[i]||0;
+    return v >= base ? '#51cf66' : 'var(--danger)';
+  });
 
   mkChart('trend-weekday',{
     type:'bar',
@@ -1657,7 +1661,7 @@ function renderTrend(){
               if(ctx.length<2) return [];
               const cur=ctx[0].raw, base=ctx[1].raw;
               if(!base) return [];
-              const diff=cur-base, pct=((diff/base)*100).toFixed(1);
+              const diff=base-cur, pct=((diff/base)*100).toFixed(1);  // 前期-本期
               return [`差異：${diff>=0?'+':''}${fmtW(diff)} (${pct}%)`];
             }
           }
