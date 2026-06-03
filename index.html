@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030515";</script>
-<script id="data-script" src="data.js?v=202606030515"></script>
+<script>window.DATA_VERSION="202606030519";</script>
+<script id="data-script" src="data.js?v=202606030519"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -551,13 +551,13 @@ canvas{max-height:300px;}
           <table class="ch-table">
             <thead>
               <tr>
-                <th class="tl">門市</th>
-                <th class="tsep tl">整體業績</th>
-                <th class="tsep" style="color:#51cf66">現場 <button class="ch-sort-btn" onclick="sortChTable('onsite',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
-                <th class="tsep" style="color:var(--accent)">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
-                <th class="tsep" style="color:var(--purple)">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
-                <th class="tsep" style="color:var(--accent2)">ODO <button class="ch-sort-btn" onclick="sortChTable('odo',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
-                <th class="tsep">判斷</th>
+                <th class="tl" style="min-width:90px">門市</th>
+                <th class="tsep tl" style="min-width:80px">整體業績</th>
+                <th class="tsep" style="color:var(--accent2);min-width:90px;text-align:center">ODO <button class="ch-sort-btn" data-sortkey="odo" onclick="sortChTable('odo',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
+                <th class="tsep" style="color:#51cf66;min-width:90px;text-align:center">現場 <button class="ch-sort-btn" data-sortkey="onsite" onclick="sortChTable('onsite',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化</span></th>
+                <th class="tsep" style="color:var(--accent);min-width:90px;text-align:center">UberEats <button class="ch-sort-btn" data-sortkey="ub" onclick="sortChTable('ub',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
+                <th class="tsep" style="color:var(--purple);min-width:90px;text-align:center">Foodpanda <button class="ch-sort-btn" data-sortkey="fp" onclick="sortChTable('fp',this)">⇅</button><br><span style="font-weight:400;font-size:9px;opacity:.6">占比 / 變化 / 抽傭</span></th>
+                <th class="tsep" style="min-width:80px">判斷</th>
               </tr>
             </thead>
             <tbody id="ch-tbody"></tbody>
@@ -694,7 +694,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030515"]*"/g, `DATA_VERSION="202606030515"`);
+                                .replace(/DATA_VERSION="202606030519"]*"/g, `DATA_VERSION="202606030519"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2162,13 +2162,20 @@ function renderChannelAnalysis(){
 
 /* ══ 渠道表格排序 ══ */
 function sortChTable(key, btnEl){
-  window._chSortAsc = (window._chSortKey === key) ? !window._chSortAsc : false;
-  window._chSortKey = key;
+  // 第一下：高>低（asc=false），第二下：低>高（asc=true）
+  if(window._chSortKey === key){
+    window._chSortAsc = !window._chSortAsc;
+  } else {
+    window._chSortKey = key;
+    window._chSortAsc = false;  // 預設高>低
+  }
   renderChannelAnalysis();
-  // renderChannelAnalysis 會 reset 按鈕，用 data-sortkey 重新標記
-  document.querySelectorAll('.ch-sort-btn[data-sortkey]').forEach(b=>{
-    b.classList.toggle('ch-active', b.dataset.sortkey === key);
-  });
+  // 用 data-sortkey 重新標記 active 按鈕
+  setTimeout(()=>{
+    document.querySelectorAll('.ch-sort-btn[data-sortkey]').forEach(b=>{
+      b.classList.toggle('ch-active', b.dataset.sortkey === key);
+    });
+  }, 10);
 }
 
 
