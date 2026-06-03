@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030717";</script>
-<script id="data-script" src="data.js?v=202606030717"></script>
+<script>window.DATA_VERSION="202606030947";</script>
+<script id="data-script" src="data.js?v=202606030947"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -562,8 +562,8 @@ canvas{max-height:300px;}
             </div>
             <!-- 渠道選擇 -->
             <div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;">
-              <button class="ch-key-btn ch-key-active" data-chkey="odo" onclick="setChKey('odo',this)" style="color:var(--accent2)">ODO</button>
-              <button class="ch-key-btn" data-chkey="onsite" onclick="setChKey('onsite',this)" style="color:#51cf66">現場</button>
+              <button class="ch-key-btn ch-key-active" data-chkey="onsite" onclick="setChKey('onsite',this)" style="color:#51cf66">現場</button>
+              <button class="ch-key-btn" data-chkey="odo" onclick="setChKey('odo',this)" style="color:var(--accent2)">ODO</button>
               <button class="ch-key-btn" data-chkey="ub" onclick="setChKey('ub',this)" style="color:var(--accent)">UB</button>
               <button class="ch-key-btn" data-chkey="fp" onclick="setChKey('fp',this)" style="color:var(--purple)">FP</button>
             </div>
@@ -580,8 +580,8 @@ canvas{max-height:300px;}
               <tr>
                 <th class="tl" style="min-width:90px">門市</th>
                 <th class="tsep tl" style="min-width:80px">整體業績</th>
-                <th class="tsep" style="color:var(--accent2);min-width:90px;text-align:center">ODO</th>
                 <th class="tsep" style="color:#51cf66;min-width:90px;text-align:center">現場</th>
+                <th class="tsep" style="color:var(--accent2);min-width:90px;text-align:center">ODO</th>
                 <th class="tsep" style="color:var(--accent);min-width:90px;text-align:center">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.5">抽33%</span></th>
                 <th class="tsep" style="color:var(--purple);min-width:90px;text-align:center">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.5">抽31%</span></th>
                 <th class="tsep" style="min-width:80px">判斷</th>
@@ -721,7 +721,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030717"]*"/g, `DATA_VERSION="202606030717"`);
+                                .replace(/DATA_VERSION="202606030947"]*"/g, `DATA_VERSION="202606030947"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2113,26 +2113,38 @@ function renderChannelAnalysis(){
   let tbodyHtml = '';
 
   // 依 _chSortKey 排序（點 ⇅ 時由 sortChTable 設定）
-  const _sortKey = window._chSortKey || 'odo';
+  const _sortKey = window._chSortKey || 'onsite';
   const _metric  = window._chMetric  || 'ratio';
   const _sortDir = window._chSortDir || false;  // false=高>低
+  const isDelivery = (_sortKey==='ub'||_sortKey==='fp');
   curData.sort((a,b)=>{
-    const pa = prevMap[a.store]||{rev:a.rev,odo:a.odo,onsite:a.onsite,ub:a.ub,fp:a.fp};
-    const pb = prevMap[b.store]||{rev:b.rev,odo:b.odo,onsite:b.onsite,ub:b.ub,fp:b.fp};
+    // prevMap fallback：用 null 而非自身，避免差值為 0
+    const pa = prevMap[a.store] || null;
+    const pb = prevMap[b.store] || null;
     let va, vb;
     if(_metric === 'ratio'){
-      // 渠道比例（目前占比 %）
-      va = (a[_sortKey]||0) / (a.rev||1);
-      vb = (b[_sortKey]||0) / (b.rev||1);
+      // 渠道比例：本期占比
+      va = a.rev>0 ? (a[_sortKey]||0)/a.rev : 0;
+      vb = b.rev>0 ? (b[_sortKey]||0)/b.rev : 0;
     } else {
-      // 成長率：本期占比 - 前期占比（現場/ODO 正=成長；外送 負=成長）
-      const isD = (_sortKey==='ub'||_sortKey==='fp');
-      const ra  = (a[_sortKey]||0)/(a.rev||1)*100 - (pa[_sortKey]||0)/((pa.rev)||1)*100;
-      const rb2 = (b[_sortKey]||0)/(b.rev||1)*100 - (pb[_sortKey]||0)/((pb.rev)||1)*100;
-      va = isD ? -ra : ra;  // 成長分數（越正越成長）
-      vb = isD ? -rb2 : rb2;
+      // 成長率：本期占比 - 前期占比
+      // 若前期無資料則跳過（排最後）
+      if(!pa){ va = isDelivery ? 999 : -999; }
+      else {
+        const curA = a.rev>0 ? (a[_sortKey]||0)/a.rev*100 : 0;
+        const preA = pa.rev>0 ? (pa[_sortKey]||0)/pa.rev*100 : 0;
+        const diff = curA - preA;  // 正=本期占比上升
+        va = isDelivery ? -diff : diff;  // 外送占比↓=成長（取負）
+      }
+      if(!pb){ vb = isDelivery ? 999 : -999; }
+      else {
+        const curB = b.rev>0 ? (b[_sortKey]||0)/b.rev*100 : 0;
+        const preB = pb.rev>0 ? (pb[_sortKey]||0)/pb.rev*100 : 0;
+        const diff = curB - preB;
+        vb = isDelivery ? -diff : diff;
+      }
     }
-    return _sortDir ? va - vb : vb - va;  // false=高>低, true=低>高
+    return _sortDir ? va - vb : vb - va;
   });
   curData.forEach(s=>{
     const p = prevMap[s.store] || {rev:s.rev,onsite:s.onsite,ub:s.ub,fp:s.fp,odo:s.odo};
@@ -2179,8 +2191,8 @@ function renderChannelAnalysis(){
           <span class="${rCls}" style="font-size:12px;font-weight:600">${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
         </div>
       </td>
-      ${chCell(s.odo,p.odo,cr,pr,'odo')}
       ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
+      ${chCell(s.odo,p.odo,cr,pr,'odo')}
       ${chCell(s.ub,p.ub,cr,pr,'ub')}
       ${chCell(s.fp,p.fp,cr,pr,'fp')}
       <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
@@ -2205,7 +2217,7 @@ window._chMode = {};
 
 // 全域渠道分析排序狀態
 window._chMetric = 'ratio';   // 'ratio'=渠道比例 | 'growth'=成長率
-window._chSortKey = 'odo';    // 依哪個渠道排序
+window._chSortKey = 'onsite'; // 依哪個渠道排序
 window._chSortDir = false;    // false=高>低, true=低>高
 
 function setChMetric(m, btnEl){
