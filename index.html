@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030114";</script>
-<script id="data-script" src="data.js?v=202606030114"></script>
+<script>window.DATA_VERSION="202606030120";</script>
+<script id="data-script" src="data.js?v=202606030120"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -685,7 +685,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030114"]*"/g, `DATA_VERSION="202606030114"`);
+                                .replace(/DATA_VERSION="202606030120"]*"/g, `DATA_VERSION="202606030120"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1248,14 +1248,17 @@ function renderRankWall(byStore, allRows, dayCount){
       chgClass = 'new-store'; chgText = '新店'; trendIcon = '★'; trendClass = 'new-store';
     } else if(prevVal > 0){
       chgPct = ((val - prevVal) / prevVal * 100);
-      // 前期-本期：正=衰退，負=成長
+      // 前期-本期：正=衰退(紅▼)，負=成長(綠▲)，顯示絕對值
       const dispChg = prevVal>0 ? (prevVal-val)/prevVal*100 : 0;
+      const absChg  = Math.abs(dispChg);
       if(dispChg <= -2){
-        chgClass='up';   chgText=`${dispChg.toFixed(1)}%`; trendIcon='▲'; trendClass='up';
+        // 本期 > 前期 = 成長
+        chgClass='up';   chgText=`▲${absChg.toFixed(1)}%`; trendIcon='▲'; trendClass='up';
       } else if(dispChg >= 2){
-        chgClass='down'; chgText=`+${dispChg.toFixed(1)}%`; trendIcon='▼'; trendClass='down';
+        // 本期 < 前期 = 衰退
+        chgClass='down'; chgText=`▼${absChg.toFixed(1)}%`; trendIcon='▼'; trendClass='down';
       } else {
-        chgClass='flat'; chgText=`${dispChg>=0?'+':''}${dispChg.toFixed(1)}%`; trendIcon='→'; trendClass='flat';
+        chgClass='flat'; chgText=`→${absChg.toFixed(1)}%`; trendIcon='→'; trendClass='flat';
       }
     }
 
