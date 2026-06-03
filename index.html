@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030100";</script>
-<script id="data-script" src="data.js?v=202606030100"></script>
+<script>window.DATA_VERSION="202606030114";</script>
+<script id="data-script" src="data.js?v=202606030114"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -345,6 +345,9 @@ canvas{max-height:300px;}
 .rc-chg.flat{background:rgba(255,212,59,.12);color:var(--warn);}
 .rc-chg.new-store{background:rgba(79,158,255,.15);color:var(--accent);}
 .rc-bar-wrap{height:4px;background:var(--bg2);border-radius:2px;overflow:hidden;}
+.rank-sort-btn{background:transparent;border:none;border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-family:var(--font);padding:4px 10px;transition:all .15s;}
+.rank-sort-btn:hover{color:var(--text);}
+.rank-sort-btn.active{background:var(--accent);color:#fff;font-weight:600;}
 .rc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
 .rc-rank{position:absolute;bottom:9px;right:11px;font-size:10px;font-family:var(--mono);color:var(--text3);}
 </style>
@@ -478,10 +481,14 @@ canvas{max-height:300px;}
         <div class="chart-header">
           <div>
             <div class="chart-title">各門市表現一覽</div>
-            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以上月為基準</div>
+            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以前28天為基準</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
             <span id="rank-wall-count" style="font-size:11px;color:var(--text3)"></span>
+            <div style="display:flex;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;">
+              <button id="rank-sort-perf" class="rank-sort-btn active" onclick="setRankSort('perf',this)">業績排名</button>
+              <button id="rank-sort-growth" class="rank-sort-btn" onclick="setRankSort('growth',this)">成長排序</button>
+            </div>
           </div>
         </div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
@@ -678,7 +685,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030100"]*"/g, `DATA_VERSION="202606030100"`);
+                                .replace(/DATA_VERSION="202606030114"]*"/g, `DATA_VERSION="202606030114"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1147,6 +1154,15 @@ function renderToday(){
 }
 
 
+/* ══ RANK SORT ══ */
+let _rankSortMode = 'perf';  // 'perf' | 'growth'
+function setRankSort(mode, btn){
+  _rankSortMode = mode;
+  document.querySelectorAll('.rank-sort-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
 /* ══ RANK CARD WALL ══ */
 function renderRankWall(byStore, allRows, dayCount){
   const dim    = state.dim;
@@ -1185,7 +1201,19 @@ function renderRankWall(byStore, allRows, dayCount){
   const rankBaseLabel = getPrev28Label();
 
   // 排序：依當前維度日均由大到小
-  const sorted = [...byStore].sort((a,b) => storeDailyAvg(b,dim).val - storeDailyAvg(a,dim).val);
+  // 依排序模式
+  let sorted;
+  if(_rankSortMode === 'growth'){
+    // 依成長率排序（前期-本期，負=成長大=排前面）
+    sorted = [...byStore].sort((a,b)=>{
+      const ca = storeDailyAvg(a,dim).val, pa = prevMap[a.store]?.[dim] || ca;
+      const cb = storeDailyAvg(b,dim).val, pb = prevMap[b.store]?.[dim] || cb;
+      const ga = pa>0?(pa-ca)/pa:0, gb = pb>0?(pb-cb)/pb:0;
+      return ga - gb;  // 前期-本期最大（成長最少或衰退最多）排最後
+    });
+  } else {
+    sorted = [...byStore].sort((a,b) => storeDailyAvg(b,dim).val - storeDailyAvg(a,dim).val);
+  }
   const maxVal = storeDailyAvg(sorted[0], dim).val || 1;
 
   const DIM_LABEL_SHORT = { revenue:'日均淨額', cups:'日均杯數', customers:'日均來客' };
@@ -1220,12 +1248,14 @@ function renderRankWall(byStore, allRows, dayCount){
       chgClass = 'new-store'; chgText = '新店'; trendIcon = '★'; trendClass = 'new-store';
     } else if(prevVal > 0){
       chgPct = ((val - prevVal) / prevVal * 100);
-      if(chgPct >= 2){
-        chgClass = 'up'; chgText = `+${chgPct.toFixed(1)}%`; trendIcon = '▲'; trendClass = 'up';
-      } else if(chgPct <= -2){
-        chgClass = 'down'; chgText = `${chgPct.toFixed(1)}%`; trendIcon = '▼'; trendClass = 'down';
+      // 前期-本期：正=衰退，負=成長
+      const dispChg = prevVal>0 ? (prevVal-val)/prevVal*100 : 0;
+      if(dispChg <= -2){
+        chgClass='up';   chgText=`${dispChg.toFixed(1)}%`; trendIcon='▲'; trendClass='up';
+      } else if(dispChg >= 2){
+        chgClass='down'; chgText=`+${dispChg.toFixed(1)}%`; trendIcon='▼'; trendClass='down';
       } else {
-        chgClass = 'flat'; chgText = `${chgPct>=0?'+':''}${chgPct.toFixed(1)}%`; trendIcon = '→'; trendClass = 'flat';
+        chgClass='flat'; chgText=`${dispChg>=0?'+':''}${dispChg.toFixed(1)}%`; trendIcon='→'; trendClass='flat';
       }
     }
 
@@ -1502,7 +1532,7 @@ function renderWeeklyCompare(){
                 if(!d||!overall.avg) return [];
                 const base = avgLine[ctx[0]?.dataIndex] || 0;
                 if(!base) return [];
-                const diff=d.avg-base, pct=((diff/base)*100).toFixed(1);
+                const diff=base-d.avg, pct=((diff/base)*100).toFixed(1);  // 前期-本期
                 return [`vs 前28天基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
