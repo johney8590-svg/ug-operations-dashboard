@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030555";</script>
-<script id="data-script" src="data.js?v=202606030555"></script>
+<script>window.DATA_VERSION="202606030717";</script>
+<script id="data-script" src="data.js?v=202606030717"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -156,6 +156,14 @@ canvas{max-height:300px;}
 .ch-sort-btn{background:rgba(255,255,255,.08);border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;font-size:11px;padding:1px 5px;margin-left:5px;font-family:var(--font);transition:all .15s;vertical-align:middle;}
 .ch-sort-btn:hover{background:rgba(79,158,255,.2);color:var(--accent);border-color:var(--accent);}
 .ch-sort-btn.ch-active{background:rgba(79,158,255,.25);color:var(--accent);border-color:var(--accent);}
+.ch-metric-btn{background:transparent;border:none;border-radius:6px;color:var(--text2);cursor:pointer;font-size:12px;font-family:var(--font);padding:5px 12px;transition:all .15s;}
+.ch-metric-btn:hover{color:var(--text);}
+.ch-metric-active{background:var(--accent) !important;color:#fff !important;font-weight:600;}
+.ch-key-btn{background:transparent;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:var(--font);padding:5px 10px;transition:all .15s;opacity:.5;}
+.ch-key-btn:hover{opacity:.9;}
+.ch-key-active{background:var(--bg2) !important;opacity:1 !important;font-weight:600;border:1px solid var(--border);}
+.ch-dir-btn{background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;font-size:12px;font-family:var(--font);padding:5px 12px;transition:all .15s;white-space:nowrap;}
+.ch-dir-btn:hover{border-color:var(--accent);color:var(--text);}
 
 /* ════════════════════════════════
    MOBILE RWD  ( ≤ 768px )
@@ -544,7 +552,25 @@ canvas{max-height:300px;}
         <div class="chart-header">
           <div>
             <div class="chart-title">渠道結構分析（含抽傭損失）</div>
-            <div class="chart-sub">UB 抽33%、FP 抽31% · 帳面 vs 實收 · 貢獻度 = 該渠道增減 ÷ 整體增減</div>
+            <div class="chart-sub">UB 抽33%、FP 抽31%</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <!-- 指標切換 -->
+            <div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;">
+              <button class="ch-metric-btn ch-metric-active" id="ch-metric-ratio" onclick="setChMetric('ratio',this)">渠道比例</button>
+              <button class="ch-metric-btn" id="ch-metric-growth" onclick="setChMetric('growth',this)">成長率</button>
+            </div>
+            <!-- 渠道選擇 -->
+            <div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;">
+              <button class="ch-key-btn ch-key-active" data-chkey="odo" onclick="setChKey('odo',this)" style="color:var(--accent2)">ODO</button>
+              <button class="ch-key-btn" data-chkey="onsite" onclick="setChKey('onsite',this)" style="color:#51cf66">現場</button>
+              <button class="ch-key-btn" data-chkey="ub" onclick="setChKey('ub',this)" style="color:var(--accent)">UB</button>
+              <button class="ch-key-btn" data-chkey="fp" onclick="setChKey('fp',this)" style="color:var(--purple)">FP</button>
+            </div>
+            <!-- 排序方向 -->
+            <button class="ch-dir-btn" id="ch-dir-btn" onclick="toggleChDir()" title="切換排序方向">
+              <span id="ch-dir-icon">🟢</span> <span id="ch-dir-txt">高→低</span>
+            </button>
           </div>
         </div>
         <div id="ch-alert-wrap"></div>
@@ -554,24 +580,10 @@ canvas{max-height:300px;}
               <tr>
                 <th class="tl" style="min-width:90px">門市</th>
                 <th class="tsep tl" style="min-width:80px">整體業績</th>
-                <th class="tsep" style="color:var(--accent2);min-width:100px;text-align:center">
-                  ODO <button class="ch-sort-btn" data-sortkey="odo" data-cycle="0" onclick="sortChTable('odo',this)">⇅</button>
-                  <br><span class="ch-sort-hint" id="hint-odo" style="font-size:9px;color:var(--text3)">點擊排序</span>
-                </th>
-                <th class="tsep" style="color:#51cf66;min-width:100px;text-align:center">
-                  現場 <button class="ch-sort-btn" data-sortkey="onsite" data-cycle="0" onclick="sortChTable('onsite',this)">⇅</button>
-                  <br><span class="ch-sort-hint" id="hint-onsite" style="font-size:9px;color:var(--text3)">點擊排序</span>
-                </th>
-                <th class="tsep" style="color:var(--accent);min-width:100px;text-align:center">
-                  UberEats <button class="ch-sort-btn" data-sortkey="ub" data-cycle="0" onclick="sortChTable('ub',this)">⇅</button>
-                  <br><span class="ch-sort-hint" id="hint-ub" style="font-size:9px;color:var(--text3)">點擊排序</span>
-                  <span style="font-size:9px;opacity:.5">（抽33%）</span>
-                </th>
-                <th class="tsep" style="color:var(--purple);min-width:100px;text-align:center">
-                  Foodpanda <button class="ch-sort-btn" data-sortkey="fp" data-cycle="0" onclick="sortChTable('fp',this)">⇅</button>
-                  <br><span class="ch-sort-hint" id="hint-fp" style="font-size:9px;color:var(--text3)">點擊排序</span>
-                  <span style="font-size:9px;opacity:.5">（抽31%）</span>
-                </th>
+                <th class="tsep" style="color:var(--accent2);min-width:90px;text-align:center">ODO</th>
+                <th class="tsep" style="color:#51cf66;min-width:90px;text-align:center">現場</th>
+                <th class="tsep" style="color:var(--accent);min-width:90px;text-align:center">UberEats<br><span style="font-weight:400;font-size:9px;opacity:.5">抽33%</span></th>
+                <th class="tsep" style="color:var(--purple);min-width:90px;text-align:center">Foodpanda<br><span style="font-weight:400;font-size:9px;opacity:.5">抽31%</span></th>
                 <th class="tsep" style="min-width:80px">判斷</th>
               </tr>
             </thead>
@@ -709,7 +721,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030555"]*"/g, `DATA_VERSION="202606030555"`);
+                                .replace(/DATA_VERSION="202606030717"]*"/g, `DATA_VERSION="202606030717"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2101,24 +2113,27 @@ function renderChannelAnalysis(){
   let tbodyHtml = '';
 
   // 依 _chSortKey 排序（點 ⇅ 時由 sortChTable 設定）
-  const _sortKey = window._chSortKey;
-  const _sortCycle = window._chSortCycle || 0;  // 0=成長高>低, 1=衰退高>低
-  if(_sortKey){
-    const isDelivery = (_sortKey==='ub'||_sortKey==='fp');
-    curData.sort((a,b)=>{
-      const pa = prevMap[a.store]||a, pb = prevMap[b.store]||b;
-      // 占比變化：本期 - 前期（正=本期占比增加）
-      const ra = (a[_sortKey]||0)/(a.rev||1)*100 - (pa[_sortKey]||0)/((pa.rev)||1)*100;
-      const rb = (b[_sortKey]||0)/(b.rev||1)*100 - (pb[_sortKey]||0)/((pb.rev)||1)*100;
-      // 成長定義：現場/ODO 占比↑=成長；外送 占比↓=成長（依賴降低）
-      const ga = isDelivery ? -ra : ra;  // 轉為「成長分數」（越高越成長）
-      const gb = isDelivery ? -rb : rb;
-      if(_sortCycle === 0) return gb - ga;  // 成長高>低
-      else                 return ga - gb;  // 衰退高>低（成長分數低=衰退嚴重）
-    });
-  } else {
-    curData.sort((a,b)=>b.rev-a.rev);
-  }
+  const _sortKey = window._chSortKey || 'odo';
+  const _metric  = window._chMetric  || 'ratio';
+  const _sortDir = window._chSortDir || false;  // false=高>低
+  curData.sort((a,b)=>{
+    const pa = prevMap[a.store]||{rev:a.rev,odo:a.odo,onsite:a.onsite,ub:a.ub,fp:a.fp};
+    const pb = prevMap[b.store]||{rev:b.rev,odo:b.odo,onsite:b.onsite,ub:b.ub,fp:b.fp};
+    let va, vb;
+    if(_metric === 'ratio'){
+      // 渠道比例（目前占比 %）
+      va = (a[_sortKey]||0) / (a.rev||1);
+      vb = (b[_sortKey]||0) / (b.rev||1);
+    } else {
+      // 成長率：本期占比 - 前期占比（現場/ODO 正=成長；外送 負=成長）
+      const isD = (_sortKey==='ub'||_sortKey==='fp');
+      const ra  = (a[_sortKey]||0)/(a.rev||1)*100 - (pa[_sortKey]||0)/((pa.rev)||1)*100;
+      const rb2 = (b[_sortKey]||0)/(b.rev||1)*100 - (pb[_sortKey]||0)/((pb.rev)||1)*100;
+      va = isD ? -ra : ra;  // 成長分數（越正越成長）
+      vb = isD ? -rb2 : rb2;
+    }
+    return _sortDir ? va - vb : vb - va;  // false=高>低, true=低>高
+  });
   curData.forEach(s=>{
     const p = prevMap[s.store] || {rev:s.rev,onsite:s.onsite,ub:s.ub,fp:s.fp,odo:s.odo};
     const cr=s.rev, pr=p.rev||1;
@@ -2188,29 +2203,45 @@ function renderChannelAnalysis(){
 /* ══ 渠道表格排序 ══ */
 window._chMode = {};
 
-function sortChTable(key, btnEl){
-  // 循環：0=成長高>低，1=衰退高>低，(2=重置)
-  // cycle 存在按鈕的 data-cycle 屬性
-  var btn = btnEl || document.querySelector('.ch-sort-btn[data-sortkey="'+key+'"]');
-  var cycle = btn ? ((parseInt(btn.dataset.cycle||'0') + 1) % 2) : 0;
-  if(btn) btn.dataset.cycle = cycle;
+// 全域渠道分析排序狀態
+window._chMetric = 'ratio';   // 'ratio'=渠道比例 | 'growth'=成長率
+window._chSortKey = 'odo';    // 依哪個渠道排序
+window._chSortDir = false;    // false=高>低, true=低>高
 
-  window._chSortKey = key;
-  window._chSortCycle = cycle;  // 0=成長, 1=衰退
-
-  // 更新提示文字
-  var hints = {0:'🟢 成長高→低', 1:'🔴 衰退高→低'};
-  var hintEl = document.getElementById('hint-' + key);
-  if(hintEl) hintEl.textContent = hints[cycle];
-
+function setChMetric(m, btnEl){
+  window._chMetric = m;
+  document.querySelectorAll('.ch-metric-btn').forEach(b=>b.classList.remove('ch-metric-active'));
+  btnEl.classList.add('ch-metric-active');
   renderChannelAnalysis();
-  setTimeout(()=>{
-    document.querySelectorAll('.ch-sort-btn[data-sortkey]').forEach(b=>{
-      b.classList.toggle('ch-active', b.dataset.sortkey === key);
-    });
-    // 保持 hint 文字（renderChannelAnalysis 不會 reset hint）
-  }, 10);
 }
+
+function setChKey(k, btnEl){
+  window._chSortKey = k;
+  window._chSortDir = false;  // 換渠道時重設為高>低
+  document.querySelectorAll('.ch-key-btn').forEach(b=>b.classList.remove('ch-key-active'));
+  btnEl.classList.add('ch-key-active');
+  updateDirBtn();
+  renderChannelAnalysis();
+}
+
+function toggleChDir(){
+  window._chSortDir = !window._chSortDir;
+  updateDirBtn();
+  renderChannelAnalysis();
+}
+
+function updateDirBtn(){
+  var isGrowth = window._chMetric === 'growth';
+  var isHigh   = !window._chSortDir;
+  var icon  = isHigh ? '🔽' : '🔼';
+  var label = isHigh ? '高→低' : '低→高';
+  var iconEl = document.getElementById('ch-dir-icon');
+  var txtEl  = document.getElementById('ch-dir-txt');
+  if(iconEl) iconEl.textContent = icon;
+  if(txtEl)  txtEl.textContent  = label;
+}
+
+function sortChTable(key, btnEl){ /* legacy - no-op */ }
 
 
 /* ══ RENDER ALL ══ */
