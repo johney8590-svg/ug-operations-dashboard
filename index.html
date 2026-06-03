@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030530";</script>
-<script id="data-script" src="data.js?v=202606030530"></script>
+<script>window.DATA_VERSION="202606030531";</script>
+<script id="data-script" src="data.js?v=202606030531"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -694,7 +694,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030530"]*"/g, `DATA_VERSION="202606030530"`);
+                                .replace(/DATA_VERSION="202606030531"]*"/g, `DATA_VERSION="202606030531"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2111,34 +2111,28 @@ function renderChannelAnalysis(){
     const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
 
     function chCell(cur,prev_,cRev,pRev,key){
-      const isD  = key!=='onsite';
-      const comm = CH_COMM[key]||0;
-      const curR = cRev>0 ? cur/cRev*100 : 0;
-      const prevR= pRev>0 ? prev_/(pRev||1)*100 : 0;
-      const rd   = curR - prevR;  // 本期占比 - 前期占比
-
-      // 成長衰退顏色：統一規則 成長=綠 衰退=紅
-      // 外送占比↑ = 外送依賴加重 = 衰退(紅)
-      // 外送占比↓ = 外送依賴降低 = 成長(綠)
-      // 現場占比↑ = 現場回流     = 成長(綠)
-      // 現場占比↓ = 現場萎縮     = 衰退(紅)
-      const isGrowth = isD ? rd < -0.5 : rd > 0.5;
-      const isDecline= isD ? rd >  0.5 : rd < -0.5;
-      const rdColor  = isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--warn)';
-      const rdIcon   = isGrowth ? '▲' : isDecline ? '▼' : '→';
-      const rdTxt    = Math.abs(rd) < 0.5 ? '持平' : `${rdIcon}${Math.abs(rd).toFixed(1)}%`;
-
-      // 占比大字顏色同步
-      const ratioColor = isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--text)';
-      const loss = comm>0 ? cur*comm : 0;
-
-      return `<td class="tsep" style="text-align:center;white-space:nowrap;padding:10px 14px">
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px">
-          <span style="font-size:16px;font-weight:700;font-family:var(--mono);color:\${ratioColor}">\${curR.toFixed(1)}%</span>
-          <span style="font-size:12px;font-weight:600;color:\${rdColor}">\${rdTxt}</span>
-        </div>
-        \${comm>0?`<div style="font-size:11px;color:var(--danger);margin-top:3px">抽傭 −\${fmtM(loss)}</div>`:''}
-      </td>`;
+      var isD  = key!=='onsite';
+      var comm = CH_COMM[key]||0;
+      var curR = cRev>0 ? cur/cRev*100 : 0;
+      var prevR= pRev>0 ? prev_/(pRev||1)*100 : 0;
+      var rd   = curR - prevR;
+      var isGrowth  = isD ? rd < -0.5 : rd > 0.5;
+      var isDecline = isD ? rd >  0.5 : rd < -0.5;
+      var rdColor   = isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--warn)';
+      var rdIcon    = isGrowth ? '▲' : isDecline ? '▼' : '→';
+      var rdTxt     = Math.abs(rd) < 0.5 ? '持平' : rdIcon + Math.abs(rd).toFixed(1) + '%';
+      var ratioColor= isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--text)';
+      var loss = comm>0 ? cur*comm : 0;
+      var commLine = comm>0
+        ? '<div style="font-size:11px;color:var(--danger);margin-top:3px">抽傭 −' + fmtM(loss) + '</div>'
+        : '';
+      return '<td class="tsep" style="text-align:center;white-space:nowrap;padding:10px 14px">'
+        + '<div style="display:flex;align-items:center;justify-content:center;gap:8px">'
+        + '<span style="font-size:16px;font-weight:700;font-family:var(--mono);color:' + ratioColor + '">' + curR.toFixed(1) + '%</span>'
+        + '<span style="font-size:12px;font-weight:600;color:' + rdColor + '">' + rdTxt + '</span>'
+        + '</div>'
+        + commLine
+        + '</td>';
     }
 
     tbodyHtml+=`<tr>
