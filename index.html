@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030527";</script>
-<script id="data-script" src="data.js?v=202606030527"></script>
+<script>window.DATA_VERSION="202606030530";</script>
+<script id="data-script" src="data.js?v=202606030530"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -694,7 +694,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030527"]*"/g, `DATA_VERSION="202606030527"`);
+                                .replace(/DATA_VERSION="202606030530"]*"/g, `DATA_VERSION="202606030530"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2132,13 +2132,13 @@ function renderChannelAnalysis(){
       const ratioColor = isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--text)';
       const loss = comm>0 ? cur*comm : 0;
 
-      return \`<td class="tsep" style="text-align:center;white-space:nowrap;padding:10px 14px">
+      return `<td class="tsep" style="text-align:center;white-space:nowrap;padding:10px 14px">
         <div style="display:flex;align-items:center;justify-content:center;gap:8px">
           <span style="font-size:16px;font-weight:700;font-family:var(--mono);color:\${ratioColor}">\${curR.toFixed(1)}%</span>
           <span style="font-size:12px;font-weight:600;color:\${rdColor}">\${rdTxt}</span>
         </div>
-        \${comm>0?\`<div style="font-size:11px;color:var(--danger);margin-top:3px">抽傭 −\${fmtM(loss)}</div>\`:''}
-      </td>\`;
+        \${comm>0?`<div style="font-size:11px;color:var(--danger);margin-top:3px">抽傭 −\${fmtM(loss)}</div>`:''}
+      </td>`;
     }
 
     tbodyHtml+=`<tr>
