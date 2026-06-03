@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030120";</script>
-<script id="data-script" src="data.js?v=202606030120"></script>
+<script>window.DATA_VERSION="202606030158";</script>
+<script id="data-script" src="data.js?v=202606030158"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -521,7 +521,16 @@ canvas{max-height:300px;}
     <div class="tab-page" id="page-compare">
       <div id="anomaly-alerts"></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div><div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div></div></div><canvas id="chart-a"></canvas></div>
+        <div class="chart-panel">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div>
+      <div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div>
+    </div>
+  </div>
+  <div id="chart-a-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
+  <canvas id="chart-a"></canvas>
+</div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
       </div>
       <div class="grid-2">
@@ -685,7 +694,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030120"]*"/g, `DATA_VERSION="202606030120"`);
+                                .replace(/DATA_VERSION="202606030158"]*"/g, `DATA_VERSION="202606030158"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1800,6 +1809,43 @@ function renderCompare(){
 
   const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
   const unit={revenue:'元',cups:'杯',customers:'人'}[state.dim];
+
+  // ── 圖表A 摘要卡片 ──
+  const sumEl = document.getElementById('chart-a-summary');
+  if(sumEl){
+    // 本期：最新7天所有日期的每店日均
+    const curAvg  = twDowDailyAvg.filter(v=>v>0).reduce((a,b)=>a+b,0) /
+                    (twDowDailyAvg.filter(v=>v>0).length || 1);
+    // 前期：基線 bClean 的非0平均
+    const prevAvg = bClean.filter(v=>v>0).reduce((a,b)=>a+b,0) /
+                    (bClean.filter(v=>v>0).length || 1);
+    const diffPct = prevAvg>0 ? (prevAvg-curAvg)/prevAvg*100 : 0;  // 前期-本期
+    const absDP   = Math.abs(diffPct);
+    const grow    = diffPct <= -2;   // 本期 > 前期 = 成長
+    const flat    = Math.abs(diffPct) < 2;
+    const diffColor = flat ? 'var(--warn)' : grow ? '#51cf66' : 'var(--danger)';
+    const diffIcon  = flat ? '→' : grow ? '▲' : '▼';
+    const fmtVal = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+    const unitStr = state.dim==='cups'?'杯':state.dim==='customers'?'人':'元';
+
+    sumEl.innerHTML = `
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">本期每店日均</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent)">${fmtVal(Math.round(curAvg))}${unitStr}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">最新7天平均</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期基線</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text2)">${fmtVal(Math.round(prevAvg))}${unitStr}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">前28天同星期平均</div>
+      </div>
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;border-color:${diffColor}44;">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期 − 本期</div>
+        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${diffColor}">${diffIcon} ${absDP.toFixed(1)}%</div>
+        <div style="font-size:10px;color:${diffColor};font-weight:600;margin-top:2px">${flat?'持平':grow?'本期成長':'本期衰退'}</div>
+      </div>
+    `;
+  }
 
   mkChart('chart-a',{
     type:'line',
