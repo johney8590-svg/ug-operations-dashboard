@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030158";</script>
-<script id="data-script" src="data.js?v=202606030158"></script>
+<script>window.DATA_VERSION="202606030515";</script>
+<script id="data-script" src="data.js?v=202606030515"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -694,7 +694,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030158"]*"/g, `DATA_VERSION="202606030158"`);
+                                .replace(/DATA_VERSION="202606030515"]*"/g, `DATA_VERSION="202606030515"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2139,10 +2139,10 @@ function renderChannelAnalysis(){
         <span style="font-family:var(--mono);font-size:12px;font-weight:600">${fmtM(cr)}元</span>
         <span class="${rCls}" style="font-size:10px;font-weight:600;display:block">${revChg>=0?'▲':'▼'}${Math.abs(revChg).toFixed(1)}%</span>
       </td>
+      ${chCell(s.odo,p.odo,cr,pr,'odo')}
       ${chCell(s.onsite,p.onsite,cr,pr,'onsite')}
       ${chCell(s.ub,p.ub,cr,pr,'ub')}
       ${chCell(s.fp,p.fp,cr,pr,'fp')}
-      ${chCell(s.odo,p.odo,cr,pr,'odo')}
       <td class="tsep"><span class="ch-rv ${v.cls}">${v.txt}</span></td>
     </tr>`;
   });
@@ -2155,26 +2155,19 @@ function renderChannelAnalysis(){
   window._chPrevMap = prevMap;
   window._chCurData = curData;
   // 重設排序按鈕狀態
-  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
   window._chSortKey = null;
   window._chSortAsc = false;
 }
 
 /* ══ 渠道表格排序 ══ */
 function sortChTable(key, btnEl){
-  if(btnEl) btnEl.closest && btnEl.closest('table') && null; // 防止事件冒泡
   window._chSortAsc = (window._chSortKey === key) ? !window._chSortAsc : false;
   window._chSortKey = key;
-  // 更新按鈕高亮
-  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
-  if(btnEl) btnEl.classList.add('ch-active');
-  // 重新渲染（renderChannelAnalysis 會讀取 _chSortKey 排序）
   renderChannelAnalysis();
-  // 重新標記 active 按鈕（因為 renderChannelAnalysis 會 reset）
-  document.querySelectorAll('.ch-sort-btn').forEach(b=>{
-    if(b.getAttribute && b.onclick && b.onclick.toString().includes(`'${key}'`)){
-      b.classList.add('ch-active');
-    }
+  // renderChannelAnalysis 會 reset 按鈕，用 data-sortkey 重新標記
+  document.querySelectorAll('.ch-sort-btn[data-sortkey]').forEach(b=>{
+    b.classList.toggle('ch-active', b.dataset.sortkey === key);
   });
 }
 
