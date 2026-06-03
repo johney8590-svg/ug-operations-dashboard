@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>UG 茶飲 · 營運監控儀表板</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606030040";</script>
-<script id="data-script" src="data.js?v=202606030040"></script>
+<script>window.DATA_VERSION="202606030042";</script>
+<script id="data-script" src="data.js?v=202606030042"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -677,7 +678,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606030040"]*"/g, `DATA_VERSION="202606030040"`);
+                                .replace(/DATA_VERSION="202606030042"]*"/g, `DATA_VERSION="202606030042"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1592,6 +1593,15 @@ function renderTrend(){
   const DOW_LABELS = ['週一','週二','週三','週四','週五','週六','週日'];
   const fmtW = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
 
+  // 計算每個 dow 的差異標籤（本期 - 基線）
+  const diffLabels = curDowAvg.map((v,i)=>{
+    const base = prevDowAvg[i]||0;
+    if(!base) return '';
+    const pct = ((v-base)/base*100);
+    return (pct>=0?'+':'')+pct.toFixed(1)+'%';
+  });
+  const diffColors = curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?'#51cf66':'var(--danger)');
+
   mkChart('trend-weekday',{
     type:'bar',
     data:{
@@ -1603,6 +1613,13 @@ function renderTrend(){
           backgroundColor: curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a+'99':C.w+'88'),
           borderColor:     curDowAvg.map((v,i)=>v>=(prevDowAvg[i]||0)?C.a:C.w),
           borderWidth:1.5, borderRadius:4, maxBarThickness:38, order:2,
+          datalabels:{
+            display:true,
+            anchor:'end', align:'end',
+            formatter:(val,ctx)=>diffLabels[ctx.dataIndex],
+            color:(ctx)=>diffColors[ctx.dataIndex],
+            font:{size:11, weight:'bold'},
+          }
         },
         {
           type:'line', label:'前4週基線',
@@ -1611,17 +1628,22 @@ function renderTrend(){
           pointRadius:5, pointBackgroundColor:C.b,
           pointBorderColor:'#161b27', pointBorderWidth:2,
           pointHoverRadius:7, fill:false, tension:0.3, order:1,
+          datalabels:{ display:false }
         }
       ]
     },
     options:{
       ...BO,
+      layout:{ padding:{ top:24 } },
       scales:{
         x:{ grid:{ display:false } },
         y:{ grid:{ color:'#1e2536' }, ticks:{ callback:v=>fmtW(v) } }
       },
       plugins:{
         legend:{ labels:{ boxWidth:11 } },
+        datalabels:{
+          display:true,
+        },
         tooltip:{
           mode:'index', intersect:false,
           callbacks:{
