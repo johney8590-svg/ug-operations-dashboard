@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606040003";</script>
-<script id="data-script" src="data.js?v=202606040003"></script>
+<script>window.DATA_VERSION="202606040006";</script>
+<script id="data-script" src="data.js?v=202606040006"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -736,7 +736,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606040003"]*"/g, `DATA_VERSION="202606040003"`);
+                                .replace(/DATA_VERSION="202606040006"]*"/g, `DATA_VERSION="202606040006"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1026,7 +1026,7 @@ function switchPage(p,el){
   document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById('page-title').textContent=PAGE_TITLES[p];
   // 同步底部 tab bar
   const mTab=document.getElementById('mtab-'+p);
@@ -2280,12 +2280,19 @@ function renderAll(){
 
 /* ══ MOBILE TAB ══ */
 function mobileTab(page, el){
-  // 同步到桌機導覽列的 switchPage 邏輯
-  const navEl = document.getElementById('nav-' + page);
-  if(navEl) switchPage(page, navEl);
-  // 更新底部 tab 狀態
-  document.querySelectorAll('.mobile-tab-item').forEach(t => t.classList.remove('active'));
+  // 直接切換頁面（不依賴桌機 navEl）
+  state.page = page;
+  document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('page-title').textContent = PAGE_TITLES[page];
+  // 桌機 nav 同步（如果存在）
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  const navEl = document.getElementById('nav-'+page);
+  if(navEl) navEl.classList.add('active');
+  // 底部 tab 狀態
+  document.querySelectorAll('.mobile-tab-item').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  renderAll();
 }
 
 // 桌機 nav 點擊時同步底部 tab（透過 switchPage 內部處理）
