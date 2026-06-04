@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606041521";</script>
-<script id="data-script" src="data.js?v=202606041521"></script>
+<script>window.DATA_VERSION="202606041540";</script>
+<script id="data-script" src="data.js?v=202606041540"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -544,7 +544,7 @@ canvas{max-height:300px;}
   <div id="chart-a-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
   <canvas id="chart-a"></canvas>
 </div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title" id="chartb-title">圖表 B · 客單價異常偵測</div><div class="chart-sub" id="chartb-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><div id="chart-b-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="chart-b"></canvas></div>
       </div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
@@ -1944,12 +1944,49 @@ function renderCompare(){
     s.bDays=d;
     s.avgRev=Math.round(s.revenue/d);
     s.avgCust=Math.round(s.customers/d);
-    s.aov=s.customers>0?Math.round(s.revenue/s.customers):0;
+    s.avgCups=Math.round(s.cups/d);
+    s.aov=s.customers>0?Math.round(s.revenue/s.customers):0;      // 客單價
+    s.cupPrice=s.cups>0?Math.round(s.revenue/s.cups):0;            // 杯單價
   });
   document.getElementById('chartb-badge').textContent=anomStores.length?'⚠ '+anomStores.length+' 家異常':'✓ 無異常';
   document.getElementById('chartb-badge').className='chart-badge '+(anomStores.length?'warn':'ok');
+
+  // ── 杯數模式：右軸/黃線改日均杯數、單價改杯單價 ──
+  var isCups=state.dim==='cups';
+  var rightLabel=isCups?'日均杯數':'日均來客數';
+  var rightUnit =isCups?'杯':'人';
+  var priceLabel=isCups?'杯單價':'客單價';
+  var rightData =top=>top.map(s=>isCups?s.avgCups:s.avgCust);
+  var priceOf   =s=>isCups?s.cupPrice:s.aov;
+
+  // ── 標題 / 副標 ──
+  var tEl=document.getElementById('chartb-title');
+  var sEl=document.getElementById('chartb-sub');
+  if(tEl)tEl.textContent='圖表 B · '+priceLabel+'異常偵測';
+  if(sEl)sEl.textContent='左軸：每店日均業績 · 右軸：'+rightLabel+' · 滑點看'+priceLabel;
+
+  // ── 摘要字卡（全選店家總計）：每店日均業績 / 日均來客或杯數 / 客單價或杯單價 ──
+  var bSumEl=document.getElementById('chart-b-summary');
+  if(bSumEl){
+    var sumRev=byStore.reduce((a,s)=>a+s.revenue,0);
+    var sumCust=byStore.reduce((a,s)=>a+s.customers,0);
+    var sumCups=byStore.reduce((a,s)=>a+s.cups,0);
+    var sumDays=byStore.reduce((a,s)=>a+s.bDays,0)||1;
+    var cardRev=Math.round(sumRev/sumDays);
+    var cardMid=Math.round((isCups?sumCups:sumCust)/sumDays);
+    var cardPrice=isCups?(sumCups>0?Math.round(sumRev/sumCups):0):(sumCust>0?Math.round(sumRev/sumCust):0);
+    var bFmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+    var bCard=(lbl,val,unit,color,sub)=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;flex:1;">'
+      +'<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">'+lbl+'</div>'
+      +'<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:'+color+'">'+bFmtV(val)+unit+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+sub+'</div></div>';
+    bSumEl.innerHTML=bCard('每店日均業績',cardRev,'元',C.a,byStore.length+' 店平均')
+      +bCard(rightLabel,cardMid,rightUnit,C.b,'每店每日平均')
+      +bCard(priceLabel,cardPrice,'元',C.w,isCups?'營收 ÷ 杯數':'營收 ÷ 來客數');
+  }
+
   const top15=[...byStore].sort((a,b)=>b.avgRev-a.avgRev).slice(0,15);
-  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'每店日均業績',data:top15.map(s=>s.avgRev),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'日均來客數',data:top15.map(s=>s.avgCust),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},datalabels:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{afterBody:function(items){if(!items||!items.length)return[];var s=top15[items[0].dataIndex];if(!s)return[];return['客單價：'+s.aov.toLocaleString()+' 元'];}}}}}});
+  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'每店日均業績',data:top15.map(s=>s.avgRev),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:rightLabel,data:rightData(top15),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},datalabels:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{afterBody:function(items){if(!items||!items.length)return[];var s=top15[items[0].dataIndex];if(!s)return[];return[priceLabel+'：'+priceOf(s).toLocaleString()+' 元'];}}}}}});
   document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">⚠</span><div><b>${s.name}</b>（${s.zone}）— 折扣率 ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%，外送佔比 ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
   const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top5=sorted.slice(0,5);const bot5=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,5);
   mkChart('chart-c',{type:'bar',data:{labels:[...top5.map(s=>'🏆 '+s.name),...bot5.map(s=>'⚠ '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top5.map(s=>DIM_DAILY[state.dim](s)),...bot5.map(s=>DIM_DAILY[state.dim](s))],backgroundColor:[...top5.map(()=>C.a+'bb'),...bot5.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top5.map(()=>C.a),...bot5.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
@@ -1999,8 +2036,8 @@ function renderCompare(){
     type:'bar',
     data:{
       labels: [
-        ...dTop5.map((s)=>`🔴 ${s.name}　${s.delivPct}%`),
-        ...dBot5.map((s)=>`🟢 ${s.name}　${s.delivPct}%`),
+        ...dTop5.map((s)=>`🔴 ${s.name}　外送${s.delivPct}%`),
+        ...dBot5.map((s)=>`🟢 ${s.name}　外送${s.delivPct}%`),
       ],
       datasets:[
         { label:'現場',     data:dDisplay.map(s=>s.onsitePct), backgroundColor:'#51cf66', stack:'ch' },
@@ -2012,15 +2049,16 @@ function renderCompare(){
     options:{
       ...BO,
       indexAxis:'y',
+      interaction:{ mode:'index', intersect:false, axis:'y' },
       scales:{
         x:{ stacked:true, min:0, max:100, ticks:{ callback:v=>v+'%', stepSize:25 } },
-        y:{ stacked:true, reverse:true, ticks:{ font:{size:10}, autoSkip:false } }
+        y:{ stacked:true, ticks:{ font:{size:10}, autoSkip:false } }
       },
       plugins:{
         legend:{ labels:{ boxWidth:10 } },
         datalabels:{ display:false },
         tooltip:{
-          mode:'index', intersect:false,
+          mode:'index', intersect:false, axis:'y',
           callbacks:{
             title: items=>{ const s=dDisplay[items[0]?.dataIndex]; return s?s.name:''; },
             label: ctx=>{
@@ -2225,16 +2263,8 @@ function renderChannelAnalysis(){
   });
 
   document.getElementById('ch-tbody').innerHTML = tbodyHtml;
-  // 儲存目前的 storeData 供排序使用
-  window._chStoreData = curData.sort((a,b)=>b.rev-a.rev).map(s=>({
-    s, p: prevMap[s.store] || s
-  }));
   window._chPrevMap = prevMap;
   window._chCurData = curData;
-  // 重設排序按鈕狀態
-  document.querySelectorAll('.ch-sort-btn').forEach(b=>b.classList.remove('ch-active'));
-  window._chSortKey = null;
-  window._chSortAsc = false;
 }
 
 /* ══ 渠道表格排序 ══ */
