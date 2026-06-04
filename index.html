@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606040022";</script>
-<script id="data-script" src="data.js?v=202606040022"></script>
+<script>window.DATA_VERSION="202606041521";</script>
+<script id="data-script" src="data.js?v=202606041521"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -544,11 +544,11 @@ canvas{max-height:300px;}
   <div id="chart-a-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
   <canvas id="chart-a"></canvas>
 </div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：營業淨額 · 右軸：來客數</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 B · 客單價異常偵測</div><div class="chart-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><canvas id="chart-b"></canvas></div>
       </div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">UB+FP 占比最高前5（外送依賴最重）& 最低後5（外送最少）</div></div></div><canvas id="chart-d"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">水平長條色階：左綠（自有現場/ODO）→ 右紅（高抽成外送 UB/FP），紅色越長＝外送依賴越重</div></div></div><canvas id="chart-d"></canvas></div>
       </div>
 
       <!-- 渠道結構分析（含抽傭） -->
@@ -1939,10 +1939,17 @@ function renderCompare(){
     }
   });
   const byStore=sumByStore(rows);const anomStores=byStore.filter(s=>isAnom(s));
+  byStore.forEach(function(s){
+    var d=new Set(rows.filter(function(r){return r.store===s.store;}).map(function(r){return r.date;})).size||1;
+    s.bDays=d;
+    s.avgRev=Math.round(s.revenue/d);
+    s.avgCust=Math.round(s.customers/d);
+    s.aov=s.customers>0?Math.round(s.revenue/s.customers):0;
+  });
   document.getElementById('chartb-badge').textContent=anomStores.length?'⚠ '+anomStores.length+' 家異常':'✓ 無異常';
   document.getElementById('chartb-badge').className='chart-badge '+(anomStores.length?'warn':'ok');
-  const top15=[...byStore].sort((a,b)=>b.revenue-a.revenue).slice(0,15);
-  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'營業淨額',data:top15.map(s=>s.revenue),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'來客數',data:top15.map(s=>s.customers),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},tooltip:{mode:'index',intersect:false}}}});
+  const top15=[...byStore].sort((a,b)=>b.avgRev-a.avgRev).slice(0,15);
+  mkChart('chart-b',{type:'line',data:{labels:top15.map(s=>s.name),datasets:[{label:'每店日均業績',data:top15.map(s=>s.avgRev),borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,yAxisID:'y',pointRadius:top15.map(s=>isAnom(s)?8:3),pointBackgroundColor:top15.map(s=>isAnom(s)?C.d:C.a)},{label:'日均來客數',data:top15.map(s=>s.avgCust),borderColor:C.w,borderDash:[5,3],fill:false,tension:0.3,yAxisID:'y1',pointRadius:3}]},options:{...BO,scales:{x:{ticks:{maxRotation:40,font:{size:10}}},y:{position:'left',ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y1:{position:'right',grid:{drawOnChartArea:false},ticks:{callback:v=>v.toLocaleString()}}},plugins:{legend:{labels:{boxWidth:11}},datalabels:{display:false},tooltip:{mode:'index',intersect:false,callbacks:{afterBody:function(items){if(!items||!items.length)return[];var s=top15[items[0].dataIndex];if(!s)return[];return['客單價：'+s.aov.toLocaleString()+' 元'];}}}}}});
   document.getElementById('anomaly-alerts').innerHTML=anomStores.slice(0,4).map(s=>`<div class="alert-box"><span class="icon">⚠</span><div><b>${s.name}</b>（${s.zone}）— 折扣率 ${(s.revenue+s.discount>0?(s.discount/(s.revenue+s.discount)*100).toFixed(1):'-')}%，外送佔比 ${(s.revenue>0?((s.ub+s.fp)/s.revenue*100).toFixed(1):'-')}%</div></div>`).join('');
   const sorted=[...byStore].sort((a,b)=>b[dim]-a[dim]);const top5=sorted.slice(0,5);const bot5=[...sorted].sort((a,b)=>a[dim]-b[dim]).slice(0,5);
   mkChart('chart-c',{type:'bar',data:{labels:[...top5.map(s=>'🏆 '+s.name),...bot5.map(s=>'⚠ '+s.name)],datasets:[{label:DIM_LABEL[state.dim],data:[...top5.map(s=>DIM_DAILY[state.dim](s)),...bot5.map(s=>DIM_DAILY[state.dim](s))],backgroundColor:[...top5.map(()=>C.a+'bb'),...bot5.map(s=>isAnom(s)?C.d+'bb':C.w+'88')],borderColor:[...top5.map(()=>C.a),...bot5.map(s=>isAnom(s)?C.d:C.w)],borderWidth:1.5,borderRadius:4}]},options:{indexAxis:'y',...BO,scales:{x:{ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}},y:{ticks:{font:{size:10}}}},plugins:{legend:{display:false}}}});
@@ -1986,50 +1993,49 @@ function renderCompare(){
   const dBot5 = [...dSorted].sort((a,b)=>a.delivPct-b.delivPct).slice(0,5).reverse();
   const dDisplay = [...dTop5, ...dBot5];
 
+  // 水平色階堆疊：左綠（自有：現場→ODO）→ 右暖（高抽成外送：UB→FP）
+  // 資料來源改用 dDisplay（與 labels 對齊；修正先前 dStores 對應錯位）
   mkChart('chart-d',{
     type:'bar',
     data:{
       labels: [
-        ...dTop5.map((s,i)=>`🔴 #${i+1} ${s.name} ${s.delivPct}%`),
-        ...dBot5.map((s,i)=>`🟢 #${i+1} ${s.name} ${s.delivPct}%`),
+        ...dTop5.map((s)=>`🔴 ${s.name}　${s.delivPct}%`),
+        ...dBot5.map((s)=>`🟢 ${s.name}　${s.delivPct}%`),
       ],
       datasets:[
-        { label:'現場 %',      data:dStores.map(s=>s.onsitePct),
-          backgroundColor:'#51cf66cc', stack:'ch' },
-        { label:'UberEats %',  data:dStores.map(s=>s.ubPct),
-          backgroundColor:C.a+'cc', stack:'ch' },
-        { label:'Foodpanda %', data:dStores.map(s=>s.fpPct),
-          backgroundColor:C.p+'cc', stack:'ch' },
-        { label:'ODO 自取 %', data:dStores.map(s=>s.odoPct),
-          backgroundColor:C.b+'cc', stack:'ch' },
+        { label:'現場',     data:dDisplay.map(s=>s.onsitePct), backgroundColor:'#51cf66', stack:'ch' },
+        { label:'ODO 自取', data:dDisplay.map(s=>s.odoPct),    backgroundColor:C.b,       stack:'ch' },
+        { label:'UberEats', data:dDisplay.map(s=>s.ubPct),     backgroundColor:C.w,       stack:'ch' },
+        { label:'Foodpanda',data:dDisplay.map(s=>s.fpPct),     backgroundColor:C.d,       stack:'ch' },
       ]
     },
     options:{
       ...BO,
+      indexAxis:'y',
       scales:{
-        x:{ stacked:true, ticks:{ maxRotation:40, font:{size:10} } },
-        y:{ stacked:true, min:0, max:100,
-            ticks:{ callback:v=>v+'%', stepSize:25 } }
+        x:{ stacked:true, min:0, max:100, ticks:{ callback:v=>v+'%', stepSize:25 } },
+        y:{ stacked:true, reverse:true, ticks:{ font:{size:10}, autoSkip:false } }
       },
       plugins:{
         legend:{ labels:{ boxWidth:10 } },
+        datalabels:{ display:false },
         tooltip:{
           mode:'index', intersect:false,
           callbacks:{
+            title: items=>{ const s=dDisplay[items[0]?.dataIndex]; return s?s.name:''; },
             label: ctx=>{
-              const s = dStores[ctx.dataIndex];
+              const s = dDisplay[ctx.dataIndex];
               const ch = ctx.datasetIndex;
-              const [pct, daily, label] = ch===0
-                ? [s.ubPct,  s.ubD,  'UberEats']
-                : ch===1
-                ? [s.fpPct,  s.fpD,  'Foodpanda']
-                : [s.odoPct, s.odoD, 'ODO 自取'];
-              return `${label}：${pct}%（日均 ${fmtM(daily)}元）`;
+              const m = ch===0 ? ['現場',     s.onsitePct, s.onsiteD]
+                      : ch===1 ? ['ODO 自取', s.odoPct,    s.odoD]
+                      : ch===2 ? ['UberEats', s.ubPct,     s.ubD]
+                      :          ['Foodpanda',s.fpPct,     s.fpD];
+              return `${m[0]}：${m[1]}%（日均 ${fmtM(m[2])}元）`;
             },
             afterBody: ctx=>{
-              const s = dStores[ctx[0]?.dataIndex];
+              const s = dDisplay[ctx[0]?.dataIndex];
               if(!s) return [];
-              return [`總渠道日均：${fmtM(s.totD)}元 × ${s.days}天`];
+              return [`外送依賴 ${s.delivPct}%　·　總渠道日均 ${fmtM(s.totD)}元`];
             }
           }
         }
@@ -2106,10 +2112,10 @@ function renderChannelAnalysis(){
       <div class="ch-alert-icon">⚠️</div>
       <div class="ch-alert-main">
         <div class="ch-alert-title">平台抽傭侵蝕提示</div>
-        <div class="ch-alert-sub">UB(33%) + FP(31%) 每店日均損失 <b style="color:var(--danger)">${fmtM(totCommCur/curData.length)}元</b>，佔整體 <b style="color:var(--danger)">${commRatio.toFixed(1)}%</b></div>
+        <div class="ch-alert-sub">UB(33%) + FP(31%) 外送抽成傭金 <b style="color:var(--danger)">${fmtM(totCommCur/curData.length)}元</b>，佔整體 <b style="color:var(--danger)">${commRatio.toFixed(1)}%</b></div>
       </div>
       <div class="ch-alert-nums">
-        <div class="ch-num"><div class="ch-num-val" style="color:var(--danger)">−${fmtM(totCommCur/curData.length)}</div><div class="ch-num-lbl">每店日均損失</div></div>
+        <div class="ch-num"><div class="ch-num-val" style="color:var(--danger)">−${fmtM(totCommCur/curData.length)}</div><div class="ch-num-lbl">外送抽成傭金</div></div>
         <div class="ch-num"><div class="ch-num-val" style="color:var(--warn)">${commRatio.toFixed(1)}%</div><div class="ch-num-lbl">佔整體營收</div></div>
         <div class="ch-num"><div class="ch-num-val" style="color:${chgCls}">${commChg>=0?'+':''}${commChg.toFixed(1)}%</div><div class="ch-num-lbl">vs 前28天</div></div>
         <div class="ch-num"><div class="ch-num-val" style="color:var(--text)">${fmtM(totNetCur/curData.length)}</div><div class="ch-num-lbl">扣傭後每店日均</div></div>
