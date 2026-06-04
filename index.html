@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606041540";</script>
-<script id="data-script" src="data.js?v=202606041540"></script>
+<script>window.DATA_VERSION="202606041600";</script>
+<script id="data-script" src="data.js?v=202606041600"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -506,7 +506,7 @@ canvas{max-height:300px;}
         </div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
       </div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道拆解（最新日）</div><div class="chart-sub">UberEats / Foodpanda / ODO 自取</div></div></div><canvas id="today-channel"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道拆解（最新日）</div><div class="chart-sub" id="today-channel-sub">UberEats / Foodpanda / ODO 自取</div></div></div><canvas id="today-channel"></canvas></div>
 
       <!-- 週間業績對比 -->
       <div class="chart-panel" id="weekly-compare-panel">
@@ -524,7 +524,7 @@ canvas{max-height:300px;}
     <!-- TREND -->
     <div class="tab-page" id="page-trend">
       <div id="data-info-trend"></div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub">依篩選門市與日期區間加總</div></div></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
@@ -952,7 +952,7 @@ document.getElementById('dr-end').addEventListener('change',()=>{
 const initRange=computeShortcut('cur-month');
 let state={
   page:'today',zones:new Set(ZONES),stores:new Set(STORE_LIST.map(s=>s.id)),
-  dim:'revenue',dateStart:initRange.start,dateEnd:initRange.end,activeShortcut:'cur-month'
+  dim:'revenue',dateStart:initRange.start,dateEnd:initRange.end,activeShortcut:'cur-month',trendMode:'total'
 };
 const charts={};
 function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
@@ -1038,6 +1038,7 @@ function switchPage(p,el){
   renderAll();
 }
 function setDim(dim,btn){state.dim=dim;document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAll();}
+function setTrendMode(mode,btn){state.trendMode=mode;document.querySelectorAll('#trend-mode-total,#trend-mode-avg').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTrend();}
 
 /* ══ FILTER ══ */
 function filterData(rows,extraDate=null){
@@ -1164,8 +1165,21 @@ function renderToday(){
 
   renderRankWall(byStore, allRows, dayCount);
 
-  // ── 渠道圖：用全區間加總 ──
+  // ── 渠道圖：依當前維度拆解（營收=各渠道營收；杯數/單數無逐渠道原始值，依營收占比估算）──
   const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
+  const chRev = [onsiteTotal, tot.ub, tot.fp, tot.odo];
+  const chTotRev = chRev.reduce((a,b)=>a+b,0) || 1;
+  const chDimTot = state.dim==='cups' ? tot.cups : state.dim==='customers' ? tot.customers : null;
+  const chVals = state.dim==='revenue' ? chRev : chRev.map(rv=>Math.round(chDimTot*rv/chTotRev));
+  const chUnit = state.dim==='revenue' ? '元' : state.dim==='cups' ? '杯' : '單';
+  const chTotalVal = chVals.reduce((a,b)=>a+b,0) || 1;
+  const fmtChV = v => (state.dim==='revenue' && v>=10000) ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+  const chSubEl = document.getElementById('today-channel-sub');
+  if(chSubEl){
+    chSubEl.textContent = state.dim==='revenue'
+      ? '依營業淨額拆解 · 現場 / UB / FP / ODO'
+      : (state.dim==='cups'?'依銷售杯數拆解':'依來客單數拆解')+'（依各渠道營收占比估算）';
+  }
   // 防呆：四渠道全為 0 時不渲染（避免顯示假資料）
   if(tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0){
     destroyChart('today-channel');
@@ -1177,7 +1191,7 @@ function renderToday(){
     data: {
       labels: ['現場','UberEats','Foodpanda','ODO 自取'],
       datasets: [{
-        data: [onsiteTotal, tot.ub, tot.fp, tot.odo],
+        data: chVals,
         backgroundColor: ['#51cf66cc', C.a+'cc', C.p+'cc', C.b+'cc'],
         borderColor: ['#51cf66', C.a, C.p, C.b],
         borderWidth: 1.5, hoverOffset: 6,
@@ -1191,11 +1205,13 @@ function renderToday(){
           callbacks: {
             label: ctx => {
               const v = ctx.raw;
+              const share = (v/chTotalVal*100).toFixed(1);
               const dayAvg = Math.round(v / storeCount / dayCount);
+              const dayAvgStr = (state.dim==='revenue' && dayAvg>=10000) ? (dayAvg/10000).toFixed(1)+'萬' : dayAvg.toLocaleString();
               return [
-                `${ctx.label}：${(v/10000).toFixed(1)}萬元`,
-                `佔比 ${tot.revenue>0?(v/tot.revenue*100).toFixed(1):0}%`,
-                `每店日均 ${dayAvg>=10000?(dayAvg/10000).toFixed(1)+'萬':dayAvg.toLocaleString()}元`,
+                ctx.label + '：' + fmtChV(v) + chUnit,
+                '佔比 ' + share + '%',
+                '每店日均 ' + dayAvgStr + chUnit,
               ];
             }
           }
@@ -1605,12 +1621,47 @@ function renderWeeklyCompare(){
 function renderTrend(){
   renderInfoBar('data-info-trend');
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
-  const ad=getActiveDates();const byDate={};rows.forEach(r=>{byDate[r.date]=(byDate[r.date]||0)+r[dim];});
+  const ad=getActiveDates();
+  const byDate={};const storesByDate={};
+  rows.forEach(r=>{
+    byDate[r.date]=(byDate[r.date]||0)+r[dim];
+    (storesByDate[r.date]=storesByDate[r.date]||new Set()).add(r.store);
+  });
+  const tIsAvg = state.trendMode==='avg';
+  const tUnit  = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
+  const tModeLabel = tIsAvg?'每店日均':'全店店累積';
+  const tSeries = d=>{ const t=byDate[d]||0; if(!tIsAvg) return t; const sc=(storesByDate[d]&&storesByDate[d].size)||1; return Math.round(t/sc); };
+  const tData = ad.map(tSeries);
+  const tFmt = v=>(state.dim==='revenue'&&v>=10000)?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+
+  // 副標題
+  const tSubEl=document.getElementById('trend-sub');
+  if(tSubEl) tSubEl.textContent=DIM_LABEL[state.dim].replace(/\s*\(.*\)/,'')+' · '+tModeLabel+'（共 '+ad.length+' 天）';
+
+  // ── 字卡：期間總計 / 平均單日 / 單日最高 / 單日最低 ──
+  const tSumEl=document.getElementById('trend-summary');
+  if(tSumEl){
+    const totSum = ad.reduce((a,d)=>a+(byDate[d]||0),0);                 // 全店期間總計
+    const dayAvgOfMode = tData.length?Math.round(tData.reduce((a,b)=>a+b,0)/tData.length):0;
+    let hi={v:-1,d:''},lo={v:Infinity,d:''};
+    ad.forEach(d=>{ const v=tSeries(d); if(v>hi.v)hi={v,d}; if(v>0&&v<lo.v)lo={v,d}; });
+    if(lo.v===Infinity) lo={v:0,d:''};
+    const tCard=(lbl,val,sub,color)=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;flex:1;">'
+      +'<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">'+lbl+'</div>'
+      +'<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:'+color+'">'+val+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+sub+'</div></div>';
+    tSumEl.innerHTML =
+        tCard('期間總計（全店）', tFmt(totSum)+tUnit, ad.length+' 天合計', C.a)
+      + tCard('平均單日（'+tModeLabel+'）', tFmt(dayAvgOfMode)+tUnit, '每日平均', C.b)
+      + tCard('單日最高', tFmt(hi.v)+tUnit, (hi.d||'-')+' · '+tModeLabel, '#51cf66')
+      + tCard('單日最低', tFmt(lo.v)+tUnit, (lo.d||'-')+' · '+tModeLabel, C.w);
+  }
+
   mkChart('trend-line',{
     type:'line',
     data:{labels:ad,datasets:[{
-      label:DIM_LABEL[state.dim],
-      data:ad.map(d=>byDate[d]||0),
+      label:DIM_LABEL[state.dim].replace(/\s*\(.*\)/,'')+'（'+tModeLabel+'）',
+      data:tData,
       borderColor:C.a,backgroundColor:C.a+'22',fill:true,
       tension:0.35,pointRadius:2,pointHoverRadius:7,borderWidth:2,
     }]},
@@ -1630,9 +1681,12 @@ function renderTrend(){
             },
             label:ctx=>{
               const v=ctx.raw;
-              const u=state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
-              const fv=state.dim==='revenue'?(v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString()):v.toLocaleString();
-              return `每店日均：${fv}${u}`;
+              return tModeLabel+'：'+tFmt(v)+tUnit;
+            },
+            afterBody:ctx=>{
+              const d=ctx[0]?.label;
+              const sc=(storesByDate[d]&&storesByDate[d].size)||0;
+              return sc?['營業門市 '+sc+' 家']:[];
             }
           }
         }
