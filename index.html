@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606041600";</script>
-<script id="data-script" src="data.js?v=202606041600"></script>
+<script>window.DATA_VERSION="202606041640";</script>
+<script id="data-script" src="data.js?v=202606041640"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -2245,15 +2245,15 @@ function renderChannelAnalysis(){
       vb = b.rev>0 ? (b[_sortKey]||0)/b.rev : 0;
     } else {
       // 成長率：本期占比 - 前期占比
-      // 若前期無資料則跳過（排最後）
-      if(!pa){ va = isDelivery ? 999 : -999; }
+      // 無前期資料 → 視為持平(0)，與表格顯示一致，落在中段
+      if(!pa){ va = 0; }
       else {
         const curA = a.rev>0 ? (a[_sortKey]||0)/a.rev*100 : 0;
         const preA = pa.rev>0 ? (pa[_sortKey]||0)/pa.rev*100 : 0;
         const diff = curA - preA;  // 正=本期占比上升
-        va = isDelivery ? -diff : diff;  // 外送占比↓=成長（取負）
+        va = isDelivery ? -diff : diff;  // 外送占比↓=成長（取負）；現場/ODO占比↑=成長
       }
-      if(!pb){ vb = isDelivery ? 999 : -999; }
+      if(!pb){ vb = 0; }
       else {
         const curB = b.rev>0 ? (b[_sortKey]||0)/b.rev*100 : 0;
         const preB = pb.rev>0 ? (pb[_sortKey]||0)/pb.rev*100 : 0;
@@ -2276,13 +2276,13 @@ function renderChannelAnalysis(){
     const nCls=netChg>=3?'pos':netChg<=-3?'neg':'neu';
 
     function chCell(cur,prev_,cRev,pRev,key){
-      var isD  = key!=='onsite';
+      var isHighComm = (key==='ub'||key==='fp'); // 僅高抽成外送：占比↑=衰退；現場/ODO(自有)：占比↑=成長
       var comm = CH_COMM[key]||0;
       var curR = cRev>0 ? cur/cRev*100 : 0;
       var prevR= pRev>0 ? prev_/(pRev||1)*100 : 0;
       var rd   = curR - prevR;
-      var isGrowth  = isD ? rd < -0.5 : rd > 0.5;
-      var isDecline = isD ? rd >  0.5 : rd < -0.5;
+      var isGrowth  = isHighComm ? rd < -0.5 : rd > 0.5;
+      var isDecline = isHighComm ? rd >  0.5 : rd < -0.5;
       var rdColor   = isGrowth ? '#51cf66' : isDecline ? 'var(--danger)' : 'var(--warn)';
       var rdIcon    = isGrowth ? '▲' : isDecline ? '▼' : '→';
       var rdTxt     = Math.abs(rd) < 0.5 ? '持平' : rdIcon + Math.abs(rd).toFixed(1) + '%';
