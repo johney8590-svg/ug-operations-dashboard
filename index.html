@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606040019";</script>
-<script id="data-script" src="data.js?v=202606040019"></script>
+<script>window.DATA_VERSION="202606040022";</script>
+<script id="data-script" src="data.js?v=202606040022"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -274,6 +274,7 @@ canvas{max-height:300px;}
 .mobile-tab-bar {
   display: none;
   position: fixed; bottom: 0; left: 0; right: 0;
+  flex-direction: row;
   height: calc(58px + env(safe-area-inset-bottom));
   background: var(--bg2);
   border-top: 1px solid var(--border);
@@ -287,14 +288,12 @@ canvas{max-height:300px;}
   background: transparent; color: var(--text3);
   font-family: var(--font); padding: 8px 4px;
   -webkit-tap-highlight-color: transparent;
-}
-.mobile-tab-item > * { pointer-events: none;
   transition: color .15s;
 }
+.mobile-tab-item > * { pointer-events: none; }
 .mobile-tab-item.active { color: var(--accent); }
-.mobile-tab-item:active { background: rgba(255,255,255,.04); }
-.mobile-tab-icon { font-size: 18px; line-height: 1; }
-.mobile-tab-label { font-size: 10px; font-weight: 500; white-space: nowrap; }
+.mobile-tab-icon { font-size: 20px; line-height: 1; }
+.mobile-tab-label { font-size: 11px; font-weight: 500; }
 
 /* ── 渠道結構分析 ── */
 .ch-alert{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.25);border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
@@ -741,7 +740,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606040019"]*"/g, `DATA_VERSION="202606040019"`);
+                                .replace(/DATA_VERSION="202606040022"]*"/g, `DATA_VERSION="202606040022"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
