@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606040006";</script>
-<script id="data-script" src="data.js?v=202606040006"></script>
+<script>window.DATA_VERSION="202606040010";</script>
+<script id="data-script" src="data.js?v=202606040010"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -172,6 +172,9 @@ canvas{max-height:300px;}
 
   /* 隱藏桌機導覽列 */
   nav { display: none !important; }
+
+  /* main 全寬+可捲動 */
+  main { margin-left: 0 !important; overflow: auto !important; }
 
   /* main 變全寬 */
   main { width: 100%; }
@@ -736,7 +739,7 @@ async function pushToGitHub(newRows){
       const idxText = atob(idxInfo.content.replace(/\n/g,''));
       // 替換版本號
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606040006"]*"/g, `DATA_VERSION="202606040006"`);
+                                .replace(/DATA_VERSION="202606040010"]*"/g, `DATA_VERSION="202606040010"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
