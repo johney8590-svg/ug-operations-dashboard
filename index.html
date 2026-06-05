@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606041640";</script>
-<script id="data-script" src="data.js?v=202606041640"></script>
+<script>window.DATA_VERSION="202606041700";</script>
+<script id="data-script" src="data.js?v=202606041700"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{
@@ -76,7 +76,7 @@ header{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;
 .tab-page{display:none;}
 .tab-page.active{display:block;}
 .section-title{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
 .kpi-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;}
 .kpi-card::before{content:'';position:absolute;inset:0 0 auto 0;height:2px;border-radius:var(--radius) var(--radius) 0 0;}
 .kpi-card.blue::before{background:var(--accent);}
@@ -1122,6 +1122,11 @@ function renderToday(){
     ? `總計 ${(v/10000).toFixed(1)}萬元`
     : `總計 ${v.toLocaleString()}${dimUnit}`;
 
+  // 外送抽傭（視為費用，非淨收）：讓人知道大概被平台抽走多少
+  const commCost = Math.round(tot.ub*CH_COMM.ub + tot.fp*CH_COMM.fp);
+  const commPct  = tot.revenue>0 ? (commCost/tot.revenue*100).toFixed(1) : '0.0';
+  const commWan  = commCost>=1e8 ? (commCost/1e8).toFixed(2)+'億' : Math.round(commCost/1e4).toLocaleString()+'萬';
+
   document.getElementById('today-title').textContent =
     `${ld}（近 ${dayCount} 天）· ${storeCount} 家門市`;
 
@@ -1145,6 +1150,11 @@ function renderToday(){
       <div class="kpi-label">折扣佔比</div>
       <div class="kpi-value danger">${discR}<span style="font-size:13px;color:var(--text2)">%</span></div>
       <div class="kpi-sub">折讓 ${(tot.discount/10000).toFixed(1)}萬元</div>
+    </div>
+    <div class="kpi-card danger">
+      <div class="kpi-label">外送抽傭費用</div>
+      <div class="kpi-value danger">${commPct}<span style="font-size:13px;color:var(--text2)">%</span></div>
+      <div class="kpi-sub">抽傭 ${commWan} · UB33%·FP31%</div>
     </div>
   `;
 
