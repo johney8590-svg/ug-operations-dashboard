@@ -8,19 +8,22 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606041700";</script>
-<script id="data-script" src="data.js?v=202606041700"></script>
+<script>window.DATA_VERSION="202606041720";</script>
+<script id="data-script" src="data.js?v=202606041720"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
-  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2536;--border:#2a3147;
-  --accent:#4f9eff;--accent2:#38d9a9;--warn:#ffd43b;--danger:#ff6b6b;
-  --text:#e8eaf0;--text2:#8892a4;--text3:#525e75;
+  --bg:#0c0f17;--bg2:#161b2b;--bg3:#1c2236;--border:#262d42;--border2:#323b56;
+  --accent:#4fb6ff;--accent2:#34d9b4;--warn:#ffb454;--danger:#ff5d73;
+  --gold:#f5c563;--gold-dim:#caa24a;
+  --ch-onsite:#34d9b4;--ch-odo:#4fb6ff;--ch-ub:#ffa94d;--ch-fp:#ff6b8a;
+  --text:#eef1f8;--text2:#aab2c8;--text3:#6b7591;
   --nav-w:220px;--radius:12px;
-  --font:'Noto Sans TC',sans-serif;--mono:'JetBrains Mono',monospace;
+  --font:'Noto Sans TC',sans-serif;--display:'Sora','Noto Sans TC',sans-serif;--mono:'Spline Sans Mono',monospace;
 }
+.nav-logo .brand,.header-title,.section-title,.chart-title,.kpi-label{font-family:var(--display);}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;font-size:14px;}
+body{font-family:var(--font);background:radial-gradient(900px 500px at 82% -8%,rgba(245,197,99,.06),transparent 60%),radial-gradient(800px 600px at -5% 8%,rgba(79,182,255,.05),transparent 55%),var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;font-size:14px;}
 nav{width:var(--nav-w);background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
 .nav-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);}
 .nav-logo .brand{font-size:18px;font-weight:700;}
@@ -87,6 +90,23 @@ header{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;
 .kpi-value{font-size:26px;font-weight:700;margin:6px 0 4px;font-family:var(--mono);line-height:1.1;}
 .kpi-value.blue{color:var(--accent);}.kpi-value.green{color:var(--accent2);}.kpi-value.warn{color:var(--warn);}.kpi-value.danger{color:var(--danger);}
 .kpi-sub{font-size:11.5px;color:var(--text3);}
+/* —— 渠道結構元件 —— */
+.chbar{height:44px;border-radius:11px;overflow:hidden;display:flex;border:1px solid var(--border);margin:6px 0 16px;}
+.chbar .seg-c{height:100%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#0c0f17;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.ch-split{display:flex;gap:10px;}
+.ch-split-b{flex:1;border-radius:12px;padding:13px 15px;text-align:center;}
+.ch-split-b.self{background:rgba(52,217,180,.08);border:1px solid rgba(52,217,180,.25);}
+.ch-split-b.deliv{background:rgba(255,107,138,.08);border:1px solid rgba(255,107,138,.25);}
+.ch-split-b .pc{font-family:var(--mono);font-size:24px;font-weight:700;}
+.ch-split-b.self .pc{color:var(--ch-onsite);}
+.ch-split-b.deliv .pc{color:var(--ch-fp);}
+.ch-split-b .lbl{font-size:11px;color:var(--text3);margin-top:3px;}
+.ch-leg{display:flex;flex-direction:column;gap:11px;}
+.ch-leg .row{display:flex;align-items:center;gap:10px;font-size:13px;}
+.ch-leg .sw{width:12px;height:12px;border-radius:4px;flex-shrink:0;}
+.ch-leg .nm{color:var(--text2);flex:1;}
+.ch-leg .grp{font-size:10px;color:var(--text3);letter-spacing:.04em;}
+.ch-leg .pc{font-family:var(--mono);font-weight:600;color:var(--text);}
 .chart-panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;}
 .chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;}
 .chart-title{font-size:14px;font-weight:600;}
@@ -506,7 +526,20 @@ canvas{max-height:300px;}
         </div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
       </div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道拆解（最新日）</div><div class="chart-sub" id="today-channel-sub">UberEats / Foodpanda / ODO 自取</div></div></div><canvas id="today-channel"></canvas></div>
+      <div class="grid-2">
+        <div class="chart-panel">
+          <div class="chart-header"><div><div class="chart-title">渠道結構</div><div class="chart-sub" id="today-channel-sub">自有（冷色）vs 高抽成外送（暖色）</div></div></div>
+          <div class="chbar" id="ch-bar"></div>
+          <div class="ch-split">
+            <div class="ch-split-b self"><div class="pc" id="ch-self-pc">—</div><div class="lbl">自有渠道（現場＋ODO）</div></div>
+            <div class="ch-split-b deliv"><div class="pc" id="ch-deliv-pc">—</div><div class="lbl">外送渠道（UB＋FP）</div></div>
+          </div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header"><div><div class="chart-title">渠道明細</div><div class="chart-sub" id="today-channel-detail-sub">營收佔比</div></div></div>
+          <div class="ch-leg" id="ch-leg"></div>
+        </div>
+      </div>
 
       <!-- 週間業績對比 -->
       <div class="chart-panel" id="weekly-compare-panel">
@@ -1185,51 +1218,42 @@ function renderToday(){
   const chTotalVal = chVals.reduce((a,b)=>a+b,0) || 1;
   const fmtChV = v => (state.dim==='revenue' && v>=10000) ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
   const chSubEl = document.getElementById('today-channel-sub');
-  if(chSubEl){
-    chSubEl.textContent = state.dim==='revenue'
-      ? '依營業淨額拆解 · 現場 / UB / FP / ODO'
-      : (state.dim==='cups'?'依銷售杯數拆解':'依來客單數拆解')+'（依各渠道營收占比估算）';
+  const chDetailSub = document.getElementById('today-channel-detail-sub');
+  const chDimWord = state.dim==='revenue' ? '營收' : state.dim==='cups' ? '杯數' : '單數';
+  if(chSubEl) chSubEl.textContent = '自有（冷色）vs 高抽成外送（暖色）'+(state.dim==='revenue'?'':' · 依'+chDimWord+'(營收占比估算)');
+  if(chDetailSub) chDetailSub.textContent = chDimWord+'佔比';
+
+  // 渲染：水平色階長條 + 自有/外送拆分 + 明細（取代甜甜圈）
+  const chBarEl=document.getElementById('ch-bar');
+  const chLegEl=document.getElementById('ch-leg');
+  if(chTotalVal<=1 || (tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0)){
+    if(chBarEl) chBarEl.innerHTML='<div style="color:var(--text3);font-size:13px;padding:13px;text-align:center;width:100%">此區間無渠道資料</div>';
+    if(chLegEl) chLegEl.innerHTML='';
+    const s0=document.getElementById('ch-self-pc'),d0=document.getElementById('ch-deliv-pc');
+    if(s0)s0.textContent='—'; if(d0)d0.textContent='—';
+  } else {
+    // chVals 順序 = [現場, UB, FP, ODO]
+    const chDefs=[
+      {nm:'現場',     grp:'自有',         c:'var(--ch-onsite)', v:chVals[0]},
+      {nm:'ODO 自取', grp:'自有',         c:'var(--ch-odo)',    v:chVals[3]},
+      {nm:'UberEats', grp:'外送 · 抽33%', c:'var(--ch-ub)',     v:chVals[1]},
+      {nm:'Foodpanda',grp:'外送 · 抽31%', c:'var(--ch-fp)',     v:chVals[2]},
+    ];
+    if(chBarEl) chBarEl.innerHTML = chDefs.map(x=>{
+      const p=x.v/chTotalVal*100;
+      return '<div class="seg-c" style="width:'+p+'%;background:'+x.c+'">'+(p>9?p.toFixed(0)+'%':'')+'</div>';
+    }).join('');
+    if(chLegEl) chLegEl.innerHTML = chDefs.map(x=>{
+      const p=(x.v/chTotalVal*100).toFixed(1);
+      return '<div class="row"><span class="sw" style="background:'+x.c+'"></span>'+
+        '<span class="nm">'+x.nm+' <span class="grp">'+x.grp+'</span></span>'+
+        '<span class="pc">'+p+'%</span></div>';
+    }).join('');
+    const selfV=chVals[0]+chVals[3], delivV=chVals[1]+chVals[2];
+    const sEl=document.getElementById('ch-self-pc'), dEl=document.getElementById('ch-deliv-pc');
+    if(sEl) sEl.textContent=(selfV/chTotalVal*100).toFixed(1)+'%';
+    if(dEl) dEl.textContent=(delivV/chTotalVal*100).toFixed(1)+'%';
   }
-  // 防呆：四渠道全為 0 時不渲染（避免顯示假資料）
-  if(tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0){
-    destroyChart('today-channel');
-    const ctx=document.getElementById('today-channel');
-    if(ctx){ const p=ctx.parentElement; p.innerHTML='<div style="color:var(--text3);font-size:13px;padding:20px 0;text-align:center">此區間無渠道資料</div>'; }
-  } else
-  mkChart('today-channel', {
-    type: 'doughnut',
-    data: {
-      labels: ['現場','UberEats','Foodpanda','ODO 自取'],
-      datasets: [{
-        data: chVals,
-        backgroundColor: ['#51cf66cc', C.a+'cc', C.p+'cc', C.b+'cc'],
-        borderColor: ['#51cf66', C.a, C.p, C.b],
-        borderWidth: 1.5, hoverOffset: 6,
-      }]
-    },
-    options: {
-      ...BO,
-      plugins: {
-        legend: { position:'right' },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const v = ctx.raw;
-              const share = (v/chTotalVal*100).toFixed(1);
-              const dayAvg = Math.round(v / storeCount / dayCount);
-              const dayAvgStr = (state.dim==='revenue' && dayAvg>=10000) ? (dayAvg/10000).toFixed(1)+'萬' : dayAvg.toLocaleString();
-              return [
-                ctx.label + '：' + fmtChV(v) + chUnit,
-                '佔比 ' + share + '%',
-                '每店日均 ' + dayAvgStr + chUnit,
-              ];
-            }
-          }
-        }
-      },
-      cutout: '60%'
-    }
-  });
 
   renderWeeklyCompare();
 }
