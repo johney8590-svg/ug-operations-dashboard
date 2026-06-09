@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606090616";</script>
-<script id="data-script" src="data.js?v=202606090616"></script>
+<script>window.DATA_VERSION="202606090621";</script>
+<script id="data-script" src="data.js?v=202606090621"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -816,7 +816,7 @@ async function pushToGitHub(newRows){
       const idxText = decodeURIComponent(escape(atob(idxInfo.content.replace(/\n/g,''))));
       // 替換版本號（data.js?v= 與 DATA_VERSION 一起更新）
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606090616"/g, `DATA_VERSION="202606090616"`);
+                                .replace(/DATA_VERSION="202606090621"/g, `DATA_VERSION="202606090621"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2504,38 +2504,43 @@ function computeTargetData(){
   });
   Object.keys(zoneStoreCount).forEach(function(z){ zoneStoreCount[z] = zoneStoreCount[z].size; });
 
-  // zoneWeatherAvg[zone][weather] = 該區該天氣「單店單日」日均
+  // zoneWeatherAvg[zone][weather] = 該區該天氣「每店每天」平均營收
+  // = 該區該天氣所有(店×天)紀錄的營收平均（一筆=一店一天）
+  // 注意：不能用「單日總÷門市數」，因為門市分散，不是每店每天都同天氣
+  var zoneWeatherSum = {};   // zone -> weather -> {sum, count}
+  prevRows.forEach(function(r){
+    if(!zoneWeatherSum[r.zone]) zoneWeatherSum[r.zone] = {};
+    if(!zoneWeatherSum[r.zone][r.weather]) zoneWeatherSum[r.zone][r.weather] = {sum:0, count:0};
+    zoneWeatherSum[r.zone][r.weather].sum += r.revenue;
+    zoneWeatherSum[r.zone][r.weather].count += 1;
+  });
   var zoneWeatherAvg = {};
-  Object.keys(zoneWeatherDate).forEach(function(zone){
+  Object.keys(zoneWeatherSum).forEach(function(zone){
     zoneWeatherAvg[zone] = {};
-    var nStores = zoneStoreCount[zone] || 1;
-    var zoneDayCount = new Set(prevRows.filter(r=>r.zone===zone).map(r=>r.date)).size || 30;
-    var zoneStoreOverall = zoneRev[zone] / zoneDayCount / nStores;  // 該區單店整體日均
+    // 該區整體每店每天平均（補值用）
+    var allSum=0, allCnt=0;
     ['晴','陰','雨'].forEach(function(w){
-      var dd = zoneWeatherDate[zone][w];
-      if(dd){
-        var totals = Object.values(dd);          // 各天「全區總營收」
-        var zoneDayAvg = totals.reduce((a,b)=>a+b,0)/totals.length;
-        zoneWeatherAvg[zone][w] = zoneDayAvg / nStores;  // 除門市數 → 單店日均
-      } else {
-        zoneWeatherAvg[zone][w] = zoneStoreOverall;
-      }
+      if(zoneWeatherSum[zone][w]){ allSum+=zoneWeatherSum[zone][w].sum; allCnt+=zoneWeatherSum[zone][w].count; }
+    });
+    var zoneStoreOverall = allCnt>0 ? allSum/allCnt : 0;
+    ['晴','陰','雨'].forEach(function(w){
+      var d = zoneWeatherSum[zone][w];
+      zoneWeatherAvg[zone][w] = (d && d.count>0) ? d.sum/d.count : zoneStoreOverall;
     });
   });
 
-  // 整體各天氣日均（給顯示基準用）
-  var byWeatherDate = {};
+  // 整體各天氣「每店每天」平均（給顯示基準用）
+  var weatherSum = {};
   prevRows.forEach(function(r){
-    if(!byWeatherDate[r.weather]) byWeatherDate[r.weather] = {};
-    byWeatherDate[r.weather][r.date] = (byWeatherDate[r.weather][r.date]||0) + r.revenue;
+    if(!weatherSum[r.weather]) weatherSum[r.weather] = {sum:0,count:0};
+    weatherSum[r.weather].sum += r.revenue;
+    weatherSum[r.weather].count += 1;
   });
   var weatherAvg = {};
-  var overallAvg = prevTotal / prevDayCount;
+  var overallAvg = prevRows.length>0 ? prevTotal/prevRows.length : 0;  // 整體每店每天
   ['晴','陰','雨'].forEach(function(w){
-    if(byWeatherDate[w]){
-      var t = Object.values(byWeatherDate[w]);
-      weatherAvg[w] = t.reduce((a,b)=>a+b,0)/t.length;
-    } else { weatherAvg[w] = overallAvg; }
+    var d = weatherSum[w];
+    weatherAvg[w] = (d && d.count>0) ? d.sum/d.count : overallAvg;
   });
 
   return {
