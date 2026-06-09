@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606090621";</script>
-<script id="data-script" src="data.js?v=202606090621"></script>
+<script>window.DATA_VERSION="202606090805";</script>
+<script id="data-script" src="data.js?v=202606090805"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -816,7 +816,7 @@ async function pushToGitHub(newRows){
       const idxText = decodeURIComponent(escape(atob(idxInfo.content.replace(/\n/g,''))));
       // 替換版本號（data.js?v= 與 DATA_VERSION 一起更新）
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606090621"/g, `DATA_VERSION="202606090621"`);
+                                .replace(/DATA_VERSION="202606090805"/g, `DATA_VERSION="202606090805"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2471,83 +2471,89 @@ function getPrevMonthInfo(){
 window._weatherForecast = null;  // 快取天氣預報
 
 function computeTargetData(){
-  var info = getPrevMonthInfo();
-  var prevMonth = info.prev;
-  var prevRows = DATA.filter(r=>r.month===prevMonth && state.zones.has(r.zone) && state.stores.has(r.store));
-  if(!prevRows.length) return null;
+  var months = [...new Set(DATA.map(r=>r.month))].sort((a,b)=>a-b);
+  var last3 = months.slice(-3);  // 最新三個月
+  var baseRows = DATA.filter(function(r){
+    return last3.indexOf(r.month)>=0 && state.zones.has(r.zone) && state.stores.has(r.store);
+  });
+  if(!baseRows.length) return null;
 
-  var prevTotal = prevRows.reduce((a,r)=>a+r.revenue,0);
-  var prevDates = new Set(prevRows.map(r=>r.date));
-  var prevDayCount = prevDates.size || 30;
+  // 上月（最新月前一個月）總額 → 算本週目標
+  var prevMonth = months.length>=2 ? months[months.length-2] : months[months.length-1];
+  var prevRows = DATA.filter(function(r){
+    return r.month===prevMonth && state.zones.has(r.zone) && state.stores.has(r.store);
+  });
+  var prevTotal = prevRows.reduce(function(a,r){return a+r.revenue;},0);
+  var prevDayCount = new Set(prevRows.map(function(r){return r.date;})).size || 30;
   var weeks = prevDayCount / 7;
-
-  // 成長係數（預設 100%）
   var growthPct = window._targetGrowth || 100;
   var weeklyTarget = (prevTotal / weeks) * (growthPct/100);
 
-  // 各分區 × 天氣型態 的「該區單日營業額」日均
-  // zoneWeatherAvg[zone][weather] = 該區該天氣的單日總營收平均
-  var zoneWeatherDate = {};  // zone -> weather -> {date -> total}
-  var zoneRev = {};          // zone -> 總營收（算權重用）
-  prevRows.forEach(function(r){
-    if(!zoneWeatherDate[r.zone]) zoneWeatherDate[r.zone] = {};
-    if(!zoneWeatherDate[r.zone][r.weather]) zoneWeatherDate[r.zone][r.weather] = {};
-    zoneWeatherDate[r.zone][r.weather][r.date] = (zoneWeatherDate[r.zone][r.weather][r.date]||0) + r.revenue;
-    zoneRev[r.zone] = (zoneRev[r.zone]||0) + r.revenue;
-  });
-
-  // 各區門市數（用目前選定的門市）
+  // 各分區門市數
   var zoneStoreCount = {};
-  prevRows.forEach(function(r){
+  baseRows.forEach(function(r){
     if(!zoneStoreCount[r.zone]) zoneStoreCount[r.zone] = new Set();
     zoneStoreCount[r.zone].add(r.store);
   });
   Object.keys(zoneStoreCount).forEach(function(z){ zoneStoreCount[z] = zoneStoreCount[z].size; });
 
-  // zoneWeatherAvg[zone][weather] = 該區該天氣「每店每天」平均營收
-  // = 該區該天氣所有(店×天)紀錄的營收平均（一筆=一店一天）
-  // 注意：不能用「單日總÷門市數」，因為門市分散，不是每店每天都同天氣
-  var zoneWeatherSum = {};   // zone -> weather -> {sum, count}
-  prevRows.forEach(function(r){
-    if(!zoneWeatherSum[r.zone]) zoneWeatherSum[r.zone] = {};
-    if(!zoneWeatherSum[r.zone][r.weather]) zoneWeatherSum[r.zone][r.weather] = {sum:0, count:0};
-    zoneWeatherSum[r.zone][r.weather].sum += r.revenue;
-    zoneWeatherSum[r.zone][r.weather].count += 1;
-  });
-  var zoneWeatherAvg = {};
-  Object.keys(zoneWeatherSum).forEach(function(zone){
-    zoneWeatherAvg[zone] = {};
-    // 該區整體每店每天平均（補值用）
-    var allSum=0, allCnt=0;
-    ['晴','陰','雨'].forEach(function(w){
-      if(zoneWeatherSum[zone][w]){ allSum+=zoneWeatherSum[zone][w].sum; allCnt+=zoneWeatherSum[zone][w].count; }
-    });
-    var zoneStoreOverall = allCnt>0 ? allSum/allCnt : 0;
-    ['晴','陰','雨'].forEach(function(w){
-      var d = zoneWeatherSum[zone][w];
-      zoneWeatherAvg[zone][w] = (d && d.count>0) ? d.sum/d.count : zoneStoreOverall;
-    });
+  // 雙因子店均：zone -> dow -> weather -> {sum,count}（每筆=一店一天）
+  // dow: 0=週一 ... 6=週日
+  var cube = {};
+  baseRows.forEach(function(r){
+    if(!cube[r.zone]) cube[r.zone] = {};
+    if(!cube[r.zone][r.dow]) cube[r.zone][r.dow] = {};
+    if(!cube[r.zone][r.dow][r.weather]) cube[r.zone][r.dow][r.weather] = {sum:0,count:0};
+    cube[r.zone][r.dow][r.weather].sum += r.revenue;
+    cube[r.zone][r.dow][r.weather].count += 1;
   });
 
-  // 整體各天氣「每店每天」平均（給顯示基準用）
+  // 退回值1：zone -> weather 店均（不分星期）
+  var zoneWeather = {};
+  baseRows.forEach(function(r){
+    if(!zoneWeather[r.zone]) zoneWeather[r.zone] = {};
+    if(!zoneWeather[r.zone][r.weather]) zoneWeather[r.zone][r.weather] = {sum:0,count:0};
+    zoneWeather[r.zone][r.weather].sum += r.revenue;
+    zoneWeather[r.zone][r.weather].count += 1;
+  });
+  // 退回值2：zone 整體店均
+  var zoneAll = {};
+  baseRows.forEach(function(r){
+    if(!zoneAll[r.zone]) zoneAll[r.zone] = {sum:0,count:0};
+    zoneAll[r.zone].sum += r.revenue;
+    zoneAll[r.zone].count += 1;
+  });
+
+  // 查詢函式：給 zone, dow, weather 回傳店均（雙因子→退天氣→退整體）
+  function lookupAvg(zone, dow, weather){
+    var c = cube[zone] && cube[zone][dow] && cube[zone][dow][weather];
+    if(c && c.count >= 3) return {val: c.sum/c.count, src:'雙因子', n:c.count};
+    var zw = zoneWeather[zone] && zoneWeather[zone][weather];
+    if(zw && zw.count > 0) return {val: zw.sum/zw.count, src:'天氣', n:zw.count};
+    var za = zoneAll[zone];
+    if(za && za.count > 0) return {val: za.sum/za.count, src:'整體', n:za.count};
+    return {val:0, src:'無', n:0};
+  }
+
+  // 整體各天氣店均（顯示基準用，不分星期）
   var weatherSum = {};
-  prevRows.forEach(function(r){
+  baseRows.forEach(function(r){
     if(!weatherSum[r.weather]) weatherSum[r.weather] = {sum:0,count:0};
     weatherSum[r.weather].sum += r.revenue;
     weatherSum[r.weather].count += 1;
   });
   var weatherAvg = {};
-  var overallAvg = prevRows.length>0 ? prevTotal/prevRows.length : 0;  // 整體每店每天
+  var overallAvg = baseRows.length>0 ? baseRows.reduce(function(a,r){return a+r.revenue;},0)/baseRows.length : 0;
   ['晴','陰','雨'].forEach(function(w){
     var d = weatherSum[w];
     weatherAvg[w] = (d && d.count>0) ? d.sum/d.count : overallAvg;
   });
 
   return {
-    prevMonth: prevMonth, prevTotal: prevTotal, prevDayCount: prevDayCount,
+    last3: last3, prevMonth: prevMonth, prevTotal: prevTotal, prevDayCount: prevDayCount,
     weeks: weeks, weeklyTarget: weeklyTarget, growthPct: growthPct,
     weatherAvg: weatherAvg, overallAvg: overallAvg,
-    zoneWeatherAvg: zoneWeatherAvg, zoneRev: zoneRev, zoneStoreCount: zoneStoreCount
+    zoneStoreCount: zoneStoreCount, lookupAvg: lookupAvg
   };
 }
 
@@ -2595,39 +2601,27 @@ function renderTarget(){
   var tbodyEl= document.getElementById('target-tbody');
   var subEl  = document.getElementById('target-sub');
   if(!kpiEl) return;
-
-  if(!td){
-    kpiEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);width:100%">選定範圍無資料</div>';
-    return;
-  }
+  if(!td){ kpiEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);width:100%">選定範圍無資料</div>'; return; }
 
   var fmtM = function(v){ var a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString()); };
   var monLbl = td.prevMonth + '月';
+  var rangeLbl = td.last3.join('、') + '月';
 
-  // 整體單店日均（各天氣）= 全區單店日均加權平均（依門市數）
   var totalStores = 0;
   Object.keys(td.zoneStoreCount).forEach(function(z){ if(state.zones.has(z)) totalStores += td.zoneStoreCount[z]; });
   totalStores = totalStores || 1;
-  var storeWeatherAvg = {};
-  ['晴','陰','雨'].forEach(function(w){
-    var sum = 0;
-    [...state.zones].filter(function(z){return td.zoneWeatherAvg[z];}).forEach(function(z){
-      sum += (td.zoneWeatherAvg[z][w]||0) * (td.zoneStoreCount[z]||0);
-    });
-    storeWeatherAvg[w] = sum / totalStores;
-  });
 
-  // 預測基準 + 成長係數輸入
+  // 預測基準說明（整體各天氣店均，僅供參考）+ 成長係數
   baseEl.innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">'
     + '<div>'
-    +   '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">預測基準（'+monLbl+'各天氣型態 每店單日日均）</div>'
+    +   '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">預測基準：近三個月（'+rangeLbl+'）星期×天氣 每店日均</div>'
     +   '<div style="display:flex;gap:20px;flex-wrap:wrap;">'
-    +   '<div><span style="color:#ffd43b;font-weight:600">☀️ 晴</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(storeWeatherAvg["晴"])+'元/店</span></div>'
-    +   '<div><span style="color:var(--text2);font-weight:600">☁️ 陰</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(storeWeatherAvg["陰"])+'元/店</span></div>'
-    +   '<div><span style="color:var(--accent);font-weight:600">🌧️ 雨</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(storeWeatherAvg["雨"])+'元/店</span></div>'
+    +   '<div><span style="color:#ffd43b;font-weight:600">☀️ 晴</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg["晴"])+'元/店</span></div>'
+    +   '<div><span style="color:var(--text2);font-weight:600">☁️ 陰</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg["陰"])+'元/店</span></div>'
+    +   '<div><span style="color:var(--accent);font-weight:600">🌧️ 雨</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg["雨"])+'元/店</span></div>'
     +   '</div>'
-    +   '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+totalStores+' 家門市</div>'
+    +   '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+totalStores+' 家門市 · 預測時依「該星期×該天氣」細分</div>'
     + '</div>'
     + '<div style="display:flex;align-items:center;gap:8px;">'
     +   '<span style="font-size:12px;color:var(--text2);font-weight:600">成長目標</span>'
@@ -2644,38 +2638,40 @@ function renderTarget(){
     return;
   }
 
-  // 預測：每天 = 各分區(該區該天氣日均) 加總
-  var dowNames = ['日','一','二','三','四','五','六'];
+  var dowDisplay = ['日','一','二','三','四','五','六'];  // JS getDay 0=日
+  var jsDateToDow = function(jsDay){ return jsDay===0 ? 6 : jsDay-1; };  // 轉成資料的 dow(0=週一)
   var wIcon = {'晴':'☀️','陰':'☁️','雨':'🌧️'};
-  var selectedZones = [...state.zones].filter(function(z){ return td.zoneWeatherAvg[z]; });
+  var selectedZones = [...state.zones].filter(function(z){ return td.zoneStoreCount[z]; });
+
   var predTotal = 0;
   var rows = '';
   forecast.forEach(function(day){
+    var dObj = new Date(day.date + 'T00:00:00');
+    var dataDow = jsDateToDow(dObj.getDay());
     var dayPred = 0;
     var weatherTags = [];
+    var srcTags = {};
     selectedZones.forEach(function(zone){
       var w = (day.zoneWeather && day.zoneWeather[zone]) || '晴';
-      var nStores = td.zoneStoreCount[zone] || 1;
-      dayPred += (td.zoneWeatherAvg[zone][w] || 0) * nStores;  // 單店日均 × 門市數
+      var look = td.lookupAvg(zone, dataDow, w);
+      dayPred += look.val * (td.zoneStoreCount[zone]||1);
       weatherTags.push(w);
+      srcTags[look.src] = true;
     });
-    // 成長係數套用
     dayPred *= (td.growthPct/100);
     predTotal += dayPred;
-    // 顯示當天「多數天氣」
+
     var wCount = {};
     weatherTags.forEach(function(w){ wCount[w]=(wCount[w]||0)+1; });
     var domW = Object.keys(wCount).sort(function(a,b){return wCount[b]-wCount[a];})[0] || '晴';
-    var dObj = new Date(day.date + 'T00:00:00');
-    var dow = dowNames[dObj.getDay()];
-    var mmdd = (dObj.getMonth()+1) + '/' + dObj.getDate();
-    // 各區天氣若不一致，顯示細節
     var uniqW = [...new Set(weatherTags)];
-    var wDisplay = uniqW.length===1 ? day_weather_label(domW) : uniqW.map(function(w){return wIcon[w];}).join('');
+    var wDisplay = uniqW.length===1 ? wIcon[domW] : uniqW.map(function(w){return wIcon[w];}).join('');
+    var dowName = dowDisplay[dObj.getDay()];
+    var mmdd = (dObj.getMonth()+1)+'/'+dObj.getDate();
     rows +=
       '<tr>'
       + '<td class="tl" style="font-family:var(--mono)">'+mmdd+'</td>'
-      + '<td>週'+dow+'</td>'
+      + '<td>週'+dowName+'</td>'
       + '<td style="font-size:15px">'+wDisplay+'</td>'
       + '<td style="font-weight:600">'+domW+(uniqW.length>1?'(各區不同)':'')+'</td>'
       + '<td class="tsep" style="font-family:var(--mono);font-weight:600">'+fmtM(dayPred)+'元</td>'
@@ -2683,9 +2679,6 @@ function renderTarget(){
   });
   tbodyEl.innerHTML = rows;
 
-  function day_weather_label(w){ return wIcon[w]; }
-
-  // 業績缺口 = 預測總業績 - 本週目標
   var gap = predTotal - td.weeklyTarget;
   var gapPct = td.weeklyTarget>0 ? gap/td.weeklyTarget*100 : 0;
   var isOK = gap >= 0;
@@ -2700,7 +2693,7 @@ function renderTarget(){
     + '<div style="flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">'
     + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">下週預測總業績</div>'
     + '<div style="font-size:26px;font-weight:700;font-family:var(--mono);color:var(--accent)">'+fmtM(predTotal)+'元</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">各分區天氣加權 · 7天加總</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">近三月 星期×天氣 · 7天加總</div>'
     + '</div>'
     + '<div style="flex:1;min-width:160px;background:var(--bg3);border:1px solid '+gapColor+'55;border-radius:12px;padding:16px 20px;">'
     + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">業績缺口 (Gap)</div>'
@@ -2708,7 +2701,6 @@ function renderTarget(){
     + '<div style="font-size:11px;font-weight:600;color:'+gapColor+';margin-top:3px">'+(isOK?'✅ 預估達標 +':'⚠️ 預估短缺 ')+Math.abs(gapPct).toFixed(1)+'%</div>'
     + '</div>';
 
-  // 補口建議
   var adviceEl = document.getElementById('target-advice');
   if(!adviceEl){
     adviceEl = document.createElement('div');
@@ -2717,27 +2709,25 @@ function renderTarget(){
     kpiEl.parentNode.insertBefore(adviceEl, baseEl.nextSibling);
   }
   if(isOK){
-    adviceEl.style.background = 'rgba(81,207,102,.08)';
-    adviceEl.style.border = '1px solid rgba(81,207,102,.3)';
+    adviceEl.style.background='rgba(81,207,102,.08)'; adviceEl.style.border='1px solid rgba(81,207,102,.3)';
     adviceEl.innerHTML = '<div style="font-size:13px;font-weight:700;color:#51cf66;margin-bottom:4px">✅ 預估可達標</div>'
-      + '<div style="font-size:12px;color:var(--text2)">依目前天氣預報，本週預估比目標多 <b style="color:#51cf66">'+fmtM(gap)+'元</b>。可考慮拉高成長目標，或將多餘動能用於衝高客單價。</div>';
+      + '<div style="font-size:12px;color:var(--text2)">依下週天氣預報，本週預估比目標多 <b style="color:#51cf66">'+fmtM(gap)+'元</b>。可考慮拉高成長目標或衝高客單價。</div>';
   } else {
     var dailyGap = Math.abs(gap)/7;
-    var storeCount = [...state.stores].length || 1;
+    var storeCount = totalStores;
     var perStoreDaily = Math.abs(gap)/7/storeCount;
-    adviceEl.style.background = 'rgba(255,107,107,.07)';
-    adviceEl.style.border = '1px solid rgba(255,107,107,.3)';
+    adviceEl.style.background='rgba(255,107,107,.07)'; adviceEl.style.border='1px solid rgba(255,107,107,.3)';
     adviceEl.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--danger);margin-bottom:4px">⚠️ 預估短缺 '+fmtM(Math.abs(gap))+'元，需補強</div>'
       + '<div style="font-size:12px;color:var(--text2);line-height:1.7">'
       + '· 平均<b>每天</b>需多衝 <b style="color:var(--danger)">'+fmtM(dailyGap)+'元</b><br>'
       + '· 換算<b>每店每天</b>約需多 <b style="color:var(--danger)">'+fmtM(perStoreDaily)+'元</b>（共 '+storeCount+' 店）<br>'
-      + '· 雨天日均偏低，建議雨天加強外送推播 / 滿額優惠拉抬客單'
+      + '· 雨天店均偏低，建議雨天加強外送推播 / 滿額優惠拉抬客單'
       + '</div>';
   }
 
   if(subEl){
     var city = [...state.zones].filter(function(z){return ZONE_COORDS[z];}).map(function(z){return ZONE_COORDS[z].city;}).join('、') || '全分區';
-    subEl.textContent = '天氣參考城市：'+city+' · 基準月：'+monLbl;
+    subEl.textContent = '天氣參考城市：'+city+' · 基準：近三月星期×天氣';
   }
 }
 
@@ -2745,6 +2735,8 @@ function setTargetGrowth(delta){
   window._targetGrowth = Math.max(50, Math.min(200, (window._targetGrowth||100) + delta));
   renderTarget();
 }
+
+
 
 
 /* ══ RENDER ALL ══ */
