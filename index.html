@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606090052";</script>
-<script id="data-script" src="data.js?v=202606090052"></script>
+<script>window.DATA_VERSION="202606090114";</script>
+<script id="data-script" src="data.js?v=202606090114"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -514,7 +514,7 @@ canvas{max-height:300px;}
         <div class="chart-header">
           <div>
             <div class="chart-title">各門市表現一覽</div>
-            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以前28天為基準</div>
+            <div class="chart-sub" id="rank-wall-sub">依每店日均由高到低排序 · 成長/衰退以前月為基準</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
             <span id="rank-wall-count" style="font-size:11px;color:var(--text3)"></span>
@@ -1282,8 +1282,8 @@ function renderRankWall(byStore, allRows, dayCount){
     return { val: Math.round(s[d] / days), days };
   }
 
-  // 基線：選定區間前 28 天每店日均
-  const prev28Days_R = getPrev28Days();
+  // 基線：選定區間前月每店日均
+  const prev28Days_R = getBaselineDates();
   const prev28Set_R  = new Set(prev28Days_R);
   const prevMap = {};
   const prevByStore = {};
@@ -1303,7 +1303,7 @@ function renderRankWall(byStore, allRows, dayCount){
       customers: Math.round(d.customers / days),
     };
   });
-  const rankBaseLabel = getPrev28Label();
+  const rankBaseLabel = getBaselineLabel();
 
   // 排序：依當前維度日均由大到小
   // 依排序模式
@@ -1378,7 +1378,7 @@ function renderRankWall(byStore, allRows, dayCount){
 
     const card = document.createElement('div');
     card.className = cardClass;
-    card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}：${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?'前28天日均：'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
+    card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}：${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?'前月日均：'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
     card.innerHTML = `
       <div class="rc-header">
         <span class="rc-zone">${zoneShort}${anom?' ⚠':''}</span>
@@ -1483,7 +1483,7 @@ function renderWeeklyCompare(){
           },
           {
             type:'line',
-            label:`前28天基線`,
+            label:`過去4週同期基線`,
             data: baselineAligned,
             borderColor: C.b, borderWidth:2, borderDash:[5,4],
             pointRadius:5, pointBackgroundColor:C.b,
@@ -1509,7 +1509,7 @@ function renderWeeklyCompare(){
                   const d=actualData[ctx.dataIndex];
                   return `實績：${fmtV(d.avg)}${UNIT[state.dim]}（${d.stores}店）`;
                 }
-                return `前28天基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`;
+                return `過去4週同期基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`;
               },
               afterBody: ctx=>{
                 if(ctx.length<2) return [];
@@ -1552,8 +1552,8 @@ function renderWeeklyCompare(){
       return { avg: Math.round(tot/stores/days), total: tot, stores, days };
     });
 
-    // 基線 = 選定區間前 28 天，各 dow 每店日均
-    const prev28B    = getPrev28Days();
+    // 基線 = 選定區間前月，各 dow 每店日均
+    const prev28B    = getBaselineDates();
     const prev28BSet = new Set(prev28B);
     const prevMonthB = prev28B.length
       ? `${parseInt(prev28B[0].split('/')[0])}/${parseInt(prev28B[0].split('/')[1])}～${parseInt(prev28B[prev28B.length-1].split('/')[0])}/${parseInt(prev28B[prev28B.length-1].split('/')[1])}`
@@ -1609,7 +1609,7 @@ function renderWeeklyCompare(){
               return Math.abs(diff)<(avgLine[i]||1)*0.02?C.w:diff>0?'#51cf66':C.d;
             }),
             borderWidth:1.5, borderRadius:5, maxBarThickness:40, order:2 },
-          { type:'line', label:`前28天基線（${prevMonthB}）`,
+          { type:'line', label:`前月基線（${prevMonthB}）`,
             data:avgLine,
             borderColor:C.b, borderDash:[5,4], borderWidth:2,
             pointRadius:5, pointBackgroundColor:C.b,
@@ -1633,7 +1633,7 @@ function renderWeeklyCompare(){
                     `週總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店×${d.days}天）`
                   ];
                 }
-                return [`前28天基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
+                return [`前月基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
               },
               afterBody: ctx=>{
                 const d=weekData[ctx[0]?.dataIndex];
@@ -1641,7 +1641,7 @@ function renderWeeklyCompare(){
                 const base = avgLine[ctx[0]?.dataIndex] || 0;
                 if(!base) return [];
                 const diff=base-d.avg, pct=((diff/base)*100).toFixed(1);  // 前期-本期
-                return [`vs 前28天基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
+                return [`vs 前月基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
@@ -1923,10 +1923,10 @@ function renderCompare(){
   const twDowDailyAvg = twDowAvg.map((s,i)=>twDowStores[i]?Math.round(s/twDowStores[i]):0);
 
   // 基線：各 dow 的每店日均（歷史同 dow 總值 ÷ 出現次數 ÷ 各次有資料店家數均值）
-  // 基線：選定區間前 28 天，同 dow 每店日均
-  const prev28C    = getPrev28Days();
+  // 基線：選定區間前月，同 dow 每店日均
+  const prev28C    = getBaselineDates();
   const prev28CSet = new Set(prev28C);
-  // FIX: 用 storeFilter（不含日期範圍）才能取到前28天資料
+  // FIX: 用 storeFilter（不含日期範圍）才能取到前月基線資料
   const storeFilterNoDate = r => state.zones.has(r.zone) && state.stores.has(r.store);
   const bClean = Array(7).fill(null).map((_,dow)=>{
     const rows = DATA.filter(r=>storeFilterNoDate(r)&&prev28CSet.has(r.date)&&r.dow===dow);
@@ -1939,7 +1939,7 @@ function renderCompare(){
     });
     return Math.round(tot/daySet.size/(storeSum/daySet.size||1));
   });
-  const prev28CLbl = getPrev28Label();
+  const prev28CLbl = getBaselineLabel();
 
   const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
   const unit={revenue:'元',cups:'杯',customers:'人'}[state.dim];
@@ -1971,7 +1971,7 @@ function renderCompare(){
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期基線</div>
         <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text2)">${fmtVal(Math.round(prevAvg))}${unitStr}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">前28天同星期平均</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">前月同星期平均</div>
       </div>
       <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;border-color:${diffColor}44;">
         <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期 − 本期</div>
@@ -2171,22 +2171,23 @@ function renderCompare(){
   renderChannelAnalysis();
 }
 
-/* ══ 共用：計算選定區間的前 28 天基線 ══ */
-function getPrev28Days(){
-  const prev28 = ALL_DATES.filter(d => {
+/* ══ 共用：計算「前月」基線（選定區間起始月份的上一個自然月） ══ */
+function getBaselineDates(){
+  const ds = state.dateStart;
+  let y = ds.getFullYear(), m = ds.getMonth(); // 0-based
+  m -= 1; if(m < 0){ m = 11; y -= 1; }          // 上一個自然月
+  return ALL_DATES.filter(d => {
     const yr = DATE_YEAR_MAP[d] || TODAY.getFullYear();
-    return internalToDate(d, yr) < state.dateStart;
-  }).slice(-28);
-  return prev28;
+    const dt = internalToDate(d, yr);
+    return dt.getFullYear() === y && dt.getMonth() === m;
+  });
 }
-function getPrev28Label(){
-  const p = getPrev28Days();
-  if(!p.length) return '無基線資料';
-  const fmt = d => {
-    const [m,day] = d.split('/');
-    return `${parseInt(m)}/${parseInt(day)}`;
-  };
-  return `${fmt(p[0])}～${fmt(p[p.length-1])}（${p.length}天）`;
+function getBaselineLabel(){
+  const p = getBaselineDates();
+  if(!p.length) return '無前月基線資料';
+  const mon = parseInt(p[0].split('/')[0]);
+  const fmt = d => { const [m,day] = d.split('/'); return `${parseInt(m)}/${parseInt(day)}`; };
+  return `前月 ${mon}月（${fmt(p[0])}～${fmt(p[p.length-1])}，${p.length}天）`;
 }
 
 /* ══ 渠道結構分析 ══ */
@@ -2194,7 +2195,7 @@ const CH_COMM = {onsite:0, ub:0.33, fp:0.31, odo:0};
 
 function renderChannelAnalysis(){
   const rows  = filterData(DATA);
-  const prev28 = getPrev28Days();
+  const prev28 = getBaselineDates();
   const p28Set = new Set(prev28);
   const pRows  = DATA.filter(r => state.zones.has(r.zone) && state.stores.has(r.store) && p28Set.has(r.date));
 
@@ -2243,7 +2244,7 @@ function renderChannelAnalysis(){
       <div class="ch-alert-nums">
         <div class="ch-num"><div class="ch-num-val" style="color:var(--danger)">−${fmtM(totCommCur/curData.length)}</div><div class="ch-num-lbl">外送抽成傭金</div></div>
         <div class="ch-num"><div class="ch-num-val" style="color:var(--warn)">${commRatio.toFixed(1)}%</div><div class="ch-num-lbl">佔整體營收</div></div>
-        <div class="ch-num"><div class="ch-num-val" style="color:${chgCls}">${commChg>=0?'+':''}${commChg.toFixed(1)}%</div><div class="ch-num-lbl">vs 前28天</div></div>
+        <div class="ch-num"><div class="ch-num-val" style="color:${chgCls}">${commChg>=0?'+':''}${commChg.toFixed(1)}%</div><div class="ch-num-lbl">vs 前月</div></div>
         <div class="ch-num"><div class="ch-num-val" style="color:var(--text)">${fmtM(totNetCur/curData.length)}</div><div class="ch-num-lbl">扣傭後每店日均</div></div>
       </div>
     </div>`;
