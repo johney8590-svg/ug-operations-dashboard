@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606090843";</script>
-<script id="data-script" src="data.js?v=202606090843"></script>
+<script>window.DATA_VERSION="202606091000";</script>
+<script id="data-script" src="data.js?v=202606091000"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -665,6 +665,8 @@ canvas{max-height:300px;}
                 <th>天氣預報</th>
                 <th>預測型態</th>
                 <th class="tsep">預測業績</th>
+                <th>前期業績<br><span style="font-weight:400;font-size:9px;opacity:.6">上週同星期</span></th>
+                <th>差異<br><span style="font-weight:400;font-size:9px;opacity:.6">預測−前期</span></th>
               </tr>
             </thead>
             <tbody id="target-tbody"></tbody>
@@ -816,7 +818,7 @@ async function pushToGitHub(newRows){
       const idxText = decodeURIComponent(escape(atob(idxInfo.content.replace(/\n/g,''))));
       // 替換版本號（data.js?v= 與 DATA_VERSION 一起更新）
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606090843"/g, `DATA_VERSION="202606090843"`);
+                                .replace(/DATA_VERSION="202606091000"/g, `DATA_VERSION="202606091000"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -2549,11 +2551,26 @@ function computeTargetData(){
     weatherAvg[w] = (d && d.count>0) ? d.sum/d.count : overallAvg;
   });
 
+  // 各 dow 最近一週同星期的「全店單日總營收」（前期業績）
+  function dateKey(r){ var p=r.date.split('/'); return r.year*10000 + parseInt(p[0])*100 + parseInt(p[1]); }
+  var dowLastDate = {};
+  baseRows.forEach(function(r){
+    var k = dateKey(r);
+    if(!dowLastDate[r.dow] || k > dowLastDate[r.dow].key){ dowLastDate[r.dow] = {key:k, date:r.date}; }
+  });
+  var prevWeekByDow = {};
+  Object.keys(dowLastDate).forEach(function(dow){
+    var dt = dowLastDate[dow].date;
+    var dayRows = baseRows.filter(function(r){ return r.date===dt && r.dow==dow; });
+    prevWeekByDow[dow] = { total: dayRows.reduce(function(a,r){return a+r.revenue;},0), date: dt };
+  });
+
   return {
     last3: last3, prevMonth: prevMonth, prevTotal: prevTotal, prevDayCount: prevDayCount,
     weeks: weeks, weeklyTarget: weeklyTarget, growthPct: growthPct,
     weatherAvg: weatherAvg, overallAvg: overallAvg,
-    zoneStoreCount: zoneStoreCount, lookupAvg: lookupAvg
+    zoneStoreCount: zoneStoreCount, lookupAvg: lookupAvg,
+    prevWeekByDow: prevWeekByDow
   };
 }
 
@@ -2668,6 +2685,19 @@ function renderTarget(){
     var wDisplay = uniqW.length===1 ? wIcon[domW] : uniqW.map(function(w){return wIcon[w];}).join('');
     var dowName = dowDisplay[dObj.getDay()];
     var mmdd = (dObj.getMonth()+1)+'/'+dObj.getDate();
+    // 前期業績 = 上週同星期該日全店總（依 dataDow 找）
+    var pw = td.prevWeekByDow[dataDow];
+    var prevRev = pw ? pw.total : 0;
+    // 預測也是「全店總」尺度，可直接比（dayPred 已是全店預測）
+    var dayDiff = dayPred - prevRev;
+    var diffColor = Math.abs(dayDiff) < prevRev*0.02 ? 'var(--warn)' : (dayDiff>0 ? '#51cf66' : 'var(--danger)');
+    var diffIcon = Math.abs(dayDiff) < prevRev*0.02 ? '→' : (dayDiff>0 ? '▲' : '▼');
+    var prevCell = prevRev>0
+      ? '<td style="font-family:var(--mono)">'+fmtM(prevRev)+'元<br><span style="font-size:9px;color:var(--text3)">('+pw.date+')</span></td>'
+      : '<td style="color:var(--text3)">—</td>';
+    var diffCell = prevRev>0
+      ? '<td style="font-family:var(--mono);font-weight:600;color:'+diffColor+'">'+diffIcon+fmtM(Math.abs(dayDiff))+'</td>'
+      : '<td style="color:var(--text3)">—</td>';
     rows +=
       '<tr>'
       + '<td class="tl" style="font-family:var(--mono)">'+mmdd+'</td>'
@@ -2675,6 +2705,8 @@ function renderTarget(){
       + '<td style="font-size:15px">'+wDisplay+'</td>'
       + '<td style="font-weight:600">'+domW+(uniqW.length>1?'(各區不同)':'')+'</td>'
       + '<td class="tsep" style="font-family:var(--mono);font-weight:600">'+fmtM(dayPred)+'元</td>'
+      + prevCell
+      + diffCell
       + '</tr>';
   });
   tbodyEl.innerHTML = rows;
