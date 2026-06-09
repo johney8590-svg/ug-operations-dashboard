@@ -8,8 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>window.DATA_VERSION="202606090114";</script>
-<script id="data-script" src="data.js?v=202606090114"></script>
+<script>window.DATA_VERSION="202606090554";</script>
+<script id="data-script" src="data.js?v=202606090554"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -394,6 +394,7 @@ canvas{max-height:300px;}
   <div class="nav-item active" id="nav-today" onclick="switchPage('today',this)"><span style="width:20px;text-align:center">📑</span> 今日現況</div>
   <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">📈</span> 趨勢分析</div>
   <div class="nav-item" id="nav-compare" onclick="switchPage('compare',this)"><span style="width:20px;text-align:center">📊</span> 門市對比</div>
+      <div class="nav-item" id="nav-target" onclick="switchPage('target',this)"><span style="width:20px;text-align:center">🎯</span> 目標缺口</div>
   <div class="nav-footer"><span class="pulse"></span>3–4月 真實資料 · 62家門市</div>
 </nav>
 <main>
@@ -634,6 +635,44 @@ canvas{max-height:300px;}
         </div>
       </div>
     </div>
+
+    <!-- 目標缺口頁 -->
+    <div class="tab-page" id="page-target">
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">🎯 本週業績目標與缺口預測</div>
+            <div class="chart-sub" id="target-sub">依下週 7 天天氣預報，預估本週能否達成目標</div>
+          </div>
+          <button id="weather-refresh-btn" onclick="loadWeatherForecast()" style="background:var(--accent);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px;font-family:var(--font);padding:7px 14px;font-weight:600;">🔄 重新抓取天氣</button>
+        </div>
+
+        <!-- 三大數字卡 -->
+        <div id="target-kpi" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+          <div style="text-align:center;padding:40px;color:var(--text3);width:100%">載入中…</div>
+        </div>
+
+        <!-- 預測基準說明 -->
+        <div id="target-baseline" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:18px;"></div>
+
+        <!-- 下週天氣 + 每日預測 -->
+        <div class="ch-table-wrap">
+          <table class="ch-table" id="target-table">
+            <thead>
+              <tr>
+                <th class="tl">日期</th>
+                <th>星期</th>
+                <th>天氣預報</th>
+                <th>預測型態</th>
+                <th class="tsep">預測業績</th>
+              </tr>
+            </thead>
+            <tbody id="target-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </div>
 </main>
 
@@ -649,6 +688,10 @@ canvas{max-height:300px;}
   <div class="mobile-tab-item" id="mtab-compare" onclick="mobileTab('compare',this)">
     <span class="mobile-tab-icon">📋</span>
     <span class="mobile-tab-label">門市對比</span>
+  </div>
+  <div class="mobile-tab-item" id="mtab-target" onclick="mobileTab('target',this)">
+    <span class="mobile-tab-icon">🎯</span>
+    <span class="mobile-tab-label">目標缺口</span>
   </div>
 </nav>
 <script>
@@ -773,7 +816,7 @@ async function pushToGitHub(newRows){
       const idxText = decodeURIComponent(escape(atob(idxInfo.content.replace(/\n/g,''))));
       // 替換版本號（data.js?v= 與 DATA_VERSION 一起更新）
       const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="\d+"/g, `DATA_VERSION="${newVer}"`);
+                                .replace(/DATA_VERSION="202606090554"/g, `DATA_VERSION="202606090554"`);
       const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
       const idxPush = await fetch(idxBase, {
         method:'PUT', headers,
@@ -1057,7 +1100,7 @@ function closeAll(){['zone-dd','store-dd','dr-panel'].forEach(id=>document.getEl
 document.addEventListener('click',()=>closeAll());
 
 /* ══ PAGE / DIM ══ */
-const PAGE_TITLES={upload:'更新資料',today:'今日現況',trend:'趨勢分析',compare:'門市對比'};
+const PAGE_TITLES={upload:'更新資料',today:'今日現況',trend:'趨勢分析',compare:'門市對比',target:'目標缺口'};
 function switchPage(p,el){
   state.page=p;
   document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
@@ -2400,11 +2443,212 @@ function updateDirBtn(){
 function sortChTable(key, btnEl){ /* legacy - no-op */ }
 
 
+
+/* ══ 目標缺口預測 ══ */
+// 分區代表城市座標
+var ZONE_COORDS = {
+  '北北基宜花': {lat:25.0375, lon:121.5637, city:'台北'},
+  '桃竹苗':     {lat:24.8138, lon:120.9675, city:'新竹'},
+  '中彰投':     {lat:24.1477, lon:120.6736, city:'台中'},
+  '雲嘉南高屏': {lat:22.6273, lon:120.3014, city:'高雄'}
+};
+
+// WMO weathercode → 晴/陰/雨
+function codeToWeather(code){
+  if(code === 0) return '晴';
+  if(code <= 48) return '陰';          // 1,2,3,45,48
+  return '雨';                          // 51+ 全歸雨
+}
+
+// 取得「上個月」= 資料最新月的前一個月
+function getPrevMonthInfo(){
+  var months = [...new Set(DATA.map(r=>r.month))].sort((a,b)=>a-b);
+  var latest = months[months.length-1];
+  var prev   = months.length>=2 ? months[months.length-2] : latest;
+  return {latest:latest, prev:prev};
+}
+
+window._weatherForecast = null;  // 快取天氣預報
+
+function computeTargetData(){
+  var info = getPrevMonthInfo();
+  var prevMonth = info.prev;
+  // 套用目前的分區/門市篩選
+  var prevRows = DATA.filter(r=>r.month===prevMonth && state.zones.has(r.zone) && state.stores.has(r.store));
+  if(!prevRows.length) return null;
+
+  // 上月總營業額 + 實際天數
+  var prevTotal = prevRows.reduce((a,r)=>a+r.revenue,0);
+  var prevDates = new Set(prevRows.map(r=>r.date));
+  var prevDayCount = prevDates.size || 30;
+  var weeks = prevDayCount / 7;
+
+  // 本週目標 = 上月總額 / 週數（依實際天數）
+  var weeklyTarget = prevTotal / weeks;
+
+  // 各天氣型態的「全門市單日總營業額」日均
+  var byWeatherDate = {};  // weather -> {date -> total}
+  prevRows.forEach(function(r){
+    if(!byWeatherDate[r.weather]) byWeatherDate[r.weather] = {};
+    byWeatherDate[r.weather][r.date] = (byWeatherDate[r.weather][r.date]||0) + r.revenue;
+  });
+  var weatherAvg = {};  // weather -> 日均全店總額
+  ['晴','陰','雨'].forEach(function(w){
+    if(byWeatherDate[w]){
+      var totals = Object.values(byWeatherDate[w]);
+      weatherAvg[w] = totals.reduce((a,b)=>a+b,0) / totals.length;
+    } else {
+      weatherAvg[w] = 0;
+    }
+  });
+  // 若某型態無資料，用整體日均補
+  var overallAvg = prevTotal / prevDayCount;
+  ['晴','陰','雨'].forEach(function(w){ if(!weatherAvg[w]) weatherAvg[w] = overallAvg; });
+
+  return {
+    prevMonth: prevMonth,
+    prevTotal: prevTotal,
+    prevDayCount: prevDayCount,
+    weeks: weeks,
+    weeklyTarget: weeklyTarget,
+    weatherAvg: weatherAvg,
+    overallAvg: overallAvg
+  };
+}
+
+// 抓取下週 7 天天氣（依選定分區，多區取平均）
+function loadWeatherForecast(){
+  var btn = document.getElementById('weather-refresh-btn');
+  if(btn){ btn.textContent='抓取中…'; btn.disabled=true; }
+
+  // 依目前選定的分區決定要抓哪些城市
+  var selectedZones = [...state.zones].filter(z=>ZONE_COORDS[z]);
+  if(!selectedZones.length) selectedZones = Object.keys(ZONE_COORDS);
+
+  var promises = selectedZones.map(function(zone){
+    var c = ZONE_COORDS[zone];
+    var url = 'https://api.open-meteo.com/v1/forecast?latitude='+c.lat+'&longitude='+c.lon
+            + '&daily=weather_code&timezone=Asia%2FTaipei&forecast_days=7';
+    return fetch(url).then(function(r){return r.json();}).then(function(d){
+      return {zone:zone, time:d.daily.time, codes:d.daily.weather_code};
+    });
+  });
+
+  Promise.all(promises).then(function(results){
+    // 7 天，每天取各分區「最差天氣」（雨>陰>晴，因為雨影響營業）
+    var rank = {'晴':0, '陰':1, '雨':2};
+    var rankRev = ['晴','陰','雨'];
+    var days = results[0].time.map(function(date, i){
+      var worst = 0;
+      results.forEach(function(res){
+        var w = codeToWeather(res.codes[i]);
+        if(rank[w] > worst) worst = rank[w];
+      });
+      return {date:date, weather:rankRev[worst]};
+    });
+    window._weatherForecast = days;
+    renderTarget();
+    if(btn){ btn.textContent='🔄 重新抓取天氣'; btn.disabled=false; }
+  }).catch(function(e){
+    if(btn){ btn.textContent='🔄 重新抓取天氣'; btn.disabled=false; }
+    var kpi = document.getElementById('target-kpi');
+    if(kpi) kpi.innerHTML = '<div style="text-align:center;padding:30px;color:var(--danger);width:100%">天氣抓取失敗：'+e.message+'<br><span style="font-size:12px;color:var(--text3)">請點「重新抓取天氣」再試一次</span></div>';
+  });
+}
+
+function renderTarget(){
+  var td = computeTargetData();
+  var kpiEl  = document.getElementById('target-kpi');
+  var baseEl = document.getElementById('target-baseline');
+  var tbodyEl= document.getElementById('target-tbody');
+  var subEl  = document.getElementById('target-sub');
+  if(!kpiEl) return;
+
+  if(!td){
+    kpiEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);width:100%">選定範圍無資料</div>';
+    return;
+  }
+
+  var fmtM = function(v){ var a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString()); };
+  var monLbl = td.prevMonth + '月';
+
+  // 預測基準說明
+  baseEl.innerHTML =
+    '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">預測基準（'+monLbl+'各天氣型態 全店單日日均）</div>'
+    + '<div style="display:flex;gap:20px;flex-wrap:wrap;">'
+    + '<div><span style="color:#ffd43b;font-weight:600">☀️ 晴</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg['晴'])+'元/天</span></div>'
+    + '<div><span style="color:var(--text2);font-weight:600">☁️ 陰</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg['陰'])+'元/天</span></div>'
+    + '<div><span style="color:var(--accent);font-weight:600">🌧️ 雨</span> <span style="font-family:var(--mono);font-weight:700">'+fmtM(td.weatherAvg['雨'])+'元/天</span></div>'
+    + '</div>';
+
+  var forecast = window._weatherForecast;
+  if(!forecast){
+    kpiEl.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text3);width:100%">點右上角「🔄 重新抓取天氣」載入下週預報</div>';
+    tbodyEl.innerHTML = '';
+    return;
+  }
+
+  // 預測總業績 = 7 天各天氣型態日均加總
+  var dowNames = ['日','一','二','三','四','五','六'];
+  var predTotal = 0;
+  var rows = '';
+  var wIcon = {'晴':'☀️','陰':'☁️','雨':'🌧️'};
+  forecast.forEach(function(day){
+    var pred = td.weatherAvg[day.weather] || td.overallAvg;
+    predTotal += pred;
+    var dObj = new Date(day.date + 'T00:00:00');
+    var dow = dowNames[dObj.getDay()];
+    var mmdd = (dObj.getMonth()+1) + '/' + dObj.getDate();
+    rows +=
+      '<tr>'
+      + '<td class="tl" style="font-family:var(--mono)">'+mmdd+'</td>'
+      + '<td>週'+dow+'</td>'
+      + '<td style="font-size:16px">'+wIcon[day.weather]+'</td>'
+      + '<td style="font-weight:600">'+day.weather+'</td>'
+      + '<td class="tsep" style="font-family:var(--mono);font-weight:600">'+fmtM(pred)+'元</td>'
+      + '</tr>';
+  });
+  tbodyEl.innerHTML = rows;
+
+  // 業績缺口 = 預測總業績 - 本週目標
+  var gap = predTotal - td.weeklyTarget;
+  var gapPct = td.weeklyTarget>0 ? gap/td.weeklyTarget*100 : 0;
+  var isOK = gap >= 0;
+  var gapColor = isOK ? '#51cf66' : 'var(--danger)';
+
+  kpiEl.innerHTML =
+    // 本週目標
+    '<div style="flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">'
+    + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">本週目標業績</div>'
+    + '<div style="font-size:26px;font-weight:700;font-family:var(--mono)">'+fmtM(td.weeklyTarget)+'元</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">'+monLbl+'總額 '+fmtM(td.prevTotal)+' ÷ '+td.weeks.toFixed(1)+'週</div>'
+    + '</div>'
+    // 預測總業績
+    + '<div style="flex:1;min-width:160px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px 20px;">'
+    + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">下週預測總業績</div>'
+    + '<div style="font-size:26px;font-weight:700;font-family:var(--mono);color:var(--accent)">'+fmtM(predTotal)+'元</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">依 7 天天氣預報推算</div>'
+    + '</div>'
+    // 業績缺口
+    + '<div style="flex:1;min-width:160px;background:var(--bg3);border:1px solid '+gapColor+'55;border-radius:12px;padding:16px 20px;">'
+    + '<div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">業績缺口 (Gap)</div>'
+    + '<div style="font-size:26px;font-weight:700;font-family:var(--mono);color:'+gapColor+'">'+(isOK?'+':'')+fmtM(gap)+'元</div>'
+    + '<div style="font-size:11px;font-weight:600;color:'+gapColor+';margin-top:3px">'+(isOK?'✅ 預估達標 +':'⚠️ 預估短缺 ')+Math.abs(gapPct).toFixed(1)+'%</div>'
+    + '</div>';
+
+  if(subEl){
+    var city = [...state.zones].filter(z=>ZONE_COORDS[z]).map(z=>ZONE_COORDS[z].city).join('、') || '全分區';
+    subEl.textContent = '天氣參考城市：'+city+' · 基準月：'+monLbl;
+  }
+}
+
+
 /* ══ RENDER ALL ══ */
 function renderAll(){
   if(state.page==='today')renderToday();
   if(state.page==='trend')renderTrend();
   if(state.page==='compare')renderCompare();
+  if(state.page==='target')renderTarget();
 }
 
 /* ══ MOBILE TAB ══ */
