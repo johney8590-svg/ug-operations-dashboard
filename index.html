@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>window.DATA_VERSION="202606111058";</script>
-<script id="data-script" src="data.js?v=202606111058"></script>
+<script>const REAL_DATA=[{zone:"載入中",store:"載入中",date:"01/01",year:2026,month:1,dow:0,weather:"晴",revenue:1,cups:1,customers:1,discount:0,ub:0,fp:0,odo:0,onsite:1}];</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Sora:wght@500;600;700&family=Spline+Sans+Mono:wght@500;600;700&display=swap');
 :root{
@@ -421,9 +421,75 @@ details.v2-fold[open]>summary .arrow{transform:rotate(180deg);}
 details.v2-fold>.fold-body{padding:4px 20px 20px;}
 @media (max-width:768px){.v2-ach-row{gap:7px}.v2-ach{padding:7px 10px;font-size:11px}}
 
+
+/* ── 登入與帳號管理 ── */
+#ugAuth{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;font-family:var(--font);}
+#ugAuth .card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:32px 28px;width:320px;max-width:88vw;}
+#ugAuth h1{font-size:20px;font-weight:600;color:var(--accent);margin:0 0 4px;text-align:center;}
+#ugAuth .sub{font-size:13px;color:var(--text3);text-align:center;margin-bottom:20px;}
+#ugAuth label{display:block;font-size:13px;color:var(--text2);margin:12px 0 4px;}
+#ugAuth input{width:100%;box-sizing:border-box;padding:9px 10px;font-size:14px;border:1px solid var(--border2);border-radius:5px;background:#fff;color:var(--text);}
+#ugAuth input:focus{outline:none;border-color:var(--accent);}
+#ugAuth button{width:100%;margin-top:18px;padding:10px;background:var(--accent);color:#FDFCF9;border:0;border-radius:5px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);}
+#ugAuth button:disabled{opacity:.55;cursor:wait;}
+#ugAuth .err{color:var(--danger);font-size:13px;min-height:18px;margin-top:10px;text-align:center;}
+#ugAuth .skeleton{text-align:center;color:var(--text3);font-size:14px;padding:20px 0;}
+.ug-admin-only{display:none;}
+body.ug-is-admin .ug-admin-only{display:inline;}
+#ugUserBar{position:fixed;top:10px;right:14px;z-index:600;font-size:12px;color:var(--text3);font-family:var(--font);background:rgba(255,255,255,.92);border:1px solid var(--border);border-radius:16px;padding:4px 12px;}
+#ugUserBar a{color:var(--accent);cursor:pointer;margin-left:10px;text-decoration:none;font-weight:600;}
+#ugAcctPanel{display:none;position:fixed;inset:0;z-index:9000;background:rgba(44,44,44,.35);align-items:flex-start;justify-content:center;padding-top:6vh;font-family:var(--font);}
+#ugAcctPanel .panel{background:var(--bg);border:1px solid var(--border);border-radius:8px;width:560px;max-width:94vw;max-height:84vh;overflow:auto;padding:24px;}
+#ugAcctPanel h2{font-size:17px;font-weight:600;color:var(--accent);margin:0 0 14px;}
+#ugAcctPanel table{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border:1px solid var(--border);}
+#ugAcctPanel th{background:#F5F2EB;font-weight:600;color:var(--text2);padding:8px;text-align:left;}
+#ugAcctPanel td{padding:8px;border-top:1px solid var(--border);}
+#ugAcctPanel tr:nth-child(even){background:#FBFAF6;}
+#ugAcctPanel .act{color:var(--danger);cursor:pointer;font-weight:600;}
+#ugAcctPanel .act.reset{color:var(--accent);margin-right:12px;}
+#ugAcctPanel .addrow{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+#ugAcctPanel .addrow input,#ugAcctPanel .addrow select{padding:8px;font-size:13px;border:1px solid var(--border2);border-radius:5px;flex:1;min-width:110px;background:#fff;color:var(--text);}
+#ugAcctPanel .addrow button{padding:8px 16px;background:var(--accent);color:#FDFCF9;border:0;border-radius:5px;font-weight:600;cursor:pointer;font-family:var(--font);}
+#ugAcctPanel .close{float:right;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;}
+#ugAcctPanel .msg{font-size:13px;min-height:18px;margin-top:8px;}
+@media (max-width:768px){#ugUserBar{top:auto;bottom:calc(66px + env(safe-area-inset-bottom));right:10px;}}
+
 </style>
 </head>
 <body>
+
+<div id="ugAuth">
+  <div class="card" id="ugAuthCard">
+    <h1>UG 營運系統</h1>
+    <div class="sub">聯發國際 · 營運監控儀表板</div>
+    <form id="ugLoginForm" autocomplete="off">
+      <label>帳號</label><input id="ugU" type="text" autocapitalize="none">
+      <label>密碼</label><input id="ugP" type="password">
+      <button id="ugBtn" type="submit">登入</button>
+      <div class="err" id="ugErr"></div>
+    </form>
+  </div>
+</div>
+<div id="ugUserBar" style="display:none">
+  <span id="ugWho"></span>
+  <a class="ug-admin-only" onclick="ugOpenAcct()">帳號管理</a>
+  <a onclick="ugLogout()">登出</a>
+</div>
+<div id="ugAcctPanel">
+  <div class="panel">
+    <span class="close" onclick="document.getElementById('ugAcctPanel').style.display='none'">✕</span>
+    <h2>帳號管理</h2>
+    <table><thead><tr><th>帳號</th><th>角色</th><th>建立時間</th><th>操作</th></tr></thead><tbody id="ugUserRows"></tbody></table>
+    <div class="addrow">
+      <input id="ugNewU" placeholder="新帳號（3–20 碼英數）">
+      <input id="ugNewP" type="password" placeholder="初始密碼（至少 8 碼）">
+      <select id="ugNewR"><option value="user">一般</option><option value="admin">管理員</option></select>
+      <button type="button" onclick="ugAddUser()">新增</button>
+    </div>
+    <div class="msg" id="ugAcctMsg"></div>
+  </div>
+</div>
+
 <nav>
   <div class="nav-logo"><div class="brand">UG 茶飲</div><div class="sub">Operations Dashboard</div></div>
   <div class="nav-section">資料</div>
@@ -433,7 +499,7 @@ details.v2-fold>.fold-body{padding:4px 20px 20px;}
   <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">📈</span> 趨勢分析</div>
   <div class="nav-item" id="nav-compare" onclick="switchPage('compare',this)"><span style="width:20px;text-align:center">📊</span> 門市對比</div>
       <div class="nav-item" id="nav-target" onclick="switchPage('target',this)"><span style="width:20px;text-align:center">🎯</span> 目標缺口</div>
-  <div class="nav-footer"><span class="pulse"></span>3–4月 真實資料 · 62家門市</div>
+  <div class="nav-footer"><span class="pulse"></span>真實營運資料 · 登入連動</div>
 </nav>
 <main>
   <header>
@@ -492,7 +558,7 @@ details.v2-fold>.fold-body{padding:4px 20px 20px;}
       <div class="upload-wrap" id="upload-step-1">
         <div style="text-align:center">
           <div style="font-size:21px;font-weight:700;margin-bottom:6px">更新營運資料</div>
-          <div style="font-size:13px;color:var(--text3)">上傳後自動合併進資料庫並推送至 GitHub，重新整理後資料永久保留。</div>
+          <div style="font-size:13px;color:var(--text3)">上傳後自動合併進資料庫（Google Sheet），所有登入者即時可見。</div>
         </div>
 
         <!-- Token 設定區 -->
@@ -527,7 +593,7 @@ details.v2-fold>.fold-body{padding:4px 20px 20px;}
           <div id="mapping-grid" class="mapping-grid"></div>
           <div class="btn-row">
             <button class="btn-secondary" onclick="resetUpload()">← 重新上傳</button>
-            <button class="btn-primary" onclick="applyMapping()">✓ 解析並推送至 GitHub</button>
+            <button class="btn-primary" onclick="applyMapping()">✓ 解析並上傳資料庫</button>
           </div>
         </div>
       </div>
@@ -536,7 +602,7 @@ details.v2-fold>.fold-body{padding:4px 20px 20px;}
       <div class="upload-wrap" id="upload-step-3" style="display:none">
         <div style="text-align:center;max-width:480px;width:100%">
           <div style="font-size:44px;margin-bottom:14px" id="push-icon">⏳</div>
-          <div style="font-size:19px;font-weight:700;margin-bottom:8px" id="push-title">正在推送至 GitHub…</div>
+          <div style="font-size:19px;font-weight:700;margin-bottom:8px" id="push-title">正在上傳…</div>
           <div id="push-log" style="font-size:12px;color:var(--text3);margin-bottom:20px;line-height:2;text-align:left;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;width:100%;min-height:80px;font-family:var(--mono);"></div>
           <button id="push-done-btn" class="btn-primary" style="display:none" onclick="switchPage('today',document.getElementById('nav-today'))">前往今日現況 →</button>
           <button id="push-retry-btn" class="btn-secondary" style="display:none;margin-top:8px" onclick="resetUpload()">← 重試</button>
@@ -787,107 +853,33 @@ function parseCSV(text){
 function pushLog(msg){ const el=document.getElementById('push-log'); if(el) el.innerHTML += msg+'\n'; }
 
 async function pushToGitHub(newRows){
-  const token = getToken();
-  if(!token){
-    pushLog('❌ 未設定 GitHub Token，請先在上方輸入 Token');
+  var stok = sessionStorage.getItem('ugTok');
+  if(!stok){
+    pushLog('❌ 尚未登入，請重新整理頁面登入後再試');
     document.getElementById('push-icon').textContent='❌';
-    document.getElementById('push-title').textContent='推送失敗';
+    document.getElementById('push-title').textContent='未登入';
     document.getElementById('push-retry-btn').style.display='';
     return;
   }
-
-  const base = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/${GH_FILE}`;
-  const headers = { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' };
-
-  try {
-    // 1. 取得現有 data.js 的 SHA
-    pushLog('🔍 取得現有 data.js 資訊…');
-    const infoRes = await fetch(base, { headers });
-    if(!infoRes.ok) throw new Error(`無法讀取 data.js（${infoRes.status}）`);
-    const info = await infoRes.json();
-    const sha = info.sha;
-    pushLog(`✅ 取得 SHA：${sha.slice(0,10)}…`);
-
-    // 2. 合併新舊資料（去除重複：同 store + date 的以新資料覆蓋）
-    pushLog(`🔀 合併資料：現有 ${REAL_DATA.length} 筆 + 新增 ${newRows.length} 筆…`);
-    const mergedMap = new Map();
-    REAL_DATA.forEach(r => mergedMap.set(r.store+'|'+r.date, r));
-    let overwritten = 0, added = 0;
-    newRows.forEach(r => {
-      const key = r.store+'|'+r.date;
-      if(mergedMap.has(key)) overwritten++;
-      else added++;
-      mergedMap.set(key, r);
-    });
-    const merged = [...mergedMap.values()].sort((a,b)=>a.date.localeCompare(b.date));
-    pushLog(`   ➕ 新增 ${added} 筆，🔄 更新 ${overwritten} 筆，合計 ${merged.length} 筆`);
-
-    // 3. 產生新 data.js 並 base64 編碼
-    pushLog('📦 產生新 data.js…');
-    const dataJs = 'const REAL_DATA = ' + JSON.stringify(merged) + ';';
-    const b64 = btoa(unescape(encodeURIComponent(dataJs)));
-
-    // 4. 推送至 GitHub
-    pushLog('🚀 推送至 GitHub…');
-    const pushRes = await fetch(base, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        message: `📊 資料更新：新增 ${added} 筆，更新 ${overwritten} 筆（共 ${merged.length} 筆）`,
-        content: b64,
-        sha
-      })
-    });
-    if(!pushRes.ok){
-      const err = await pushRes.json();
-      throw new Error(err.message || `推送失敗（${pushRes.status}）`);
-    }
-    const pushed = await pushRes.json();
-    const commitUrl = pushed.commit?.html_url || '';
-    pushLog(`✅ data.js 推送成功！`);
-    pushLog(`🔗 Commit：${commitUrl}`);
-
-    // 更新 index.html 裡的版本號，讓下次重新整理自動載入新 data.js
-    pushLog('🔢 更新版本號…');
-    try {
-      const newVer = new Date().toISOString().replace(/[-:T]/g,'').slice(0,12);
-      const idxBase = `https://api.github.com/repos/${GH_USER}/${GH_REPO}/contents/index.html`;
-      const idxInfo = await fetch(idxBase, {headers}).then(r=>r.json());
-      const idxText = decodeURIComponent(escape(atob(idxInfo.content.replace(/\n/g,''))));
-      // 替換版本號（data.js?v= 與 DATA_VERSION 一起更新）
-      const newIdxText = idxText.replace(/data\.js\?v=\d+/g, `data.js?v=${newVer}`)
-                                .replace(/DATA_VERSION="202606111058"/g, `DATA_VERSION="202606111058"`);
-      const newIdxB64 = btoa(unescape(encodeURIComponent(newIdxText)));
-      const idxPush = await fetch(idxBase, {
-        method:'PUT', headers,
-        body: JSON.stringify({
-          message: `🔢 更新 data.js 版本號 v${newVer}`,
-          content: newIdxB64,
-          sha: idxInfo.sha
-        })
-      });
-      if(idxPush.ok) pushLog(`✅ 版本號已更新（v${newVer}）`);
-      else pushLog(`⚠ 版本號更新失敗，建議手動重整（Ctrl+Shift+R）`);
-    } catch(e) {
-      pushLog(`⚠ 版本號更新失敗：${e.message}`);
-    }
-
-    pushLog('⏳ GitHub Pages 部署中，約 1–2 分鐘後直接按 F5 重整即可！');
-    document.getElementById('push-icon').textContent = '✅';
-    document.getElementById('push-title').textContent = `成功！新增 ${added} 筆，更新 ${overwritten} 筆`;
-    document.getElementById('push-done-btn').style.display = '';
-
-    // 同步更新當前頁面的 DATA（不等部署也能即時看到）
-    DATA = merged;
-    rebuildMeta();
-    buildDropdowns();
-    renderAll();
-
-  } catch(e) {
-    pushLog(`❌ 錯誤：${e.message}`);
-    document.getElementById('push-icon').textContent = '❌';
-    document.getElementById('push-title').textContent = '推送失敗';
-    document.getElementById('push-retry-btn').style.display = '';
+  try{
+    pushLog('🚀 上傳 '+newRows.length+' 筆至資料庫…');
+    var r = await fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'syncData',token:stok,rows:newRows})});
+    var j = await r.json();
+    if(!j.ok) throw new Error(j.error||'上傳失敗');
+    pushLog('✅ 完成：新增 '+j.added+' 筆、更新 '+j.updated+' 筆，資料庫總計 '+j.total+' 筆');
+    document.getElementById('push-icon').textContent='✅';
+    document.getElementById('push-title').textContent='成功！新增 '+j.added+' 筆，更新 '+j.updated+' 筆';
+    document.getElementById('push-done-btn').style.display='';
+    var mergedMap = new Map();
+    DATA.forEach(function(x){ mergedMap.set(x.store+'|'+x.date, x); });
+    newRows.forEach(function(x){ mergedMap.set(x.store+'|'+x.date, x); });
+    DATA = Array.from(mergedMap.values()).sort(function(a,b){ return String(a.date).localeCompare(String(b.date)); });
+    rebuildMeta(); buildDropdowns(); renderAll();
+  }catch(e){
+    pushLog('❌ 錯誤：'+e.message);
+    document.getElementById('push-icon').textContent='❌';
+    document.getElementById('push-title').textContent='上傳失敗';
+    document.getElementById('push-retry-btn').style.display='';
   }
 }
 const REQUIRED_FIELDS=[
@@ -951,7 +943,7 @@ function applyMapping(){
   document.getElementById('upload-step-2').style.display='none';
   document.getElementById('upload-step-3').style.display='flex';
   document.getElementById('push-icon').textContent='⏳';
-  document.getElementById('push-title').textContent='正在推送至 GitHub…';
+  document.getElementById('push-title').textContent='正在上傳…';
   document.getElementById('push-log').textContent='';
   document.getElementById('push-done-btn').style.display='none';
   document.getElementById('push-retry-btn').style.display='none';
@@ -3169,6 +3161,127 @@ function doEnterUpload(){
     refresh();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
+
+</script>
+<script>
+
+/* ══ UG 登入與帳號管理模組（GAS 後端）══ */
+window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZKwFLf8ngj0sjMq_Twrr7yiE1Se1A3UiF2FQdvXXxlQx4aT/exec';
+(function(){
+  'use strict';
+  function api(payload){
+    return fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();});
+  }
+  function tok(){ return sessionStorage.getItem('ugTok'); }
+  function el(id){ return document.getElementById(id); }
+  function escq(s){ return String(s).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function normDate(d){
+    if(typeof d==='string' && /^\d{2}\/\d{2}$/.test(d)) return d;
+    var dt = new Date(d);
+    if(!isNaN(dt)) return ('0'+(dt.getMonth()+1)).slice(-2)+'/'+('0'+dt.getDate()).slice(-2);
+    return String(d);
+  }
+  function normRow(x){
+    var o = {zone:String(x.zone||'未分區'),store:String(x.store||''),date:normDate(x.date),
+      year:Number(x.year)||TODAY.getFullYear(),month:Number(x.month)||0,dow:Number(x.dow)||0,
+      weather:String(x.weather||'晴'),revenue:Number(x.revenue)||0,cups:Number(x.cups)||0,
+      customers:Number(x.customers)||0,discount:Number(x.discount)||0,ub:Number(x.ub)||0,
+      fp:Number(x.fp)||0,odo:Number(x.odo)||0,onsite:Number(x.onsite)||0};
+    if(!o.month){ o.month = parseInt(o.date.split('/')[0],10)||0; }
+    return o;
+  }
+  function applyData(r){
+    DATA = (r.rows||[]).map(normRow).filter(function(x){return x.store && x.revenue>0;});
+    window.MEMBER_DATA = (r.members||[]).filter(function(m){return m.week;});
+    rebuildMeta(); buildDropdowns();
+    state.zones = new Set(ZONES);
+    state.stores = new Set(STORE_LIST.map(function(s){return s.id;}));
+    var rng = computeShortcut('cur-month');
+    state.dateStart = rng.start; state.dateEnd = rng.end; state.activeShortcut = 'cur-month';
+    updateDRDisplay(); updateLabels(); renderAll();
+  }
+  function enter(){
+    el('ugAuth').style.display = 'none';
+    el('ugUserBar').style.display = 'block';
+    el('ugWho').textContent = sessionStorage.getItem('ugWho')||'';
+    if(sessionStorage.getItem('ugRole')==='admin') document.body.classList.add('ug-is-admin');
+    var ts = el('token-status');
+    if(ts && ts.parentElement && ts.parentElement.parentElement) ts.parentElement.parentElement.style.display='none';
+  }
+  function loadData(){
+    el('ugAuthCard').innerHTML = '<h1>UG 營運系統</h1><div class="skeleton">資料載入中…</div>';
+    api({action:'getData',token:tok()})
+      .then(function(r){
+        if(!r.ok){ sessionStorage.clear(); location.reload(); return; }
+        applyData(r); enter();
+      })
+      .catch(function(){ sessionStorage.clear(); location.reload(); });
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    el('ugLoginForm').addEventListener('submit',function(ev){
+      ev.preventDefault();
+      var btn = el('ugBtn'); btn.disabled = true; el('ugErr').textContent = '';
+      var u = el('ugU').value, p = el('ugP').value;
+      api({action:'login',username:u,password:p})
+        .then(function(r){
+          if(!r.ok){ el('ugErr').textContent = r.error||'登入失敗'; btn.disabled = false; return; }
+          sessionStorage.setItem('ugTok', r.token);
+          sessionStorage.setItem('ugRole', r.role);
+          sessionStorage.setItem('ugWho', u.trim().toLowerCase());
+          if(r.mustChange){
+            var np = prompt('首次登入，請設定您的新密碼（至少 8 碼）：');
+            while(np !== null && np.length < 8){ np = prompt('密碼太短，請輸入至少 8 碼：'); }
+            if(np){
+              api({action:'changePassword',token:r.token,oldPassword:p,newPassword:np})
+                .then(function(cr){ if(!cr.ok) alert('密碼變更失敗：'+(cr.error||'')+'，請稍後在帳號管理重設'); loadData(); });
+              return;
+            }
+          }
+          loadData();
+        })
+        .catch(function(){ el('ugErr').textContent = '連線失敗，請稍後再試'; btn.disabled = false; });
+    });
+    if(tok()) loadData();
+  });
+  window.ugLogout = function(){ sessionStorage.clear(); location.reload(); };
+  window.ugOpenAcct = function(){ el('ugAcctPanel').style.display='flex'; ugRefreshUsers(); };
+  window.ugRefreshUsers = function(){
+    api({action:'listUsers',token:tok()}).then(function(r){
+      if(!r.ok){ el('ugAcctMsg').textContent = r.error||'讀取失敗'; return; }
+      el('ugUserRows').innerHTML = r.users.map(function(u){
+        return '<tr><td>'+escq(u.username)+'</td><td>'+(u.role==='admin'?'管理員':'一般')+'</td><td>'+String(u.created).slice(0,10)+'</td><td>'+
+          '<span class="act reset" data-u="'+escq(u.username)+'" onclick="ugResetPw(this.dataset.u)">重設密碼</span>'+
+          '<span class="act" data-u="'+escq(u.username)+'" onclick="ugDelUser(this.dataset.u)">刪除</span></td></tr>';
+      }).join('');
+    });
+  };
+  function acctMsg(ok, txt){
+    var m = el('ugAcctMsg'); m.textContent = txt; m.style.color = ok ? 'var(--accent2)' : 'var(--danger)';
+  }
+  window.ugAddUser = function(){
+    api({action:'addUser',token:tok(),newUsername:el('ugNewU').value,newPassword:el('ugNewP').value,newRole:el('ugNewR').value})
+      .then(function(r){
+        acctMsg(r.ok, r.ok ? '✓ 已新增' : (r.error||'失敗'));
+        if(r.ok){ el('ugNewU').value=''; el('ugNewP').value=''; ugRefreshUsers(); }
+      });
+  };
+  window.ugDelUser = function(u){
+    if(!confirm('確定刪除帳號「'+u+'」？')) return;
+    api({action:'deleteUser',token:tok(),targetUsername:u}).then(function(r){
+      acctMsg(r.ok, r.ok ? '✓ 已刪除' : (r.error||'失敗'));
+      ugRefreshUsers();
+    });
+  };
+  window.ugResetPw = function(u){
+    var p = prompt('輸入「'+u+'」的新密碼（至少 8 碼）：');
+    if(!p) return;
+    if(p.length<8){ acctMsg(false,'密碼至少 8 碼'); return; }
+    api({action:'resetPassword',token:tok(),targetUsername:u,newPassword:p}).then(function(r){
+      acctMsg(r.ok, r.ok ? '✓ 已重設，該帳號下次登入需改密碼' : (r.error||'失敗'));
+    });
+  };
 })();
 
 </script>
