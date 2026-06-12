@@ -454,6 +454,12 @@ body.ug-is-admin .ug-admin-only{display:inline;}
 #ugAcctPanel .msg{font-size:13px;min-height:18px;margin-top:8px;}
 @media (max-width:768px){#ugUserBar{top:auto;bottom:calc(66px + env(safe-area-inset-bottom));right:10px;}}
 
+
+@media (min-width:769px){#ugUserBar{display:none !important;}}
+#ugNavUser{padding:12px 16px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text2);}
+#ugNavUser .who{font-weight:600;color:var(--text);}
+#ugNavUser .links{margin-top:6px;}
+#ugNavUser a{color:var(--accent);cursor:pointer;font-weight:600;margin-right:12px;text-decoration:none;}
 </style>
 </head>
 <body>
@@ -3207,6 +3213,10 @@ window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZK
     el('ugUserBar').style.display = 'block';
     el('ugWho').textContent = sessionStorage.getItem('ugWho')||'';
     if(sessionStorage.getItem('ugRole')==='admin') document.body.classList.add('ug-is-admin');
+    var nf = document.querySelector('nav .nav-footer');
+    if(nf && !document.getElementById('ugNavUser')){
+      nf.insertAdjacentHTML('beforebegin', '<div id="ugNavUser">👤 <span class="who">'+(sessionStorage.getItem('ugWho')||'')+'</span><div class="links"><a class="ug-admin-only" onclick="ugOpenAcct()">帳號管理</a><a onclick="ugLogout()">登出</a></div></div>');
+    }
     var ts = el('token-status');
     if(ts && ts.parentElement && ts.parentElement.parentElement) ts.parentElement.parentElement.style.display='none';
   }
