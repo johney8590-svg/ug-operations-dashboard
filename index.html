@@ -381,6 +381,9 @@ canvas{max-height:300px;}
 .rank-sort-btn{background:transparent;border:none;border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-family:var(--font);padding:4px 10px;transition:all .15s;}
 .rank-sort-btn:hover{color:var(--text);}
 .rank-sort-btn.active{background:var(--accent);color:#fff;font-weight:600;}
+.rank-view-btn{background:transparent;border:none;border-radius:6px;color:var(--text2);cursor:pointer;font-size:11px;font-family:var(--font);padding:4px 10px;transition:all .15s;}
+.rank-view-btn:hover{color:var(--text);}
+.rank-view-btn.active{background:var(--accent);color:#fff;font-weight:600;}
 .rc-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
 .rc-rank{position:absolute;bottom:9px;right:11px;font-size:10px;font-family:var(--mono);color:var(--text3);}
 
@@ -633,6 +636,10 @@ body.ug-is-admin .ug-admin-only{display:inline;}
               <button id="rank-sort-perf" class="rank-sort-btn active" onclick="setRankSort('perf',this)">業績排名</button>
               <button id="rank-sort-growth" class="rank-sort-btn" onclick="setRankSort('growth',this)">成長排序</button>
             </div>
+            <div style="display:flex;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;">
+              <button id="rank-view-card" class="rank-view-btn active" onclick="setRankView('card',this)">卡片</button>
+              <button id="rank-view-list" class="rank-view-btn" onclick="setRankView('list',this)">條列</button>
+            </div>
           </div>
         </div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
@@ -670,7 +677,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
       <div id="data-info-trend"></div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><canvas id="trend-weekday"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><div id="weekday-summary" style="display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap;"></div><canvas id="trend-weekday"></canvas></div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
       </div>
     <div class="chart-panel" style="margin-top:16px"><div class="chart-header"><div><div class="chart-title">門店趨勢比較</div><div class="chart-sub">勾選門店·逐日折線·可切換指標</div></div><div id="cmpMetricBtns" style="display:flex;gap:6px;flex-wrap:wrap"></div></div><div id="cmpStoreBox" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;max-height:96px;overflow:auto"></div><canvas id="storeCompareChart" height="110"></canvas></div></div>
@@ -1348,6 +1355,13 @@ function setRankSort(mode, btn){
   btn.classList.add('active');
   renderAll();
 }
+window._rankView = window._rankView || 'card';  // 'card' | 'list'
+function setRankView(view, btn){
+  window._rankView = view;
+  document.querySelectorAll('.rank-view-btn').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderAll();
+}
 
 /* ══ RANK CARD WALL ══ */
 function renderRankWall(byStore, allRows, dayCount){
@@ -1423,40 +1437,70 @@ function renderRankWall(byStore, allRows, dayCount){
 
   wall.innerHTML = '';
 
-  sorted.forEach((s, idx) => {
+  // 先算好每店顯示資料（卡片／條列共用）
+  const items = sorted.map((s, idx) => {
     const { val, days } = storeDailyAvg(s, dim);
     const prev = prevMap[s.store];
     const prevVal = prev ? prev[dim] : null;
-
-    // 成長率
-    let chgPct = null, chgClass = 'flat', chgText = '—', trendIcon = '→', trendClass = 'flat';
+    let chgClass='flat', chgText='—', trendIcon='→', trendClass='flat';
     if(prevVal === null){
-      chgClass = 'new-store'; chgText = '新店'; trendIcon = '★'; trendClass = 'new-store';
+      chgClass='new-store'; chgText='新店'; trendIcon='★'; trendClass='new-store';
     } else if(prevVal > 0){
-      chgPct = ((val - prevVal) / prevVal * 100);
-      // 前期-本期：正=衰退(紅▼)，負=成長(綠▲)，顯示絕對值
-      const dispChg = prevVal>0 ? (prevVal-val)/prevVal*100 : 0;
+      const dispChg = (prevVal-val)/prevVal*100;   // 前期−本期：正=衰退、負=成長
       const absChg  = Math.abs(dispChg);
-      if(dispChg <= -2){
-        // 本期 > 前期 = 成長
-        chgClass='up';   chgText=`▲${absChg.toFixed(1)}%`; trendIcon='▲'; trendClass='up';
-      } else if(dispChg >= 2){
-        // 本期 < 前期 = 衰退
-        chgClass='down'; chgText=`▼${absChg.toFixed(1)}%`; trendIcon='▼'; trendClass='down';
-      } else {
-        chgClass='flat'; chgText=`→${absChg.toFixed(1)}%`; trendIcon='→'; trendClass='flat';
-      }
+      if(dispChg <= -2){ chgClass='up';   chgText=`▲${absChg.toFixed(1)}%`; trendIcon='▲'; trendClass='up'; }
+      else if(dispChg >= 2){ chgClass='down'; chgText=`▼${absChg.toFixed(1)}%`; trendIcon='▼'; trendClass='down'; }
+      else { chgClass='flat'; chgText=`→${absChg.toFixed(1)}%`; trendIcon='→'; trendClass='flat'; }
     }
+    return { s, idx, val, days, prevVal, chgClass, chgText, trendIcon, trendClass, anom:isAnom(s) };
+  });
 
-    const anom   = isAnom(s);
-    const pct    = Math.min(val / maxVal * 100, 100);
+  // ── 條列模式：高密度表格，一眼看完不眼花 ──
+  if(window._rankView === 'list'){
+    wall.style.display = 'block';
+    wall.style.gridTemplateColumns = '';
+    const chgColor = c => c==='up'?'#28A745':c==='down'?'var(--danger)':c==='new-store'?'var(--accent)':'var(--warn)';
+    const body = items.map(it => {
+      const s = it.s;
+      const zoneShort = ZONE_SHORT[s.zone] || s.zone.slice(0,3);
+      const totTxt = fmtTotal(s).replace('總計 ','');
+      return `<tr style="border-bottom:1px solid var(--border)">`
+        + `<td style="padding:7px 10px;color:var(--text3);font-family:var(--mono)">#${it.idx+1}</td>`
+        + `<td style="padding:7px 10px;font-weight:600;color:var(--text)">${s.name}${it.anom?' <span style="color:var(--warn)">⚠</span>':''}</td>`
+        + `<td style="padding:7px 10px;color:var(--text3);font-size:11px">${zoneShort}</td>`
+        + `<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">${fmtMain(it.val)} ${DIM_UNIT[dim]}</td>`
+        + `<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3);font-size:11px">${totTxt}</td>`
+        + `<td style="padding:7px 10px;text-align:right;color:var(--text3);font-size:11px">${it.days}天</td>`
+        + `<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:${chgColor(it.chgClass)}">${it.chgText}</td>`
+        + `</tr>`;
+    }).join('');
+    wall.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px">`
+      + `<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:left">#</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:left">門市</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:left">分區</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:right">${DIM_LABEL_SHORT[dim]}</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:right">總計</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:right">天數</th>`
+      + `<th style="padding:6px 10px;font-weight:600;text-align:right">成長 (前期−本期)</th>`
+      + `</tr></thead><tbody>${body}</tbody></table>`;
+    return;
+  }
+
+  // ── 卡片模式 ──
+  wall.style.display = 'grid';
+  wall.style.gridTemplateColumns = 'repeat(auto-fill,minmax(155px,1fr))';
+  wall.style.gap = '10px';
+  items.forEach(it => {
+    const s=it.s, idx=it.idx, val=it.val, days=it.days, prevVal=it.prevVal;
+    const chgClass=it.chgClass, chgText=it.chgText, trendIcon=it.trendIcon, trendClass=it.trendClass, anom=it.anom;
+    const pct = Math.min(val / maxVal * 100, 100);
     const fillColor = chgClass==='up'   ? '#28A745'
                     : chgClass==='down' ? 'var(--danger)'
                     : chgClass==='new-store' ? 'var(--accent)'
                     : 'var(--warn)';
     const cardClass = `rank-card rc-${chgClass}${anom?' rc-anom':''}`;
     const zoneShort = ZONE_SHORT[s.zone] || s.zone.slice(0,3);
-
     const card = document.createElement('div');
     card.className = cardClass;
     card.title = `${s.name}\n${DIM_LABEL_SHORT[dim]}：${fmtMain(val)}${DIM_UNIT[dim]}\n${prevVal?'前月日均：'+fmtMain(prevVal)+DIM_UNIT[dim]:''}`;
@@ -1875,6 +1919,36 @@ function renderTrend(){
     return v >= base ? '#28A745' : 'var(--danger)';
   });
 
+  // ── 週間分佈洞察卡：最強 / 最弱星期、與基線差最多的一天 ──
+  const wkSumEl = document.getElementById('weekday-summary');
+  if(wkSumEl){
+    const valid = curDowAvg.map((v,i)=>({i, v, base: prevDowAvg[i]||0})).filter(o=>o.v>0);
+    if(!valid.length){ wkSumEl.innerHTML = ''; }
+    else {
+      const best  = valid.reduce((a,b)=>b.v>a.v?b:a);
+      const worst = valid.reduce((a,b)=>b.v<a.v?b:a);
+      // pct = (基線 − 本期)/基線 ×100：正=本期低於基線(跌)、負=成長
+      const withBase = valid.filter(o=>o.base>0).map(o=>({...o, pct:(o.base-o.v)/o.base*100}));
+      const card = (lbl, day, color, sub) =>
+        `<div style="flex:1;min-width:92px;background:var(--bg3);border:1px solid ${color}44;border-radius:8px;padding:8px 12px;">`
+        + `<div style="font-size:10px;color:var(--text3);letter-spacing:.04em;margin-bottom:3px">${lbl}</div>`
+        + `<div style="font-size:15px;font-weight:700;color:${color}">${day}</div>`
+        + `<div style="font-size:10px;color:var(--text3);margin-top:2px">${sub}</div></div>`;
+      let html = card('業績最強', DOW_LABELS[best.i],  'var(--accent)', fmtW(best.v)+'元/店')
+               + card('業績最弱', DOW_LABELS[worst.i], 'var(--text2)',  fmtW(worst.v)+'元/店');
+      if(withBase.length){
+        const drop = withBase.reduce((a,b)=>b.pct>a.pct?b:a);  // 跌最多
+        if(drop.pct >= 2){
+          html += card('跌幅最大 vs 前4週', DOW_LABELS[drop.i], 'var(--danger)', '▼'+drop.pct.toFixed(1)+'%（'+fmtW(drop.base-drop.v)+'元）');
+        } else {
+          const rise = withBase.reduce((a,b)=>b.pct<a.pct?b:a);  // 漲最多
+          html += card('漲幅最大 vs 前4週', DOW_LABELS[rise.i], '#28A745', '▲'+Math.abs(rise.pct).toFixed(1)+'%（'+fmtW(rise.v-rise.base)+'元）');
+        }
+      }
+      wkSumEl.innerHTML = html;
+    }
+  }
+
   mkChart('trend-weekday',{
     type:'bar',
     data:{
@@ -1949,7 +2023,12 @@ function renderTrend(){
   const weatherVals   = weatherLabels.map(w => wMap[w] ? Math.round(wMap[w].s/wMap[w].c) : 0);
   const weatherDays   = weatherLabels.map(w => wMap[w] ? wMap[w].c : 0);
   const weatherXLabels = weatherLabels.map((w,i) => weatherDays[i] ? `${w}（${weatherDays[i]}天）` : w);
-  const fmtWV = v => v>=10000?(v/10000).toFixed(0)+'萬':v.toLocaleString();
+  const wUnit = state.dim==='cups'?'杯':state.dim==='customers'?'人':'元';
+  // ★ 1 位小數，避免 1.2萬/1.5萬 都被四捨五入成「1萬」而看起來一樣
+  const fmtWV = v => v>=10000?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();
+  const wSun = weatherVals[0]||0;
+  const weatherDiffPct = weatherVals.map(v => wSun>0 ? (v-wSun)/wSun*100 : 0);  // 相對晴天的差異%
+  const wColors = [C.w, '#adb5bd', C.a];
 
   mkChart('trend-weather',{
     type:'bar',
@@ -1961,16 +2040,37 @@ function renderTrend(){
         backgroundColor:[C.w+'99','#adb5bd99',C.a+'99'],
         borderColor:[C.w,'#adb5bd',C.a],
         borderWidth:1.5, borderRadius:5, maxBarThickness:50,
+        datalabels:{
+          display:true, anchor:'end', align:'end', offset:2,
+          color:(ctx)=>wColors[ctx.dataIndex],
+          font:{size:11, weight:'bold'},
+          formatter:(v,ctx)=>{
+            if(!v) return '';
+            const i=ctx.dataIndex;
+            const main = fmtWV(v)+wUnit;
+            if(i===0) return [main, '（基準）'];
+            const p = weatherDiffPct[i];
+            return [main, (p>=0?'+':'')+p.toFixed(1)+'% vs 晴'];
+          }
+        }
       }]
     },
     options:{
       ...BO,
+      layout:{ padding:{ top:30 } },
       plugins:{
         legend:{ display:false },
+        datalabels:{ display:true },
         tooltip:{
           callbacks:{
-            label: ctx => `每店日均：${fmtWV(ctx.raw)}元`,
-            afterLabel: ctx => `共 ${weatherDays[ctx.dataIndex]} 天`,
+            label: ctx => `每店日均：${fmtWV(ctx.raw)}${wUnit}`,
+            afterLabel: ctx => {
+              const i=ctx.dataIndex;
+              const base = `共 ${weatherDays[i]} 天`;
+              if(i===0 || wSun<=0) return base;
+              const p = weatherDiffPct[i];
+              return [base, `較晴天 ${p>=0?'+':''}${p.toFixed(1)}%`];
+            },
           }
         }
       },
@@ -2497,11 +2597,28 @@ var ZONE_COORDS = {
   '雲嘉南高屏': {lat:22.6273, lon:120.3014, city:'高雄'}
 };
 
-// WMO weathercode → 晴/陰/雨
+// WMO weathercode → 晴/陰/雨（僅作後備）
 function codeToWeather(code){
   if(code === 0) return '晴';
   if(code <= 48) return '陰';          // 1,2,3,45,48
   return '雨';                          // 51+ 全歸雨
+}
+
+// 綜合判定：天氣代碼 + 降雨機率(%) + 預期雨量(mm) → 晴/陰/雨
+// 只看 weather_code 會把「短暫陣雨」整天歸為雨，夏季台灣幾乎天天被誤判成雨，
+// 導致大晴天卻顯示下雨、預測失準。改以降雨機率與雨量為主訊號：明顯會下雨才歸「雨」。
+function classifyDay(code, pop, psum){
+  var hasPop = (pop != null && !isNaN(pop));   // precipitation_probability_max
+  var hasSum = (psum != null && !isNaN(psum)); // precipitation_sum (mm)
+  // 1) 明顯降雨：降雨機率高 或 預期雨量足
+  if((hasPop && pop >= 60) || (hasSum && psum >= 4)) return '雨';
+  // 2) 降雨機率低且幾乎無雨量 → 不算雨，依天氣代碼分 晴/陰
+  if((!hasPop || pop <= 40) && (!hasSum || psum < 1)){
+    return (code === 0 || code === 1) ? '晴' : '陰';
+  }
+  // 3) 中等降雨機率(41–59%)：代碼晴朗仍偏晴，否則陰
+  if((code === 0 || code === 1) && (!hasPop || pop < 50)) return '晴';
+  return '陰';
 }
 
 // 取得「上個月」= 資料最新月的前一個月
@@ -2628,9 +2745,10 @@ function loadWeatherForecast(){
   var promises = selectedZones.map(function(zone){
     var c = ZONE_COORDS[zone];
     var url = 'https://api.open-meteo.com/v1/forecast?latitude='+c.lat+'&longitude='+c.lon
-            + '&daily=weather_code&timezone=Asia%2FTaipei&forecast_days=7';
+            + '&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=Asia%2FTaipei&forecast_days=7';
     return fetch(url).then(function(r){return r.json();}).then(function(d){
-      return {zone:zone, time:d.daily.time, codes:d.daily.weather_code};
+      return {zone:zone, time:d.daily.time, codes:d.daily.weather_code,
+              pop:d.daily.precipitation_probability_max, psum:d.daily.precipitation_sum};
     });
   });
 
@@ -2639,7 +2757,9 @@ function loadWeatherForecast(){
     var days = results[0].time.map(function(date, i){
       var zoneWeather = {};
       results.forEach(function(res){
-        zoneWeather[res.zone] = codeToWeather(res.codes[i]);
+        var pop  = res.pop  ? res.pop[i]  : null;
+        var psum = res.psum ? res.psum[i] : null;
+        zoneWeather[res.zone] = classifyDay(res.codes[i], pop, psum);
       });
       return {date:date, zoneWeather:zoneWeather};
     });
