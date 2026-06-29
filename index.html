@@ -2656,24 +2656,23 @@ function loadWeatherForecast(){
     .catch(function(){ loadWeatherForecastOM(selectedZones, restore, fail); });
 }
 
-// 後備來源：Open-Meteo（免金鑰）
+// 後備來源：Open-Meteo（免金鑰）。同樣以營業時段(10–22點)逐時降雨機率 < 30% 判定不下雨。
 function loadWeatherForecastOM(selectedZones, restore, fail){
   var promises = selectedZones.map(function(zone){
     var c = ZONE_COORDS[zone];
     var url = 'https://api.open-meteo.com/v1/forecast?latitude='+c.lat+'&longitude='+c.lon
-            + '&daily=weather_code,precipitation_probability_max,precipitation_sum&timezone=Asia%2FTaipei&forecast_days=7';
+            + '&daily=weather_code&hourly=precipitation_probability&timezone=Asia%2FTaipei&forecast_days=7';
     return fetch(url).then(function(r){return r.json();}).then(function(d){
-      return {zone:zone, time:d.daily.time, codes:d.daily.weather_code,
-              pop:d.daily.precipitation_probability_max, psum:d.daily.precipitation_sum};
+      return {zone:zone, daily:d.daily, hourly:d.hourly};
     });
   });
   Promise.all(promises).then(function(results){
-    var days = results[0].time.map(function(date, i){
+    var days = results[0].daily.time.map(function(date, i){
       var zoneWeather = {};
       results.forEach(function(res){
-        var pop  = res.pop  ? res.pop[i]  : null;
-        var psum = res.psum ? res.psum[i] : null;
-        zoneWeather[res.zone] = classifyDay(res.codes[i], pop, psum);
+        var code = res.daily.weather_code[i];
+        var bizPoP = bizPoPFromHourly_(res.hourly, date);
+        zoneWeather[res.zone] = classifyOMBiz_(code, bizPoP);
       });
       return {date:date, zoneWeather:zoneWeather};
     });
@@ -2681,6 +2680,31 @@ function loadWeatherForecastOM(selectedZones, restore, fail){
     window._weatherSource = 'openmeteo';
     renderTarget(); if(restore) restore();
   }).catch(function(e){ if(fail) fail(e.message); });
+}
+// 取營業時段(10:00–22:00)逐時降雨機率的最大值
+function bizPoPFromHourly_(hourly, date){
+  if(!hourly || !hourly.time) return null;
+  var mx = null;
+  for(var i=0;i<hourly.time.length;i++){
+    var t = hourly.time[i];
+    if(t.slice(0,10)!==date) continue;
+    var h = parseInt(t.slice(11,13),10);
+    if(h<10 || h>22) continue;
+    var p = hourly.precipitation_probability[i];
+    if(p==null) continue;
+    if(mx==null || p>mx) mx=p;
+  }
+  return mx;
+}
+// 與 CWA 一致：營業時段降雨機率 < 30% 視為不下雨
+function classifyOMBiz_(code, bizPoP){
+  var rainCode = code >= 51;  // WMO 51+ 有降水
+  if(rainCode){
+    if(bizPoP!=null && bizPoP<30) return '陰';
+    return '雨';
+  }
+  if(code===0 || code===1) return '晴';
+  return '陰';
 }
 
 function renderTarget(){
