@@ -778,6 +778,15 @@ body.ug-is-admin .ug-admin-only{display:inline;}
           </table>
         </div>
       </div>
+
+      <!-- 天氣模型驗證（回測） -->
+      <div class="chart-panel" style="margin-top:16px">
+        <div class="chart-header"><div>
+          <div class="chart-title">🧪 天氣模型驗證（回測）</div>
+          <div class="chart-sub">用歷史「實際天氣」回測：天氣到底影響營收多少、加入天氣有沒有讓預測更準（不需預報）</div>
+        </div></div>
+        <div id="weather-validation"><div style="color:var(--text3);padding:10px">計算中…</div></div>
+      </div>
     </div>
 
   </div>
@@ -2714,6 +2723,7 @@ function renderTarget(){
   var tbodyEl= document.getElementById('target-tbody');
   var subEl  = document.getElementById('target-sub');
   if(!kpiEl) return;
+  try{ renderWeatherValidation(); }catch(e){}   // 回測面板：只需歷史資料，與預報無關
   if(!td){ kpiEl.innerHTML='<div style="text-align:center;padding:30px;color:var(--text3);width:100%">選定範圍無資料</div>'; return; }
 
   var fmtM = function(v){ var a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString()); };
@@ -2869,6 +2879,87 @@ function renderTarget(){
 function setTargetGrowth(delta){
   window._targetGrowth = Math.max(50, Math.min(200, (window._targetGrowth||100) + delta));
   renderTarget();
+}
+
+/* ══ 天氣模型驗證（回測）：用歷史實際天氣，量化天氣對營收的影響 + 模型是否比不看天氣更準 ══ */
+function renderWeatherValidation(){
+  var el = document.getElementById('weather-validation');
+  if(!el) return;
+  var rows = DATA.filter(function(r){ return state.zones.has(r.zone) && state.stores.has(r.store) && r.revenue>0; });
+  if(rows.length < 30){ el.innerHTML = '<div style="color:var(--text3);padding:10px">資料量不足，無法回測（需 ≥30 筆店日）</div>'; return; }
+  var fmtM = function(v){ var a=Math.abs(v); return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString()); };
+
+  // ① 各分區 天氣店均（每筆=一店一天）
+  var zStat = {}, zones = [];
+  rows.forEach(function(r){
+    if(!zStat[r.zone]){ zStat[r.zone]={}; zones.push(r.zone); }
+    var z=zStat[r.zone];
+    if(!z[r.weather]) z[r.weather]={sum:0,n:0};
+    z[r.weather].sum += r.revenue; z[r.weather].n++;
+  });
+  zones.sort();
+  var tbl = '<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    + '<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+    + '<th style="text-align:left;padding:6px 8px">分區</th>'
+    + '<th style="text-align:right;padding:6px 8px">☀️晴 店均(天數)</th>'
+    + '<th style="text-align:right;padding:6px 8px">☁️陰 店均(天數)</th>'
+    + '<th style="text-align:right;padding:6px 8px">🌧️雨 店均(天數)</th>'
+    + '<th style="text-align:right;padding:6px 8px">雨 vs 晴</th></tr></thead><tbody>';
+  zones.forEach(function(z){
+    var s = zStat[z];
+    function cell(w){ var d=s[w]; return (d&&d.n)? (fmtM(d.sum/d.n)+'<span style="color:var(--text3);font-size:10px">('+d.n+')</span>') : '—'; }
+    var sun = (s['晴']&&s['晴'].n)? s['晴'].sum/s['晴'].n : 0;
+    var rain= (s['雨']&&s['雨'].n)? s['雨'].sum/s['雨'].n : 0;
+    var diff = (sun>0&&rain>0)? (rain-sun)/sun*100 : null;
+    var diffColor = diff==null?'var(--text3)': diff<0?'var(--danger)':'#28A745';
+    var diffTxt = diff==null?'—':(diff>=0?'+':'')+diff.toFixed(1)+'%';
+    tbl += '<tr style="border-bottom:1px solid var(--border)">'
+      + '<td style="padding:6px 8px;font-weight:600">'+z+'</td>'
+      + '<td style="text-align:right;padding:6px 8px;font-family:var(--mono)">'+cell('晴')+'</td>'
+      + '<td style="text-align:right;padding:6px 8px;font-family:var(--mono)">'+cell('陰')+'</td>'
+      + '<td style="text-align:right;padding:6px 8px;font-family:var(--mono)">'+cell('雨')+'</td>'
+      + '<td style="text-align:right;padding:6px 8px;font-family:var(--mono);font-weight:700;color:'+diffColor+'">'+diffTxt+'</td></tr>';
+  });
+  tbl += '</tbody></table>';
+
+  // ② 留一法(LOO)回測 MAPE：天氣模型(分區×星期×天氣) vs baseline(分區×星期)
+  var gW={}, gB={};
+  rows.forEach(function(r){
+    var kw=r.zone+'|'+r.dow+'|'+r.weather, kb=r.zone+'|'+r.dow;
+    (gW[kw]=gW[kw]||{sum:0,n:0}); gW[kw].sum+=r.revenue; gW[kw].n++;
+    (gB[kb]=gB[kb]||{sum:0,n:0}); gB[kb].sum+=r.revenue; gB[kb].n++;
+  });
+  var eW=0,nW=0,eB=0,nB=0;
+  rows.forEach(function(r){
+    var gw=gW[r.zone+'|'+r.dow+'|'+r.weather], gb=gB[r.zone+'|'+r.dow];
+    if(gw.n>1){ var pw=(gw.sum-r.revenue)/(gw.n-1); eW+=Math.abs(r.revenue-pw)/r.revenue; nW++; }
+    if(gb.n>1){ var pb=(gb.sum-r.revenue)/(gb.n-1); eB+=Math.abs(r.revenue-pb)/r.revenue; nB++; }
+  });
+  var mapeW = nW? eW/nW*100 : null;
+  var mapeB = nB? eB/nB*100 : null;
+  var improve = (mapeW!=null&&mapeB!=null&&mapeB>0)? (mapeB-mapeW)/mapeB*100 : null;
+  var verdict, vColor;
+  if(mapeW==null){ verdict='樣本不足'; vColor='var(--text3)'; }
+  else if(improve!=null && improve>=3){ verdict='✅ 天氣有預測價值（誤差降低 '+improve.toFixed(1)+'%）'; vColor='#28A745'; }
+  else if(improve!=null && improve<=-1){ verdict='⚠️ 加天氣反而更差，建議預測只用星期'; vColor='var(--danger)'; }
+  else { verdict='➖ 天氣對預測幫助有限（'+(improve!=null?(improve>=0?'+':'')+improve.toFixed(1)+'%':'—')+'）'; vColor='var(--warn)'; }
+
+  var cards = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<div style="flex:1;min-width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">天氣模型誤差 MAPE</div>'
+    + '<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent)">'+(mapeW!=null?mapeW.toFixed(1)+'%':'—')+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">分區×星期×天氣</div></div>'
+    + '<div style="flex:1;min-width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">不看天氣 baseline</div>'
+    + '<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text2)">'+(mapeB!=null?mapeB.toFixed(1)+'%':'—')+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">分區×星期</div></div>'
+    + '<div style="flex:1.6;min-width:190px;background:var(--bg3);border:1px solid '+vColor+'55;border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">結論</div>'
+    + '<div style="font-size:13px;font-weight:700;color:'+vColor+'">'+verdict+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">留一法回測 '+nW.toLocaleString()+' 筆店日</div></div></div>';
+
+  el.innerHTML = cards + tbl
+    + '<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">📌 用歷史「實際天氣」回測，驗證的是<b>天氣與營收的關聯</b>與<b>模型價值</b>；至於<b>預報本身準不準</b>（CWA 說雨真的有雨）需另外每日記錄比對。括號內為各分組店日數，太少的結果僅供參考。</div>';
 }
 
 
