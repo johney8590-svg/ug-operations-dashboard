@@ -2944,22 +2944,30 @@ function renderWeatherValidation(){
   else if(improve!=null && improve<=-1){ verdict='⚠️ 加天氣反而更差，建議預測只用星期'; vColor='var(--danger)'; }
   else { verdict='➖ 天氣對預測幫助有限（'+(improve!=null?(improve>=0?'+':'')+improve.toFixed(1)+'%':'—')+'）'; vColor='var(--warn)'; }
 
-  var cards = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
-    + '<div style="flex:1;min-width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">天氣模型誤差 MAPE</div>'
-    + '<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent)">'+(mapeW!=null?mapeW.toFixed(1)+'%':'—')+'</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">分區×星期×天氣</div></div>'
-    + '<div style="flex:1;min-width:130px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">不看天氣 baseline</div>'
-    + '<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text2)">'+(mapeB!=null?mapeB.toFixed(1)+'%':'—')+'</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">分區×星期</div></div>'
-    + '<div style="flex:1.6;min-width:190px;background:var(--bg3);border:1px solid '+vColor+'55;border-radius:8px;padding:10px 14px">'
-    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">結論</div>'
-    + '<div style="font-size:13px;font-weight:700;color:'+vColor+'">'+verdict+'</div>'
-    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">留一法回測 '+nW.toLocaleString()+' 筆店日</div></div></div>';
+  var intro = '<div style="font-size:12px;color:var(--text2);line-height:1.75;margin-bottom:12px">'
+    + '這塊在回答一個問題：<b style="color:var(--text)">「看天氣，能不能幫我們把每天營收預測得更準？」</b><br>'
+    + '做法是拿過去每一天的<b>實際</b>營收，分別用「有看天氣」和「不看天氣」兩種方式回頭預測，比誰猜得準（誤差小）。'
+    + '</div>';
 
-  el.innerHTML = cards + tbl
-    + '<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.6">📌 用歷史「實際天氣」回測，驗證的是<b>天氣與營收的關聯</b>與<b>模型價值</b>；至於<b>預報本身準不準</b>（CWA 說雨真的有雨）需另外每日記錄比對。括號內為各分組店日數，太少的結果僅供參考。</div>';
+  var cards = '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+    + '<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px">看天氣預測 · 平均誤差</div>'
+    + '<div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--accent)">'+(mapeW!=null?mapeW.toFixed(1)+'%':'—')+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">猜的金額平均和實際差這麼多 · <b>越小越準</b><br>依「分區×星期×天氣」</div></div>'
+    + '<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px">不看天氣 · 平均誤差</div>'
+    + '<div style="font-size:22px;font-weight:700;font-family:var(--mono);color:var(--text2)">'+(mapeB!=null?mapeB.toFixed(1)+'%':'—')+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">對照組：完全不看天氣<br>只看「分區×星期幾」</div></div>'
+    + '<div style="flex:1.6;min-width:200px;background:var(--bg3);border:1px solid '+vColor+'55;border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:11px;color:var(--text2);font-weight:600;margin-bottom:4px">結論</div>'
+    + '<div style="font-size:13px;font-weight:700;color:'+vColor+'">'+verdict+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:3px">左邊兩個誤差誰小，就代表那種方式比較準<br>共回測 '+nW.toLocaleString()+' 筆「一店一天」</div></div></div>';
+
+  el.innerHTML = intro + cards + tbl
+    + '<div style="font-size:11px;color:var(--text3);margin-top:12px;line-height:1.75">'
+    + '<b style="color:var(--text2)">下表怎麼看</b>：各分區 晴/陰/雨 的實際每店日均，括號是樣本天數；最右「雨 vs 晴」＝雨天比晴天高/低幾 %（紅=雨天較低）。可看出<b>哪一區對天氣最敏感</b>。<br>'
+    + '<b style="color:var(--text2)">名詞</b>：「平均誤差」這行學名叫 <b>MAPE</b>，就是預測金額和實際平均差幾 %；回測用「<b>留一法</b>」＝預測某一天時不偷看那天本身，只用其他同類日子的平均，避免「用答案算答案」。<br>'
+    + '📌 這裡驗證的是<b>天氣與營收的關聯</b>和<b>看天氣有沒有讓預測更準</b>（用歷史<b>實際</b>天氣）；至於<b>預報本身準不準</b>（氣象署說雨真的有雨）要另外每日記錄比對。樣本太少的分組結果僅供參考。</div>';
 }
 
 
