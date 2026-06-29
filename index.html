@@ -792,6 +792,21 @@ body.ug-is-admin .ug-admin-only{display:inline;}
   </div>
 </main>
 
+<!-- 單店趨勢 drill-down -->
+<div id="storeDetailModal" onclick="if(event.target===this)closeStoreDetail()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:18px;">
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;max-width:780px;width:100%;max-height:88vh;overflow:auto;padding:20px 22px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+      <div>
+        <div id="sd-title" style="font-size:18px;font-weight:700;color:var(--text)"></div>
+        <div id="sd-sub" style="font-size:12px;color:var(--text3);margin-top:3px"></div>
+      </div>
+      <span onclick="closeStoreDetail()" style="cursor:pointer;color:var(--text3);font-size:22px;line-height:1;padding:2px 6px">✕</span>
+    </div>
+    <div id="sd-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;"></div>
+    <div style="height:300px;position:relative;"><canvas id="sd-chart"></canvas></div>
+  </div>
+</div>
+
 <nav class="mobile-tab-bar">
   <div class="mobile-tab-item active" id="mtab-today" onclick="mobileTab('today',this)">
     <span class="mobile-tab-icon">📊</span>
@@ -1360,6 +1375,60 @@ function setRankView(view, btn){
   renderAll();
 }
 
+/* 點門市名 → 彈出單店趨勢（目前查詢區間） */
+function jsAttr_(s){ return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
+function closeStoreDetail(){ var m=document.getElementById('storeDetailModal'); if(m) m.style.display='none'; }
+function openStoreDetail(store){
+  var modal = document.getElementById('storeDetailModal'); if(!modal) return;
+  var dim  = DIM_KEY[state.dim];
+  var unit = state.dim==='cups'?'杯':state.dim==='customers'?'人':'元';
+  var dimLabel = state.dim==='revenue'?'營業淨額':state.dim==='cups'?'杯數':'來客';
+  var ad = getActiveDates(), adSet = new Set(ad);
+  var srows = DATA.filter(function(r){ return r.store===store && adSet.has(r.date); });
+  if(!srows.length){ return; }
+  var zone = srows[0].zone;
+  var byDate={}, wxDate={};
+  srows.forEach(function(r){ byDate[r.date]=(byDate[r.date]||0)+r[dim]; wxDate[r.date]=r.weather; });
+  var dates = ad.filter(function(d){ return byDate[d]!=null; });
+  var vals = dates.map(function(d){ return byDate[d]; });
+  var tot = vals.reduce(function(a,b){return a+b;},0);
+  var dayN = dates.length, avg = dayN? Math.round(tot/dayN):0;
+  // 前月基線（同店）
+  var bSet = new Set(getBaselineDates());
+  var brows = DATA.filter(function(r){ return r.store===store && bSet.has(r.date); });
+  var bDays = new Set(brows.map(function(r){return r.date;})).size;
+  var bAvg = bDays? Math.round(brows.reduce(function(a,r){return a+r[dim];},0)/bDays):null;
+  var chg = (bAvg&&bAvg>0)? (bAvg-avg)/bAvg*100 : null;   // 前期−本期：正=衰退
+  var hi={v:-1,d:''}, lo={v:Infinity,d:''};
+  dates.forEach(function(d){ var v=byDate[d]; if(v>hi.v)hi={v:v,d:d}; if(v<lo.v)lo={v:v,d:d}; });
+  if(lo.v===Infinity) lo={v:0,d:''};
+  var fmt = function(v){ var a=Math.abs(v); return (v<0?'−':'')+(state.dim==='revenue'&&a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString()); };
+
+  document.getElementById('sd-title').textContent = store;
+  document.getElementById('sd-sub').textContent = zone+' · '+dimLabel+' · '+(dates[0]||'')+'～'+(dates[dates.length-1]||'')+'（'+dayN+'天）';
+  var chgColor = chg==null?'var(--text3)': Math.abs(chg)<2?'var(--warn)': chg>0?'var(--danger)':'#28A745';
+  var chgTxt = chg==null?'—':(chg>0?'▼':chg<0?'▲':'→')+Math.abs(chg).toFixed(1)+'%';
+  function kc(lbl,val,sub,color){ return '<div style="flex:1;min-width:104px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px">'
+    +'<div style="font-size:10px;color:var(--text3);margin-bottom:3px">'+lbl+'</div>'
+    +'<div style="font-size:17px;font-weight:700;font-family:var(--mono);color:'+(color||'var(--text)')+'">'+val+'</div>'
+    +'<div style="font-size:9px;color:var(--text3);margin-top:2px">'+(sub||'')+'</div></div>'; }
+  document.getElementById('sd-kpis').innerHTML =
+      kc('期間店日均', fmt(avg)+unit, '共 '+dayN+' 天')
+    + kc('期間總計', fmt(tot)+unit, '')
+    + kc('vs 前月基線', chgTxt, bAvg!=null?'前月日均 '+fmt(bAvg)+unit:'無基線', chgColor)
+    + kc('單日最高', fmt(hi.v), hi.d)
+    + kc('單日最低', fmt(lo.v), lo.d);
+
+  modal.style.display='flex';
+  var ds=[{label:dimLabel,data:vals,borderColor:C.a,backgroundColor:C.a+'22',fill:true,tension:0.3,pointRadius:3,pointHoverRadius:6,borderWidth:2.5}];
+  if(bAvg!=null) ds.push({label:'前月基線',data:dates.map(function(){return bAvg;}),borderColor:C.b+'99',borderDash:[6,4],pointRadius:0,borderWidth:1.5,fill:false,tension:0});
+  mkChart('sd-chart',{type:'line',data:{labels:dates,datasets:ds},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{boxWidth:11}},datalabels:{display:false},
+        tooltip:{callbacks:{ afterLabel:function(ctx){ var w=wxDate[dates[ctx.dataIndex]]; return w?('天氣：'+w):''; } }}},
+      scales:{x:{grid:{display:false}},y:{grid:{color:'#1e2536'},ticks:{callback:function(v){return state.dim==='revenue'&&v>=10000?(v/10000).toFixed(0)+'萬':v;}}}}}});
+}
+
 /* ══ RANK CARD WALL ══ */
 function renderRankWall(byStore, allRows, dayCount){
   const dim    = state.dim;
@@ -1463,7 +1532,7 @@ function renderRankWall(byStore, allRows, dayCount){
       const totTxt = fmtTotal(s).replace('總計 ','');
       return `<tr style="border-bottom:1px solid var(--border)">`
         + `<td style="padding:7px 10px;color:var(--text3);font-family:var(--mono)">#${it.idx+1}</td>`
-        + `<td style="padding:7px 10px;font-weight:600;color:var(--text)">${s.name}${it.anom?' <span style="color:var(--warn)">⚠</span>':''}</td>`
+        + `<td style="padding:7px 10px;font-weight:600;color:var(--text)"><span style="cursor:pointer;text-decoration:underline dotted var(--text3);text-underline-offset:3px" onclick="openStoreDetail('${jsAttr_(s.store)}')" title="點此看本店趨勢">${s.name}</span>${it.anom?' <span style="color:var(--warn)">⚠</span>':''}</td>`
         + `<td style="padding:7px 10px;color:var(--text3);font-size:11px">${zoneShort}</td>`
         + `<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">${fmtMain(it.val)} ${DIM_UNIT[dim]}</td>`
         + `<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3);font-size:11px">${totTxt}</td>`
@@ -1506,7 +1575,7 @@ function renderRankWall(byStore, allRows, dayCount){
         <span class="rc-zone">${zoneShort}${anom?' ⚠':''}</span>
         <span class="rc-trend ${trendClass}">${trendIcon}</span>
       </div>
-      <div class="rc-name">${s.name}</div>
+      <div class="rc-name" style="cursor:pointer;text-decoration:underline dotted var(--text3);text-underline-offset:3px" onclick="openStoreDetail('${jsAttr_(s.store)}')" title="點此看本店趨勢">${s.name}</div>
       <div class="rc-main">${fmtMain(val)}<span class="rc-main-unit"> ${DIM_UNIT[dim]}</span></div>
       <div class="rc-sub">${fmtTotal(s)} · ${days}天</div>
       <span class="rc-chg ${chgClass}">${chgText}</span>
