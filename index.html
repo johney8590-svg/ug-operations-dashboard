@@ -684,19 +684,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
     <!-- COMPARE -->
     <div class="tab-page" id="page-compare">
       <div id="anomaly-alerts"></div>
-      <div class="grid-2">
-        <div class="chart-panel">
-  <div class="chart-header">
-    <div>
-      <div class="chart-title">圖表 A · 最新週走勢 vs 前期基線</div>
-      <div class="chart-sub">實線=最新7天 · 虛線=前期同星期平均</div>
-    </div>
-  </div>
-  <div id="chart-a-summary" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;"></div>
-  <canvas id="chart-a"></canvas>
-</div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title" id="chartb-title">圖表 B · 客單價異常偵測</div><div class="chart-sub" id="chartb-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><div id="chart-b-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="chart-b"></canvas></div>
-      </div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title" id="chartb-title">圖表 B · 客單價異常偵測</div><div class="chart-sub" id="chartb-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><div id="chart-b-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="chart-b"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">水平長條色階：左綠（自有現場/ODO）→ 右紅（高抽成外送 UB/FP），紅色越長＝外送依賴越重</div></div></div><canvas id="chart-d"></canvas></div>
@@ -2131,88 +2119,8 @@ function renderCompare(){
   const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
   const unit={revenue:'元',cups:'杯',customers:'人'}[state.dim];
 
-  // ── 圖表A 摘要卡片 ──
-  const sumEl = document.getElementById('chart-a-summary');
-  if(sumEl){
-    // 本期：最新7天所有日期的每店日均
-    const curAvg  = twDowDailyAvg.filter(v=>v>0).reduce((a,b)=>a+b,0) /
-                    (twDowDailyAvg.filter(v=>v>0).length || 1);
-    // 前期：基線 bClean 的非0平均
-    const prevAvg = bClean.filter(v=>v>0).reduce((a,b)=>a+b,0) /
-                    (bClean.filter(v=>v>0).length || 1);
-    const diffPct = prevAvg>0 ? (prevAvg-curAvg)/prevAvg*100 : 0;  // 前期-本期
-    const absDP   = Math.abs(diffPct);
-    const grow    = diffPct <= -2;   // 本期 > 前期 = 成長
-    const flat    = Math.abs(diffPct) < 2;
-    const diffColor = flat ? 'var(--warn)' : grow ? '#28A745' : 'var(--danger)';
-    const diffIcon  = flat ? '→' : grow ? '▲' : '▼';
-    const fmtVal = v => v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
-    const unitStr = state.dim==='cups'?'杯':state.dim==='customers'?'人':'元';
+  // ── 圖表A 已移除 ──
 
-    sumEl.innerHTML = `
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">本期每店日均</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--accent)">${fmtVal(Math.round(curAvg))}${unitStr}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">最新7天平均</div>
-      </div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:140px;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期基線</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text2)">${fmtVal(Math.round(prevAvg))}${unitStr}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">前月同星期平均</div>
-      </div>
-      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;border-color:${diffColor}44;">
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">前期 − 本期</div>
-        <div style="font-size:20px;font-weight:700;font-family:var(--mono);color:${diffColor}">${diffIcon} ${absDP.toFixed(1)}%</div>
-        <div style="font-size:10px;color:${diffColor};font-weight:600;margin-top:2px">${flat?'持平':grow?'本期成長':'本期衰退'}</div>
-      </div>
-    `;
-  }
-
-  mkChart('chart-a',{
-    type:'line',
-    data:{
-      labels:['週一','週二','週三','週四','週五','週六','週日'],
-      datasets:[
-        {label:'本週每店日均',data:twDowDailyAvg,
-          borderColor:C.a,backgroundColor:C.a+'22',fill:true,
-          tension:0.3,pointRadius:5,pointHoverRadius:8,borderWidth:2.5},
-        {label:'前期基線（每店日均）',data:bClean,
-          borderColor:C.b+'99',borderDash:[6,4],fill:false,
-          tension:0.3,pointRadius:4,pointHoverRadius:7,borderWidth:1.5,
-          pointBackgroundColor:C.b+'88'}
-      ]
-    },
-    options:{
-      ...BO,
-      interaction:{mode:'index',intersect:false},
-      plugins:{
-        legend:{labels:{boxWidth:11}},
-        tooltip:{
-          mode:'index',intersect:false,
-          callbacks:{
-            label:ctx=>{
-              const v=ctx.raw;
-              const fv=v>=10000?(v/10000).toFixed(1)+'萬':v.toLocaleString();
-              const u=state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
-              return ctx.datasetIndex===0?`本週：${fv}${u}`:`前期基線：${fv}${u}`;
-            },
-            afterBody:ctx=>{
-              if(ctx.length<2)return[];
-              const a=ctx[0].raw,b=ctx[1].raw;
-              if(!b)return[];
-              const diff=a-b,pct=((diff/b)*100).toFixed(1);
-              const fd=Math.abs(diff)>=10000?(diff/10000).toFixed(1)+'萬':Math.abs(diff).toLocaleString();
-              return[`差異：${diff>=0?'+':'−'}${fd} (${pct}%)`];
-            }
-          }
-        }
-      },
-      scales:{
-        x:{grid:{display:false}},
-        y:{grid:{color:'#1e2536'},ticks:{callback:v=>v>=10000?(v/10000).toFixed(0)+'萬':v}}
-      }
-    }
-  });
   const byStore=sumByStore(rows);const anomStores=byStore.filter(s=>isAnom(s));
   byStore.forEach(function(s){
     var d=new Set(rows.filter(function(r){return r.store===s.store;}).map(function(r){return r.date;})).size||1;
