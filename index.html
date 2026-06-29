@@ -2626,15 +2626,38 @@ function computeTargetData(){
   };
 }
 
-// 抓取下週 7 天天氣（依選定分區，多區取平均）
+// 抓取下週 7 天天氣：優先用中央氣象署官方預報（透過 GAS 後端代呼叫，金鑰存後端），失敗時退回 Open-Meteo
 function loadWeatherForecast(){
   var btn = document.getElementById('weather-refresh-btn');
   if(btn){ btn.textContent='抓取中…'; btn.disabled=true; }
+  function restore(){ if(btn){ btn.textContent='🔄 重新抓取天氣'; btn.disabled=false; } }
+  function fail(msg){
+    restore();
+    var kpi = document.getElementById('target-kpi');
+    if(kpi) kpi.innerHTML = '<div style="text-align:center;padding:30px;color:var(--danger);width:100%">天氣抓取失敗：'+msg+'<br><span style="font-size:12px;color:var(--text3)">請點「重新抓取天氣」再試一次</span></div>';
+  }
 
-  // 依目前選定的分區決定要抓哪些城市
   var selectedZones = [...state.zones].filter(z=>ZONE_COORDS[z]);
   if(!selectedZones.length) selectedZones = Object.keys(ZONE_COORDS);
 
+  // ① 先試中央氣象署（後端尚未部署 weatherForecast 或無金鑰時，res.ok=false → 自動退回 Open-Meteo）
+  fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'weatherForecast',token:sessionStorage.getItem('ugTok'),zones:selectedZones})})
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res && res.ok && res.days && res.days.length){
+        window._weatherForecast = res.days;
+        window._weatherSource = 'cwa';
+        renderTarget(); restore();
+      } else {
+        loadWeatherForecastOM(selectedZones, restore, fail);
+      }
+    })
+    .catch(function(){ loadWeatherForecastOM(selectedZones, restore, fail); });
+}
+
+// 後備來源：Open-Meteo（免金鑰）
+function loadWeatherForecastOM(selectedZones, restore, fail){
   var promises = selectedZones.map(function(zone){
     var c = ZONE_COORDS[zone];
     var url = 'https://api.open-meteo.com/v1/forecast?latitude='+c.lat+'&longitude='+c.lon
@@ -2644,9 +2667,7 @@ function loadWeatherForecast(){
               pop:d.daily.precipitation_probability_max, psum:d.daily.precipitation_sum};
     });
   });
-
   Promise.all(promises).then(function(results){
-    // 7 天，每天保留「各分區的天氣」，預測時按各區營收加權
     var days = results[0].time.map(function(date, i){
       var zoneWeather = {};
       results.forEach(function(res){
@@ -2657,13 +2678,9 @@ function loadWeatherForecast(){
       return {date:date, zoneWeather:zoneWeather};
     });
     window._weatherForecast = days;
-    renderTarget();
-    if(btn){ btn.textContent='🔄 重新抓取天氣'; btn.disabled=false; }
-  }).catch(function(e){
-    if(btn){ btn.textContent='🔄 重新抓取天氣'; btn.disabled=false; }
-    var kpi = document.getElementById('target-kpi');
-    if(kpi) kpi.innerHTML = '<div style="text-align:center;padding:30px;color:var(--danger);width:100%">天氣抓取失敗：'+e.message+'<br><span style="font-size:12px;color:var(--text3)">請點「重新抓取天氣」再試一次</span></div>';
-  });
+    window._weatherSource = 'openmeteo';
+    renderTarget(); if(restore) restore();
+  }).catch(function(e){ if(fail) fail(e.message); });
 }
 
 function renderTarget(){
@@ -2820,7 +2837,8 @@ function renderTarget(){
 
   if(subEl){
     var city = [...state.zones].filter(function(z){return ZONE_COORDS[z];}).map(function(z){return ZONE_COORDS[z].city;}).join('、') || '全分區';
-    subEl.textContent = '天氣參考城市：'+city+' · 基準：近三月星期×天氣';
+    var src = window._weatherSource==='cwa' ? '中央氣象署官方預報' : window._weatherSource==='openmeteo' ? 'Open-Meteo' : '';
+    subEl.textContent = '天氣參考城市：'+city+(src?' · 來源：'+src:'')+' · 基準：近三月星期×天氣';
   }
 }
 
