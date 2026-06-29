@@ -684,10 +684,10 @@ body.ug-is-admin .ug-admin-only{display:inline;}
     <!-- COMPARE -->
     <div class="tab-page" id="page-compare">
       <div id="anomaly-alerts"></div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title" id="chartb-title">圖表 B · 客單價異常偵測</div><div class="chart-sub" id="chartb-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><div id="chart-b-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="chart-b"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title" id="chartb-title">杯單價/客單價檢視</div><div class="chart-sub" id="chartb-sub">左軸：每店日均業績 · 右軸：日均來客數 · 滑點看客單價</div></div><span class="chart-badge warn" id="chartb-badge">偵測中…</span></div><div id="chart-b-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="chart-b"></canvas></div>
       <div class="grid-2">
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 C · 門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
-        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">圖表 D · 渠道結構健康度</div><div class="chart-sub">水平長條色階：左綠（自有現場/ODO）→ 右紅（高抽成外送 UB/FP），紅色越長＝外送依賴越重</div></div></div><canvas id="chart-d"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">門市排名 Top5 / Bottom5</div><div class="chart-sub" id="chart-c-sub">依當前維度，由高到低</div></div></div><canvas id="chart-c"></canvas></div>
+        <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">渠道結構健康度</div><div class="chart-sub">水平長條色階：左綠（自有現場/ODO）→ 右紅（高抽成外送 UB/FP），紅色越長＝外送依賴越重</div></div></div><canvas id="chart-d"></canvas></div>
       </div>
 
       <!-- 渠道結構分析（含抽傭） -->
@@ -1640,70 +1640,55 @@ function renderWeeklyCompare(){
   } else {
     // ── 模式 B：週加總長條，Y 軸改為每店日均，長條顯示週內日均 ──
     document.getElementById('weekly-compare-title').textContent = '週間業績對比（週每店日均）';
-    document.getElementById('weekly-compare-sub').textContent   = '每週每店日均長條 + 整體均線';
+    document.getElementById('weekly-compare-sub').textContent   = '每週每店日均 vs 前月同序足週（以週一為首）';
     document.getElementById('weekly-compare-badge').textContent = `${rangeLen} 天`;
     document.getElementById('weekly-compare-badge').className   = 'chart-badge warn';
 
-    // 將 activeDates 分組成週（Mon 起始）
-    const weeks=[];
-    let curWeek=null, curLabel=null;
-    ad.forEach(date=>{
-      const row=DATA.find(r=>r.date===date); const dow=row?row.dow:0;
-      if(dow===0||curWeek===null){
-        if(curWeek) weeks.push({label:curLabel,dates:curWeek});
-        curWeek=[date]; curLabel=date;
-      } else { curWeek.push(date); }
-    });
-    if(curWeek&&curWeek.length>0) weeks.push({label:curLabel,dates:curWeek});
-
-    // 每週：每店日均 & 總計
-    const weekData = weeks.map(w=>{
-      const rows   = DATA.filter(r=>storeFilter(r)&&w.dates.includes(r.date));
+    // ── 將日期分成「以週一(dow0)為首」的足週；月內第一個週一起算第1足週，之前的零頭 fullIdx=0 ──
+    function groupWeeks(dates){
+      const ws=[]; let cur=null;
+      dates.forEach(date=>{
+        const row=DATA.find(r=>r.date===date); const dow=row?row.dow:0;
+        if(dow===0 || cur===null){ if(cur) ws.push(cur); cur={dates:[date], startDow:dow}; }
+        else cur.dates.push(date);
+      });
+      if(cur) ws.push(cur);
+      let n=0; ws.forEach(w=>{ w.fullIdx = (w.startDow===0)?(++n):0; });
+      return ws;
+    }
+    // 一組日期的每店日均 & 總計
+    function weeklyAvg(dateList){
+      const rows   = DATA.filter(r=>storeFilter(r)&&dateList.includes(r.date));
       const stores = new Set(rows.map(r=>r.store)).size||1;
-      const days   = w.dates.length||1;
+      const days   = dateList.length||1;
       const tot    = rows.reduce((s,r)=>s+r[dim],0);
       return { avg: Math.round(tot/stores/days), total: tot, stores, days };
-    });
+    }
 
-    // 基線 = 選定區間前月，各 dow 每店日均
+    const weeks    = groupWeeks(ad);
+    const weekData = weeks.map(w=>weeklyAvg(w.dates));
+
+    // 基線：前月「同序足週」的每店日均（六月第1足週 6/1～6/7 ↔ 五月第1足週 5/4～5/10）
     const prev28B    = getBaselineDates();
-    const prev28BSet = new Set(prev28B);
-    const prevMonthB = prev28B.length
-      ? `${parseInt(prev28B[0].split('/')[0])}/${parseInt(prev28B[0].split('/')[1])}～${parseInt(prev28B[prev28B.length-1].split('/')[0])}/${parseInt(prev28B[prev28B.length-1].split('/')[1])}`
-      : '前期';
-    const prevRowsB = DATA.filter(r => storeFilter(r) && prev28BSet.has(r.date));
-
-    const prevDowAvg = Array(7).fill(0).map((_,dow) => {
-      const rows = prevRowsB.filter(r => r.dow === dow);
-      const daySet = new Set(rows.map(r=>r.date));
-      if(!daySet.size) return 0;
-      const tot = rows.reduce((s,r)=>s+r[dim], 0);
-      let storeSum=0;
-      daySet.forEach(date=>{storeSum+=new Set(rows.filter(r=>r.date===date).map(r=>r.store)).size;});
-      return Math.round(tot / daySet.size / (storeSum/daySet.size||1));
-    });
-
-    // 每週基線 = 該週所有天的上月同 dow 均值的加權平均
-    const avgLine = weeks.map(w => {
-      const dayAvgs = w.dates.map(date => {
-        const row = DATA.find(r => r.date === date);
-        return row ? prevDowAvg[row.dow] : 0;
-      }).filter(v => v > 0);
-      return dayAvgs.length ? Math.round(dayAvgs.reduce((a,b)=>a+b,0)/dayAvgs.length) : 0;
-    });
+    const prevWeeks  = groupWeeks(prev28B);
+    const prevByIdx  = {};
+    prevWeeks.forEach(w=>{ if(w.fullIdx>0) prevByIdx[w.fullIdx]=weeklyAvg(w.dates).avg; });
+    const prevMonthB = prev28B.length ? `${parseInt(prev28B[0].split('/')[0])}月` : '前期';
+    const avgLine    = weeks.map(w => (w.fullIdx>0 && prevByIdx[w.fullIdx]!=null) ? prevByIdx[w.fullIdx] : 0);
 
     // 保留 overall 用於 tooltip 說明
     const allRows = DATA.filter(r=>storeFilter(r)&&ad.includes(r.date));
     const overall = getDailyAvg(allRows, ad);
 
-    const weekLabels=weeks.map((w,i)=>{
-      const[m,d]=w.label.split('/');
+    const weekLabels=weeks.map((w)=>{
+      const[m,d]=w.dates[0].split('/');
       const endDate=w.dates[w.dates.length-1];
       const[em,ed]=endDate.split('/');
       const dayCount=w.dates.length;
       // 不完整的週加上天數說明
       const suffix = dayCount<7 ? `（${dayCount}天）` : '';
-      return `第${i+1}週 ${suffix}\n${parseInt(m)}/${parseInt(d)}～${parseInt(em)}/${parseInt(ed)}`;
+      const wkName = w.fullIdx>0 ? `第${w.fullIdx}週` : '零頭';
+      return `${wkName} ${suffix}\n${parseInt(m)}/${parseInt(d)}～${parseInt(em)}/${parseInt(ed)}`;
     });
 
     mkChart('weekly-compare-chart',{
@@ -1722,7 +1707,7 @@ function renderWeeklyCompare(){
               return Math.abs(diff)<(avgLine[i]||1)*0.02?C.w:diff>0?'#28A745':C.d;
             }),
             borderWidth:1.5, borderRadius:5, maxBarThickness:40, order:2 },
-          { type:'line', label:`前月基線（${prevMonthB}）`,
+          { type:'line', label:`前月同序足週（${prevMonthB}）`,
             data:avgLine,
             borderColor:C.b, borderDash:[5,4], borderWidth:2,
             pointRadius:5, pointBackgroundColor:C.b,
@@ -1746,7 +1731,7 @@ function renderWeeklyCompare(){
                     `週總計：${fmtV(d.total)}${UNIT[state.dim]}（${d.stores}店×${d.days}天）`
                   ];
                 }
-                return [`前月基線：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
+                return [`前月同序足週：${fmtV(ctx.raw)}${UNIT[state.dim]}`];
               },
               afterBody: ctx=>{
                 const d=weekData[ctx[0]?.dataIndex];
@@ -1754,7 +1739,7 @@ function renderWeeklyCompare(){
                 const base = avgLine[ctx[0]?.dataIndex] || 0;
                 if(!base) return [];
                 const diff=base-d.avg, pct=((diff/base)*100).toFixed(1);  // 前期-本期
-                return [`vs 前月基線：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
+                return [`vs 前月同序足週：${diff>=0?'+':''}${fmtV(diff)} (${pct}%)`];
               }
             }
           }
@@ -2145,7 +2130,7 @@ function renderCompare(){
   // ── 標題 / 副標 ──
   var tEl=document.getElementById('chartb-title');
   var sEl=document.getElementById('chartb-sub');
-  if(tEl)tEl.textContent='圖表 B · '+priceLabel+'異常偵測';
+  if(tEl)tEl.textContent='杯單價/客單價檢視';
   if(sEl)sEl.textContent='左軸：每店日均業績 · 右軸：'+rightLabel+' · 滑點看'+priceLabel;
 
   // ── 摘要字卡（全選店家總計）：每店日均業績 / 日均來客或杯數 / 客單價或杯單價 ──
