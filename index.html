@@ -890,7 +890,17 @@ async function pushToGitHub(newRows){
     pushLog('🚀 上傳 '+newRows.length+' 筆至資料庫…');
     var r = await fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'syncData',token:stok,rows:newRows})});
     var j = await r.json();
-    if(!j.ok) throw new Error(j.error||'上傳失敗');
+    if(!j.ok){
+      if(j.expired || j.error==='unauthorized'){
+        pushLog('🔒 登入已逾時（安全機制：登入滿 6 小時自動失效），你的資料未遺失。');
+        var pl=document.getElementById('push-log');
+        if(pl) pl.innerHTML += '<div style="margin-top:8px"><button onclick="sessionStorage.clear();location.reload()" style="background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;padding:7px 14px;font-family:var(--font);font-weight:600">🔑 重新登入</button> <span style="color:var(--text3)">登入後回上傳頁重新上傳即可</span></div>';
+        document.getElementById('push-icon').textContent='🔒';
+        document.getElementById('push-title').textContent='登入逾時，請重新登入';
+        return;
+      }
+      throw new Error(j.error||'上傳失敗');
+    }
     pushLog('✅ 完成：新增 '+j.added+' 筆、更新 '+j.updated+' 筆，資料庫總計 '+j.total+' 筆');
     document.getElementById('push-icon').textContent='✅';
     document.getElementById('push-title').textContent='成功！新增 '+j.added+' 筆，更新 '+j.updated+' 筆';
