@@ -891,9 +891,42 @@ function parseCSV(text){
 /* ── GitHub 推送 ── */
 function pushLog(msg){ const el=document.getElementById('push-log'); if(el) el.innerHTML += msg+'\n'; }
 
+/* ═══ 免逾時登入：refresh token 自動換發 access token ═══ */
+// 用 localStorage 的 refresh token 換一組新的 access token（存回 sessionStorage）；成功回 true
+function ugRefreshToken(){
+  var rt = localStorage.getItem('ugRefresh');
+  if(!rt) return Promise.resolve(false);
+  return fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'refresh',refreshToken:rt})})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j && j.ok && j.token){ sessionStorage.setItem('ugTok', j.token); if(j.role) sessionStorage.setItem('ugRole', j.role); return true; }
+      if(j && (j.error==='refresh_expired' || j.error==='refresh_invalid')) localStorage.removeItem('ugRefresh');
+      return false;
+    })
+    .catch(function(){ return false; });
+}
+// 登入後領一組長效 refresh token 存進 localStorage
+function ugIssueRefresh(){
+  var tk = sessionStorage.getItem('ugTok'); if(!tk) return;
+  fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'issueRefresh',token:tk})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(j && j.ok && j.refreshToken) localStorage.setItem('ugRefresh', j.refreshToken); })
+    .catch(function(){});
+}
+// 認證呼叫：自動帶目前 token，遇 unauthorized/expired 先 refresh 再重試一次
+function ugAuthCall(payload){
+  function call(){ var p=Object.assign({},payload,{token:sessionStorage.getItem('ugTok')});
+    return fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(p)}).then(function(r){return r.json();}); }
+  return call().then(function(j){
+    if(j && (j.expired || j.error==='unauthorized')){
+      return ugRefreshToken().then(function(ok){ return ok ? call() : j; });
+    }
+    return j;
+  });
+}
+
 async function pushToGitHub(newRows){
-  var stok = sessionStorage.getItem('ugTok');
-  if(!stok){
+  if(!sessionStorage.getItem('ugTok') && !localStorage.getItem('ugRefresh')){
     pushLog('❌ 尚未登入，請重新整理頁面登入後再試');
     document.getElementById('push-icon').textContent='❌';
     document.getElementById('push-title').textContent='未登入';
@@ -902,8 +935,7 @@ async function pushToGitHub(newRows){
   }
   try{
     pushLog('🚀 上傳 '+newRows.length+' 筆至資料庫…');
-    var r = await fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'syncData',token:stok,rows:newRows})});
-    var j = await r.json();
+    var j = await ugAuthCall({action:'syncData',rows:newRows});
     if(!j.ok){
       if(j.expired || j.error==='unauthorized'){
         pushLog('🔒 登入已逾時（安全機制：登入滿 6 小時自動失效），你的資料未遺失。');
@@ -3613,8 +3645,14 @@ window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZK
 (function(){
   'use strict';
   function api(payload){
-    return fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)})
-      .then(function(r){return r.json();});
+    function once(pl){ return fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(pl)}).then(function(r){return r.json();}); }
+    return once(payload).then(function(j){
+      // 認證呼叫遇 token 過期 → 自動 refresh 後重試一次
+      if(j && (j.expired || j.error==='unauthorized') && payload.token!==undefined){
+        return ugRefreshToken().then(function(ok){ if(!ok) return j; return once(Object.assign({},payload,{token:sessionStorage.getItem('ugTok')})); });
+      }
+      return j;
+    });
   }
   function tok(){ return sessionStorage.getItem('ugTok'); }
   function el(id){ return document.getElementById(id); }
@@ -3677,6 +3715,7 @@ window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZK
           sessionStorage.setItem('ugTok', r.token);
           sessionStorage.setItem('ugRole', r.role);
           sessionStorage.setItem('ugWho', u.trim().toLowerCase());
+          ugIssueRefresh();   // 領長效 refresh token，之後 access token 過期會自動換新
           if(r.mustChange){
             var np = prompt('首次登入，請設定您的新密碼（至少 8 碼）：');
             while(np !== null && np.length < 8){ np = prompt('密碼太短，請輸入至少 8 碼：'); }
@@ -3699,8 +3738,17 @@ window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZK
         .catch(function(){ loginFail('連線失敗，請稍後再試'); });
     });
     if(tok()) loadData();
+    else if(localStorage.getItem('ugRefresh')){
+      // 重開分頁/隔天回來：sessionStorage 空但有 refresh token → 自動換新登入，不必重打密碼
+      el('ugAuthCard').innerHTML = '<h1>UG 營運系統</h1><div class="skeleton">回復登入中…</div>';
+      ugRefreshToken().then(function(ok){ if(ok) loadData(); });
+    }
   });
-  window.ugLogout = function(){ sessionStorage.clear(); location.reload(); };
+  window.ugLogout = function(){
+    var rt = localStorage.getItem('ugRefresh');
+    if(rt){ try{ fetch(window.GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'revokeRefresh',refreshToken:rt})}); }catch(e){} }
+    localStorage.removeItem('ugRefresh'); sessionStorage.clear(); location.reload();
+  };
   window.ugOpenAcct = function(){ el('ugAcctPanel').style.display='flex'; ugRefreshUsers(); };
   window.ugRefreshUsers = function(){
     api({action:'listUsers',token:tok()}).then(function(r){
