@@ -642,6 +642,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
             </div>
           </div>
         </div>
+        <div id="rank-avg-card"></div>
         <div id="rank-card-wall" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;"></div>
       </div>
       <div class="grid-2">
@@ -1242,6 +1243,7 @@ function renderToday(){
       </div>`;
     destroyChart('today-channel');
     document.getElementById('rank-card-wall').innerHTML='';
+    document.getElementById('rank-avg-card').innerHTML='';
     return;
   }
 
@@ -1624,6 +1626,57 @@ function renderRankWall(byStore, allRows, dayCount){
     }
     return { s, idx, val, days, prevVal, chgClass, chgText, trendIcon, trendClass, anom:isAnom(s) };
   });
+
+  // ── 平均下滑比例字卡（排除新店/無基線 & 離群 >±40%）──
+  const OUTLIER = 40;
+  const _inc = [];         // 納入統計的變動%（前期−本期：正=衰退）
+  const _newStores = [];   // 新店/無基線
+  const _outliers  = [];   // 離群（單店變動 >±40%）
+  items.forEach(it=>{
+    if(it.prevVal === null || it.prevVal <= 0){ _newStores.push(it.s.name); return; }
+    const chg = (it.prevVal - it.val)/it.prevVal*100;
+    if(Math.abs(chg) > OUTLIER){ _outliers.push({ name:it.s.name, chg }); return; }
+    _inc.push(chg);
+  });
+  const _avg = _inc.length ? _inc.reduce((a,b)=>a+b,0)/_inc.length : null;
+
+  const avgCard = document.getElementById('rank-avg-card');
+  if(avgCard){
+    let mainHtml;
+    if(_avg === null){
+      mainHtml = '<div style="font-size:13px;color:var(--text3)">無足夠可比門市</div>';
+    } else {
+      const flat = Math.abs(_avg) < 2, decline = _avg > 0;
+      const col  = flat ? 'var(--warn)' : decline ? 'var(--danger)' : 'var(--accent2)';
+      const arr  = flat ? '→' : decline ? '▼' : '▲';
+      const word = flat ? '平均持平' : decline ? '平均下滑' : '平均成長';
+      mainHtml =
+        '<div style="font-size:11px;color:var(--text3);margin-bottom:2px">'+word+'（'+DIM_LABEL_SHORT[dim]+'·前期−本期）</div>'
+        + '<div style="font-size:26px;font-weight:700;color:'+col+'">'+arr+' '+Math.abs(_avg).toFixed(1)+'%</div>';
+    }
+    const parts = ['納入統計 <b style="color:var(--text)">'+_inc.length+'</b> 家'];
+    if(_newStores.length) parts.push('排除新店/無基線 '+_newStores.length+' 家');
+    if(_outliers.length)  parts.push('排除離群 '+_outliers.length+' 家');
+    let detail = '';
+    if(_newStores.length) detail += '<div>🆕 新店／無基線（未列入）：'+_newStores.join('、')+'</div>';
+    if(_outliers.length){
+      const outTxt = _outliers.sort((a,b)=>Math.abs(b.chg)-Math.abs(a.chg)).map(o=>{
+        const up = o.chg < 0;   // 前期−本期 為負 = 成長
+        const c  = up ? 'var(--accent2)' : 'var(--danger)';
+        const ar = up ? '▲' : '▼';
+        return '<span style="color:'+c+'">'+o.name+' '+ar+Math.abs(o.chg).toFixed(0)+'%</span>';
+      }).join('、');
+      detail += '<div>⚠ 離群（單店變動 &gt;±40%，不列入平均）：'+outTxt+'</div>';
+    }
+    if(!detail) detail = '<div style="color:var(--text3)">無排除項目</div>';
+    avgCard.innerHTML =
+      '<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;padding:12px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);margin-bottom:14px">'
+      + '<div style="min-width:150px">'+mainHtml+'</div>'
+      + '<div style="flex:1;min-width:220px;font-size:12px;color:var(--text2);line-height:1.75">'
+      +   '<div style="margin-bottom:2px">'+parts.join('　·　')+'</div>'
+      +   detail
+      + '</div></div>';
+  }
 
   // ── 條列模式：高密度表格，一眼看完不眼花 ──
   if(window._rankView === 'list'){
