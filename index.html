@@ -671,6 +671,19 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         <canvas id="weekly-compare-chart"></canvas>
       </div>
 
+      <!-- 本週 vs 上週（同星期幾） -->
+      <div class="chart-panel" id="wow-compare-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">本週 vs 上週（同星期幾）</div>
+            <div class="chart-sub">以資料最新 7 天為本週，對比前 7 天；同星期幾疊圖 + 7 天滾動差異</div>
+          </div>
+          <span class="chart-badge ok">WoW</span>
+        </div>
+        <div id="wow-headline" style="margin:6px 0 12px"></div>
+        <canvas id="wow-compare-chart"></canvas>
+      </div>
+
     </div>
     <!-- TREND -->
     <div class="tab-page" id="page-trend">
@@ -1366,6 +1379,87 @@ function renderToday(){
   }
 
   renderWeeklyCompare();
+  renderWoWCompare();
+}
+
+/* ══ 本週 vs 上週（同星期幾） ══ */
+function renderWoWCompare(){
+  const dim = DIM_KEY[state.dim];
+  const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
+  const UNIT   = {revenue:'元', cups:'杯', customers:'人'};
+  const DLABEL = {revenue:'每店日均淨額', cups:'每店日均杯數', customers:'每店日均來客'};
+  const fmtV   = v => Math.abs(v)>=10000 ? (v/10000).toFixed(1)+'萬' : Math.round(v).toLocaleString();
+  const DOW_ZH = ['一','二','三','四','五','六','日'];
+  const headEl = document.getElementById('wow-headline');
+  if(!headEl) return;
+
+  // 本週 = 資料最新 7 天；上週 = 前 7 天
+  const thisWk = ALL_DATES.slice(-7);
+  const lastWk = ALL_DATES.slice(-14, -7);
+  if(lastWk.length < 1){
+    headEl.innerHTML = '<span style="color:var(--text2)">資料不足 14 天，無法比較本週 vs 上週。</span>';
+    destroyChart('wow-compare-chart');
+    return;
+  }
+
+  // 某天的每店日均（該天總值 ÷ 當天有資料店家數）
+  function dailyAvg(date){
+    const rows   = DATA.filter(r => storeFilter(r) && r.date === date);
+    const stores = new Set(rows.map(r=>r.store)).size;
+    if(!stores) return null;
+    return Math.round(rows.reduce((s,r)=>s+r[dim],0) / stores);
+  }
+
+  // 依 dow 對齊（0=週一 … 6=週日）
+  const thisByDow = Array(7).fill(null);
+  const lastByDow = Array(7).fill(null);
+  thisWk.forEach(d=>{ const row=DATA.find(r=>r.date===d); if(row) thisByDow[row.dow]=dailyAvg(d); });
+  lastWk.forEach(d=>{ const row=DATA.find(r=>r.date===d); if(row) lastByDow[row.dow]=dailyAvg(d); });
+
+  // 7 天滾動總和（每店累計日均，店數中性）
+  const sumThis = thisByDow.reduce((s,v)=>s+(v||0),0);
+  const sumLast = lastByDow.reduce((s,v)=>s+(v||0),0);
+  const diff = sumThis - sumLast;
+  const pct  = sumLast ? (diff/sumLast*100) : 0;
+  const flat = Math.abs(pct) < 3, up = diff > 0;
+  const col  = flat ? C.w : up ? C.b : C.d;
+  const arrow= flat ? '→' : up ? '▲' : '▼';
+  const word = flat ? '持平' : up ? '成長' : '衰退';
+
+  headEl.innerHTML =
+    '<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">'
+    + '<div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">近 7 天 vs 前 7 天（'+DLABEL[state.dim]+'累計）</div>'
+    + '<div style="font-size:26px;font-weight:700;color:'+col+'">'+arrow+' '+Math.abs(pct).toFixed(1)+'%'
+    + ' <span style="font-size:14px;font-weight:500">'+word+'</span></div></div>'
+    + '<div style="font-size:12px;color:var(--text2);line-height:1.7">'
+    +   '本週 '+fmtV(sumThis)+UNIT[state.dim]+'　·　上週 '+fmtV(sumLast)+UNIT[state.dim]+'<br>'
+    +   '差額 '+(diff>=0?'+':'')+fmtV(diff)+UNIT[state.dim]
+    + '</div></div>';
+
+  const labels = DOW_ZH.map(d=>'週'+d);
+  mkChart('wow-compare-chart',{
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'本週', data:thisByDow, borderColor:C.b, backgroundColor:C.b+'22',
+        borderWidth:2.5, pointRadius:4, pointBackgroundColor:C.b, tension:0.3, spanGaps:true, fill:true, order:1 },
+      { label:'上週', data:lastByDow, borderColor:'#9aa4b2', borderDash:[5,4],
+        borderWidth:2, pointRadius:4, pointBackgroundColor:'#9aa4b2', tension:0.3, spanGaps:true, fill:false, order:2 }
+    ]},
+    options:{ ...BO,
+      scales:{ x:{grid:{display:false}}, y:{grid:{color:'#1e2536'}, ticks:{callback:v=>fmtV(v)}} },
+      plugins:{ legend:{labels:{boxWidth:11}},
+        tooltip:{ mode:'index', intersect:false, callbacks:{
+          label: ctx => ctx.dataset.label+'：'+(ctx.raw==null?'—':fmtV(ctx.raw)+UNIT[state.dim]),
+          afterBody: ctx => {
+            const t=ctx.find(c=>c.dataset.label==='本週'), l=ctx.find(c=>c.dataset.label==='上週');
+            if(!t||!l||l.raw==null||t.raw==null||!l.raw) return [];
+            const d=t.raw-l.raw, p=(d/l.raw*100).toFixed(1);
+            return ['同星期差異：'+(d>=0?'+':'')+fmtV(d)+UNIT[state.dim]+' ('+p+'%)'];
+          }
+        }}
+      }
+    }
+  });
 }
 
 
