@@ -672,16 +672,16 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         <canvas id="weekly-compare-chart"></canvas>
       </div>
 
-      <!-- 本週 vs 上週（同星期幾） -->
+      <!-- 上週 vs 上上週（同星期幾） -->
       <div class="chart-panel" id="wow-compare-panel">
         <div class="chart-header">
           <div>
-            <div class="chart-title">本週 vs 上週（同星期幾）</div>
-            <div class="chart-sub">以資料最新 7 天為本週，對比前 7 天；同星期幾疊圖 + 7 天滾動差異</div>
+            <div class="chart-title">上週 vs 上上週（同星期幾）</div>
+            <div class="chart-sub">自動取最近兩個完整週（週一～週日），每週一更新即可直接看，免調日期</div>
           </div>
-          <span class="chart-badge ok">WoW</span>
+          <div id="wow-metric-btns" style="display:flex;gap:4px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
         </div>
-        <div id="wow-headline" style="margin:6px 0 12px"></div>
+        <div id="wow-headline" style="margin:8px 0 14px"></div>
         <canvas id="wow-compare-chart"></canvas>
       </div>
 
@@ -1416,79 +1416,112 @@ function renderToday(){
   renderWoWCompare();
 }
 
-/* ══ 本週 vs 上週（同星期幾） ══ */
+/* ══ 上週 vs 上上週（同星期幾）：自動取最近兩個完整週(週一~週日) ══ */
+function setWoWMetric(k){ window._wowMetric = k; renderWoWCompare(); }
 function renderWoWCompare(){
-  const dim = DIM_KEY[state.dim];
-  const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
-  const UNIT   = {revenue:'元', cups:'杯', customers:'人'};
-  const DLABEL = {revenue:'每店日均淨額', cups:'每店日均杯數', customers:'每店日均來客'};
-  const fmtV   = v => Math.abs(v)>=10000 ? (v/10000).toFixed(1)+'萬' : Math.round(v).toLocaleString();
-  const DOW_ZH = ['一','二','三','四','五','六','日'];
   const headEl = document.getElementById('wow-headline');
+  const btnEl  = document.getElementById('wow-metric-btns');
   if(!headEl) return;
 
-  // 本週 = 資料最新 7 天；上週 = 前 7 天
-  const thisWk = ALL_DATES.slice(-7);
-  const lastWk = ALL_DATES.slice(-14, -7);
-  if(lastWk.length < 1){
-    headEl.innerHTML = '<span style="color:var(--text2)">資料不足 14 天，無法比較本週 vs 上週。</span>';
+  const METRICS = [
+    {key:'rev_total', label:'日總業績',   field:'revenue',  avg:false, unit:'元', money:true},
+    {key:'rev_avg',   label:'日店平均',   field:'revenue',  avg:true,  unit:'元', money:true},
+    {key:'cups',      label:'杯數',       field:'cups',     avg:false, unit:'杯', money:false},
+    {key:'customers', label:'來客',       field:'customers',avg:false, unit:'人', money:false}
+  ];
+  if(!window._wowMetric) window._wowMetric = 'rev_total';
+  const M = METRICS.find(m=>m.key===window._wowMetric) || METRICS[0];
+  const unit = M.unit;
+  const fmtV = v => (M.money && Math.abs(v)>=10000) ? (v/10000).toFixed(1)+'萬' : Math.round(v).toLocaleString();
+  const DOW_ZH = ['一','二','三','四','五','六','日'];
+  const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
+
+  if(btnEl){
+    btnEl.innerHTML = METRICS.map(m=>{
+      const on = m.key===M.key;
+      return '<button onclick="setWoWMetric(\''+m.key+'\')" style="padding:5px 11px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+m.label+'</button>';
+    }).join('');
+  }
+
+  // 把所有資料日期依「週一為首」分週，取最近兩個完整週（含週日）
+  const weeks = {};
+  ALL_DATES.forEach(d=>{
+    const yr = DATE_YEAR_MAP[d] || TODAY.getFullYear();
+    const dt = internalToDate(d, yr);
+    if(isNaN(dt)) return;
+    const dow = (dt.getDay()+6)%7;                          // 0=週一 … 6=週日
+    const mon = new Date(dt.getTime() - dow*86400000);
+    const key = mon.getFullYear()+'-'+(mon.getMonth()+1)+'-'+mon.getDate();
+    if(!weeks[key]) weeks[key] = { monday:mon, list:[], dows:new Set() };
+    weeks[key].list.push({date:d, dow:dow});
+    weeks[key].dows.add(dow);
+  });
+  const complete = Object.values(weeks).filter(w=>w.dows.has(6)).sort((a,b)=>b.monday-a.monday);
+  if(complete.length < 2){
+    headEl.innerHTML = '<span style="color:var(--text2)">尚無兩個完整週（週一～週日）可比較，請先累積滿兩個完整週的資料。</span>';
     destroyChart('wow-compare-chart');
     return;
   }
+  const wLast = complete[0], wPrev = complete[1];   // 上週、上上週
+  const wkRange = w => { const f=dt=>(dt.getMonth()+1)+'/'+dt.getDate(); return f(w.monday)+'～'+f(new Date(w.monday.getTime()+6*86400000)); };
+  const lastRange = wkRange(wLast), prevRange = wkRange(wPrev);
 
-  // 某天的每店日均（該天總值 ÷ 當天有資料店家數）
-  function dailyAvg(date){
-    const rows   = DATA.filter(r => storeFilter(r) && r.date === date);
-    const stores = new Set(rows.map(r=>r.store)).size;
-    if(!stores) return null;
-    return Math.round(rows.reduce((s,r)=>s+r[dim],0) / stores);
+  const dateOf = (w,dw)=>{ const f=w.list.find(x=>x.dow===dw); return f?f.date:null; };
+  function valOf(date){
+    if(!date) return null;
+    const rows = DATA.filter(r=>storeFilter(r) && r.date===date);
+    if(!rows.length) return null;
+    const tot = rows.reduce((s,r)=>s+r[M.field],0);
+    if(M.avg){ const st=new Set(rows.map(r=>r.store)).size||1; return Math.round(tot/st); }
+    return tot;
   }
+  const lastByDow = Array(7).fill(null).map((_,dw)=>valOf(dateOf(wLast,dw)));
+  const prevByDow = Array(7).fill(null).map((_,dw)=>valOf(dateOf(wPrev,dw)));
 
-  // 依 dow 對齊（0=週一 … 6=週日）
-  const thisByDow = Array(7).fill(null);
-  const lastByDow = Array(7).fill(null);
-  thisWk.forEach(d=>{ const row=DATA.find(r=>r.date===d); if(row) thisByDow[row.dow]=dailyAvg(d); });
-  lastWk.forEach(d=>{ const row=DATA.find(r=>r.date===d); if(row) lastByDow[row.dow]=dailyAvg(d); });
+  // 週彙總：total 類=7天加總；日店平均=7天平均
+  const agg = arr => { const v=arr.filter(x=>x!=null); if(!v.length) return 0; const s=v.reduce((a,b)=>a+b,0); return M.avg? Math.round(s/v.length): s; };
+  const aggLast = agg(lastByDow), aggPrev = agg(prevByDow);
+  const gPct = aggPrev ? (aggLast-aggPrev)/aggPrev*100 : 0;   // 成長率：上週 vs 上上週（正=成長）
+  const flatg = Math.abs(gPct)<=0.5, up = gPct>0.5;
+  const gcol = flatg?C.w: up?C.b:C.d, garrow = flatg?'→': up?'▲':'▼';
 
-  // 7 天滾動總和（每店累計日均，店數中性）
-  const sumThis = thisByDow.reduce((s,v)=>s+(v||0),0);
-  const sumLast = lastByDow.reduce((s,v)=>s+(v||0),0);
-  const diff = sumThis - sumLast;
-  const pct  = sumLast ? (diff/sumLast*100) : 0;
-  const flat = Math.abs(pct) < 3, up = diff > 0;
-  const col  = flat ? C.w : up ? C.b : C.d;
-  const arrow= flat ? '→' : up ? '▲' : '▼';
-  const word = flat ? '持平' : up ? '成長' : '衰退';
+  // 最強/最弱星期（同星期成長率）
+  let best=null, worst=null;
+  for(let dw=0; dw<7; dw++){ const a=lastByDow[dw], b=prevByDow[dw]; if(a==null||b==null||!b) continue; const p=(a-b)/b*100;
+    if(best==null||p>best.p) best={dw,p}; if(worst==null||p<worst.p) worst={dw,p}; }
 
-  headEl.innerHTML =
-    '<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap">'
-    + '<div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">近 7 天 vs 前 7 天（'+DLABEL[state.dim]+'累計）</div>'
-    + '<div style="font-size:26px;font-weight:700;color:'+col+'">'+arrow+' '+Math.abs(pct).toFixed(1)+'%'
-    + ' <span style="font-size:14px;font-weight:500">'+word+'</span></div></div>'
-    + '<div style="font-size:12px;color:var(--text2);line-height:1.7">'
-    +   '本週 '+fmtV(sumThis)+UNIT[state.dim]+'　·　上週 '+fmtV(sumLast)+UNIT[state.dim]+'<br>'
-    +   '差額 '+(diff>=0?'+':'')+fmtV(diff)+UNIT[state.dim]
-    + '</div></div>';
+  const aggLabel = M.avg? '週日均' : '週合計';
+  const kc = (lbl,val,sub,color)=> '<div style="flex:1;min-width:118px;background:var(--bg3);border:1px solid '+(color||'var(--border)')+'55;border-radius:8px;padding:10px 14px">'
+    + '<div style="font-size:10px;color:var(--text3);margin-bottom:4px">'+lbl+'</div>'
+    + '<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:'+(color||'var(--text)')+'">'+val+'</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(sub||'')+'</div></div>';
+  headEl.innerHTML = '<div style="display:flex;gap:10px;flex-wrap:wrap">'
+    + kc('上週 '+aggLabel, fmtV(aggLast)+unit, lastRange, 'var(--accent)')
+    + kc('上上週 '+aggLabel, fmtV(aggPrev)+unit, prevRange, 'var(--text2)')
+    + kc(M.label+' 成長率', garrow+' '+Math.abs(gPct).toFixed(1)+'%', '差額 '+((aggLast-aggPrev)>=0?'+':'')+fmtV(aggLast-aggPrev)+unit, gcol)
+    + (best? kc('最強星期', '週'+DOW_ZH[best.dw], (best.p>=0?'+':'')+best.p.toFixed(1)+'%', '#28A745') : '')
+    + (worst && (!best || worst.dw!==best.dw)? kc('最弱星期', '週'+DOW_ZH[worst.dw], (worst.p>=0?'+':'')+worst.p.toFixed(1)+'%', 'var(--danger)') : '')
+    + '</div>';
 
   const labels = DOW_ZH.map(d=>'週'+d);
   mkChart('wow-compare-chart',{
     type:'line',
     data:{ labels, datasets:[
-      { label:'本週', data:thisByDow, borderColor:C.b, backgroundColor:C.b+'22',
+      { label:'上週', data:lastByDow, borderColor:C.b, backgroundColor:C.b+'22',
         borderWidth:2.5, pointRadius:4, pointBackgroundColor:C.b, tension:0.3, spanGaps:true, fill:true, order:1 },
-      { label:'上週', data:lastByDow, borderColor:'#9aa4b2', borderDash:[5,4],
+      { label:'上上週', data:prevByDow, borderColor:'#9aa4b2', borderDash:[5,4],
         borderWidth:2, pointRadius:4, pointBackgroundColor:'#9aa4b2', tension:0.3, spanGaps:true, fill:false, order:2 }
     ]},
     options:{ ...BO,
       scales:{ x:{grid:{display:false}}, y:{grid:{color:'#1e2536'}, ticks:{callback:v=>fmtV(v)}} },
-      plugins:{ legend:{labels:{boxWidth:11}},
+      plugins:{ legend:{labels:{boxWidth:11}}, datalabels:{display:false},
         tooltip:{ mode:'index', intersect:false, callbacks:{
-          label: ctx => ctx.dataset.label+'：'+(ctx.raw==null?'—':fmtV(ctx.raw)+UNIT[state.dim]),
+          label: ctx => ctx.dataset.label+'：'+(ctx.raw==null?'—':fmtV(ctx.raw)+unit),
           afterBody: ctx => {
-            const t=ctx.find(c=>c.dataset.label==='本週'), l=ctx.find(c=>c.dataset.label==='上週');
+            const t=ctx.find(c=>c.dataset.label==='上週'), l=ctx.find(c=>c.dataset.label==='上上週');
             if(!t||!l||l.raw==null||t.raw==null||!l.raw) return [];
             const d=t.raw-l.raw, p=(d/l.raw*100).toFixed(1);
-            return ['同星期差異：'+(d>=0?'+':'')+fmtV(d)+UNIT[state.dim]+' ('+p+'%)'];
+            return ['同星期成長：'+(d>=0?'+':'')+fmtV(d)+unit+' ('+p+'%)'];
           }
         }}
       }
