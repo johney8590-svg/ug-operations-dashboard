@@ -586,11 +586,11 @@ body.ug-is-admin .ug-admin-only{display:inline;}
 
         <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
           <div class="drop-icon">📊</div>
-          <div class="drop-title">點擊選擇或拖曳 Excel / CSV</div>
-          <div class="drop-sub">格式需與現有資料相同（門市、日期、淨額、杯數…）</div>
+          <div class="drop-title">點擊選擇或拖曳 Excel / CSV（可一次多個檔）</div>
+          <div class="drop-sub">格式需與現有資料相同（門市、日期、淨額、杯數…）· 多檔會自動對應並批次上傳</div>
           <div class="drop-formats"><span class="fmt-badge">.xlsx</span><span class="fmt-badge">.xls</span><span class="fmt-badge">.csv</span></div>
         </div>
-        <input type="file" id="file-input" accept=".csv,.xlsx,.xls">
+        <input type="file" id="file-input" accept=".csv,.xlsx,.xls" multiple>
         <span class="sample-link" onclick="event.stopPropagation();downloadSampleCSV()">⬇ 下載範例 CSV 格式</span>
       </div>
 
@@ -872,15 +872,100 @@ function downloadSampleCSV(){
 }
 const fileInput=document.getElementById('file-input');
 const dropZoneEl=document.getElementById('drop-zone');
-fileInput.addEventListener('change',e=>{if(e.target.files[0])processFile(e.target.files[0]);});
+fileInput.addEventListener('change',e=>{if(e.target.files&&e.target.files.length)handleFiles(e.target.files);});
 dropZoneEl.addEventListener('dragover',e=>{e.preventDefault();dropZoneEl.classList.add('drag-over');});
 dropZoneEl.addEventListener('dragleave',()=>dropZoneEl.classList.remove('drag-over'));
-dropZoneEl.addEventListener('drop',e=>{e.preventDefault();dropZoneEl.classList.remove('drag-over');if(e.dataTransfer.files[0])processFile(e.dataTransfer.files[0]);});
+dropZoneEl.addEventListener('drop',e=>{e.preventDefault();dropZoneEl.classList.remove('drag-over');if(e.dataTransfer.files&&e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
 let rawRows=[],csvHeaders=[];
+// 單檔 → 走欄位對應流程；多檔 → 自動對應批次上傳
+function handleFiles(fileList){
+  const files=Array.from(fileList);
+  if(files.length===1) processFile(files[0]);
+  else processBatch(files);
+}
 function processFile(file){
   const ext=file.name.split('.').pop().toLowerCase();
   if(ext==='csv'){const r=new FileReader();r.onload=e=>parseCSV(e.target.result);r.readAsText(file,'UTF-8');}
   else{const r=new FileReader();r.onload=e=>{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});parseCSV(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]));};r.readAsArrayBuffer(file);}
+}
+// 讀單一檔 → 回傳 CSV 文字（Promise）
+function readFileText(file){
+  return new Promise(function(resolve,reject){
+    const ext=file.name.split('.').pop().toLowerCase();
+    const r=new FileReader();
+    r.onerror=function(){ reject(new Error('讀取失敗')); };
+    if(ext==='csv'){ r.onload=function(e){ resolve(e.target.result); }; r.readAsText(file,'UTF-8'); }
+    else { r.onload=function(e){ try{ const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}); resolve(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]])); }catch(err){ reject(err); } }; r.readAsArrayBuffer(file); }
+  });
+}
+// 依欄名自動對應（用 REQUIRED_FIELDS 的 exact/hints）
+function autoMap(headers){
+  const mapping={};
+  REQUIRED_FIELDS.forEach(function(f){
+    let col=null;
+    if(f.exact) col=headers.find(function(h){return f.exact.some(function(e){return h===e;});});
+    if(!col && !f.exact && f.hints) col=headers.find(function(h){return f.hints.some(function(hint){return h.includes(hint);});});
+    if(col) mapping[f.key]=col;
+  });
+  return mapping;
+}
+// 依 mapping 把原始列轉成資料庫列（單檔/批次共用）
+function transformRows(rows, mapping){
+  const DOW_MAP={'週一':0,'週二':1,'週三':2,'週四':3,'週五':4,'週六':5,'週日':6};
+  const out=[];
+  rows.forEach(function(row){
+    const get=key=>mapping[key]?String(row[mapping[key]]??'').trim():'';
+    const getNum=key=>{const v=get(key);return parseFloat(v.replace(/[,$%]/g,''))||0;};
+    const dateStr=get('date');const m=dateStr.match(/(\d+)月(\d+)日/);if(!m)return;
+    const mon=parseInt(m[1]),day=parseInt(m[2]);
+    const dateKey=`${String(mon).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
+    const dowRaw=get('dow');const dow=DOW_MAP[dowRaw]??parseInt(dowRaw)??0;
+    const wRaw=get('weather');const weather=wRaw.includes('雨')?'雨':wRaw.includes('陰')?'陰':'晴';
+    const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
+      revenue:getNum('revenue'),cups:getNum('cups'),customers:getNum('customers'),discount:Math.abs(getNum('discount')),
+      ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo'),
+      ub_ord:getNum('ub_ord'),ub_cup:getNum('ub_cup'),fp_ord:getNum('fp_ord'),fp_cup:getNum('fp_cup'),odo_ord:getNum('odo_ord'),odo_cup:getNum('odo_cup')};
+    if(r.store&&r.revenue>0)out.push(r);
+  });
+  return out;
+}
+// 批次：多檔自動對應 → 合併去重 → 上傳
+async function processBatch(files){
+  document.getElementById('upload-step-1').style.display='none';
+  document.getElementById('upload-step-2').style.display='none';
+  document.getElementById('upload-step-3').style.display='flex';
+  document.getElementById('push-icon').textContent='📦';
+  document.getElementById('push-title').textContent='批次讀取中…';
+  document.getElementById('push-log').textContent='';
+  document.getElementById('push-done-btn').style.display='none';
+  document.getElementById('push-retry-btn').style.display='none';
+
+  const combined=new Map(); let okFiles=0;
+  for(let i=0;i<files.length;i++){
+    const file=files[i];
+    try{
+      const text=await readFileText(file);
+      const res=Papa.parse(text.trim(),{header:true,skipEmptyLines:true});
+      const headers=res.meta.fields||[];
+      const mapping=autoMap(headers);
+      const miss=REQUIRED_FIELDS.filter(f=>f.required&&!mapping[f.key]).map(f=>f.label);
+      if(miss.length){ pushLog('⚠️ '+file.name+'：無法自動對應（缺 '+miss.join('、')+'），已略過'); continue; }
+      const rows=transformRows(res.data||[], mapping);
+      rows.forEach(r=>combined.set(r.store+'|'+r.date, r));   // 批次內去重，後檔覆蓋前檔
+      okFiles++;
+      pushLog('✔ '+file.name+'：'+rows.length+' 筆');
+    }catch(e){ pushLog('⚠️ '+file.name+'：讀取失敗（'+e.message+'）'); }
+  }
+  const allRows=Array.from(combined.values());
+  if(!allRows.length){
+    document.getElementById('push-icon').textContent='❌';
+    document.getElementById('push-title').textContent='沒有可上傳的資料';
+    document.getElementById('push-retry-btn').style.display='';
+    return;
+  }
+  pushLog('—— 合計 '+okFiles+' 檔、去重後 '+allRows.length+' 筆，開始上傳 ——');
+  document.getElementById('push-title').textContent='正在上傳…';
+  pushToGitHub(allRows);
 }
 function parseCSV(text){
   const result=Papa.parse(text.trim(),{header:true,skipEmptyLines:true});
@@ -933,23 +1018,30 @@ async function pushToGitHub(newRows){
     document.getElementById('push-retry-btn').style.display='';
     return;
   }
+  var CHUNK=8000;   // 單次上傳上限（後端限 20000，保守分批）
   try{
-    pushLog('🚀 上傳 '+newRows.length+' 筆至資料庫…');
-    var j = await ugAuthCall({action:'syncData',rows:newRows});
-    if(!j.ok){
-      if(j.expired || j.error==='unauthorized'){
-        pushLog('🔒 登入已逾時（安全機制：登入滿 6 小時自動失效），你的資料未遺失。');
-        var pl=document.getElementById('push-log');
-        if(pl) pl.innerHTML += '<div style="margin-top:8px"><button onclick="sessionStorage.clear();location.reload()" style="background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;padding:7px 14px;font-family:var(--font);font-weight:600">🔑 重新登入</button> <span style="color:var(--text3)">登入後回上傳頁重新上傳即可</span></div>';
-        document.getElementById('push-icon').textContent='🔒';
-        document.getElementById('push-title').textContent='登入逾時，請重新登入';
-        return;
+    var chunks=[]; for(var i=0;i<newRows.length;i+=CHUNK) chunks.push(newRows.slice(i,i+CHUNK));
+    pushLog('🚀 上傳 '+newRows.length+' 筆至資料庫'+(chunks.length>1?'（分 '+chunks.length+' 批）':'')+'…');
+    var addedSum=0, updatedSum=0, dbTotal=0;
+    for(var c=0;c<chunks.length;c++){
+      if(chunks.length>1) pushLog('　└ 第 '+(c+1)+'/'+chunks.length+' 批（'+chunks[c].length+' 筆）…');
+      var j = await ugAuthCall({action:'syncData',rows:chunks[c]});
+      if(!j.ok){
+        if(j.expired || j.error==='unauthorized'){
+          pushLog('🔒 登入已逾時（安全機制：登入滿 6 小時自動失效），你的資料未遺失。');
+          var pl=document.getElementById('push-log');
+          if(pl) pl.innerHTML += '<div style="margin-top:8px"><button onclick="sessionStorage.clear();location.reload()" style="background:var(--accent);border:none;border-radius:7px;color:#fff;cursor:pointer;font-size:12px;padding:7px 14px;font-family:var(--font);font-weight:600">🔑 重新登入</button> <span style="color:var(--text3)">登入後回上傳頁重新上傳即可</span></div>';
+          document.getElementById('push-icon').textContent='🔒';
+          document.getElementById('push-title').textContent='登入逾時，請重新登入';
+          return;
+        }
+        throw new Error(j.error||'上傳失敗');
       }
-      throw new Error(j.error||'上傳失敗');
+      addedSum+=j.added; updatedSum+=j.updated; dbTotal=j.total;
     }
-    pushLog('✅ 完成：新增 '+j.added+' 筆、更新 '+j.updated+' 筆，資料庫總計 '+j.total+' 筆');
+    pushLog('✅ 完成：新增 '+addedSum+' 筆、更新 '+updatedSum+' 筆，資料庫總計 '+dbTotal+' 筆');
     document.getElementById('push-icon').textContent='✅';
-    document.getElementById('push-title').textContent='成功！新增 '+j.added+' 筆，更新 '+j.updated+' 筆';
+    document.getElementById('push-title').textContent='成功！新增 '+addedSum+' 筆，更新 '+updatedSum+' 筆';
     document.getElementById('push-done-btn').style.display='';
     var mergedMap = new Map();
     DATA.forEach(function(x){ mergedMap.set(x.store+'|'+x.date, x); });
@@ -1009,22 +1101,7 @@ function applyMapping(){
   REQUIRED_FIELDS.forEach(f=>{const s=document.getElementById('map_'+f.key);if(s?.value)mapping[f.key]=s.value;});
   const missing=REQUIRED_FIELDS.filter(f=>f.required&&!mapping[f.key]).map(f=>f.label);
   if(missing.length){alert('請對應必填欄位：'+missing.join('、'));return;}
-  const DOW_MAP={'週一':0,'週二':1,'週三':2,'週四':3,'週五':4,'週六':5,'週日':6};
-  const newRows=[];
-  rawRows.forEach(row=>{
-    const get=key=>mapping[key]?String(row[mapping[key]]??'').trim():'';
-    const getNum=key=>{const v=get(key);return parseFloat(v.replace(/[,$%]/g,''))||0;};
-    const dateStr=get('date');const m=dateStr.match(/(\d+)月(\d+)日/);if(!m)return;
-    const mon=parseInt(m[1]),day=parseInt(m[2]);
-    const dateKey=`${String(mon).padStart(2,'0')}/${String(day).padStart(2,'0')}`;
-    const dowRaw=get('dow');const dow=DOW_MAP[dowRaw]??parseInt(dowRaw)??0;
-    const wRaw=get('weather');const weather=wRaw.includes('雨')?'雨':wRaw.includes('陰')?'陰':'晴';
-    const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
-      revenue:getNum('revenue'),cups:getNum('cups'),customers:getNum('customers'),discount:Math.abs(getNum('discount')),
-      ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo'),
-      ub_ord:getNum('ub_ord'),ub_cup:getNum('ub_cup'),fp_ord:getNum('fp_ord'),fp_cup:getNum('fp_cup'),odo_ord:getNum('odo_ord'),odo_cup:getNum('odo_cup')};
-    if(r.store&&r.revenue>0)newRows.push(r);
-  });
+  const newRows=transformRows(rawRows, mapping);
   if(!newRows.length){alert('轉換失敗，請確認欄位對應');return;}
 
   // 顯示推送進度畫面
