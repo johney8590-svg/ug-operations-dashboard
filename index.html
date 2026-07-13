@@ -679,7 +679,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
             <div class="chart-title">上週 vs 上上週（同星期幾）</div>
             <div class="chart-sub">自動取最近兩個完整週（週一～週日），每週一更新即可直接看，免調日期</div>
           </div>
-          <div id="wow-metric-btns" style="display:flex;gap:4px;flex-wrap:wrap;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
+          <div id="wow-metric-btns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
         </div>
         <div id="wow-headline" style="margin:8px 0 14px"></div>
         <canvas id="wow-compare-chart"></canvas>
@@ -1417,30 +1417,34 @@ function renderToday(){
 }
 
 /* ══ 上週 vs 上上週（同星期幾）：自動取最近兩個完整週(週一~週日) ══ */
-function setWoWMetric(k){ window._wowMetric = k; renderWoWCompare(); }
+function setWoWField(k){ window._wowField = k; renderWoWCompare(); }
+function setWoWMode(k){ window._wowMode = k; renderWoWCompare(); }
 function renderWoWCompare(){
   const headEl = document.getElementById('wow-headline');
   const btnEl  = document.getElementById('wow-metric-btns');
   if(!headEl) return;
 
-  const METRICS = [
-    {key:'rev_total', label:'日總業績',   field:'revenue',  avg:false, unit:'元', money:true},
-    {key:'rev_avg',   label:'日店平均',   field:'revenue',  avg:true,  unit:'元', money:true},
-    {key:'cups',      label:'杯數',       field:'cups',     avg:false, unit:'杯', money:false},
-    {key:'customers', label:'來客',       field:'customers',avg:false, unit:'人', money:false}
+  const FIELDS = [
+    {key:'revenue',   label:'業績', unit:'元', money:true},
+    {key:'cups',      label:'杯數', unit:'杯', money:false},
+    {key:'customers', label:'來客', unit:'人', money:false}
   ];
-  if(!window._wowMetric) window._wowMetric = 'rev_total';
-  const M = METRICS.find(m=>m.key===window._wowMetric) || METRICS[0];
+  const MODES = [ {key:'total', label:'總量'}, {key:'avg', label:'店均'} ];
+  if(!window._wowField) window._wowField = 'revenue';
+  if(!window._wowMode)  window._wowMode  = 'total';
+  const F = FIELDS.find(f=>f.key===window._wowField) || FIELDS[0];
+  const M = { field:F.key, label:F.label, unit:F.unit, money:F.money, avg:(window._wowMode==='avg') };
   const unit = M.unit;
   const fmtV = v => (M.money && Math.abs(v)>=10000) ? (v/10000).toFixed(1)+'萬' : Math.round(v).toLocaleString();
   const DOW_ZH = ['一','二','三','四','五','六','日'];
   const storeFilter = r => state.zones.has(r.zone) && state.stores.has(r.store);
 
   if(btnEl){
-    btnEl.innerHTML = METRICS.map(m=>{
-      const on = m.key===M.key;
-      return '<button onclick="setWoWMetric(\''+m.key+'\')" style="padding:5px 11px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+m.label+'</button>';
-    }).join('');
+    const seg = (items, cur, fn) => '<div style="display:flex;gap:4px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px">'
+      + items.map(it=>{ const on=it.key===cur;
+        return '<button onclick="'+fn+'(\''+it.key+'\')" style="padding:5px 11px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+it.label+'</button>'; }).join('')
+      + '</div>';
+    btnEl.innerHTML = seg(FIELDS, window._wowField, 'setWoWField') + seg(MODES, window._wowMode, 'setWoWMode');
   }
 
   // 把所有資料日期依「週一為首」分週，取最近兩個完整週（含週日）
