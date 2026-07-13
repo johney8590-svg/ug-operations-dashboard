@@ -964,7 +964,7 @@ async function pushToGitHub(newRows){
   }
 }
 const REQUIRED_FIELDS=[
-  {key:'store',   label:'門市名稱',    required:true,  exact:['門市'],                  hints:['store']},
+  {key:'store',   label:'門市名稱',    required:true,  exact:['門市','門店名稱'],       hints:['store']},
   {key:'date',    label:'日期',        required:true,  exact:['日期'],                  hints:['date']},
   {key:'dow',     label:'星期週期',    required:false, exact:['週期','星期'],           hints:['weekday']},
   {key:'weather', label:'天氣',        required:false, exact:['天氣'],                  hints:['weather']},
