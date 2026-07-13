@@ -647,7 +647,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
       </div>
       <div class="grid-2">
         <div class="chart-panel">
-          <div class="chart-header"><div><div class="chart-title">渠道結構</div><div class="chart-sub" id="today-channel-sub">自有（冷色）vs 高抽成外送（暖色）</div></div></div>
+          <div class="chart-header"><div><div class="chart-title">渠道結構</div><div class="chart-sub" id="today-channel-sub">自有（冷色）vs 高抽成外送（暖色）</div></div><div id="ch-metric-toggle" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div></div>
           <div class="chbar" id="ch-bar"></div>
           <div class="ch-split">
             <div class="ch-split-b self"><div class="pc" id="ch-self-pc">—</div><div class="lbl">自有渠道（現場＋ODO）</div></div>
@@ -975,6 +975,12 @@ const REQUIRED_FIELDS=[
   {key:'ub',      label:'UberEats金額',required:false, exact:['UB金額'],               hints:['ubereats']},
   {key:'fp',      label:'Foodpanda金額',required:false,exact:['FP金額'],               hints:['foodpanda']},
   {key:'odo',     label:'ODO金額',     required:false, exact:['ODO金額'],              hints:['odo']},
+  {key:'ub_ord',  label:'UB單數',      required:false, exact:['UB單數'],               hints:[]},
+  {key:'ub_cup',  label:'UB杯數',      required:false, exact:['UB杯數'],               hints:[]},
+  {key:'fp_ord',  label:'FP單數',      required:false, exact:['FP單數'],               hints:[]},
+  {key:'fp_cup',  label:'FP杯數',      required:false, exact:['FP杯數'],               hints:[]},
+  {key:'odo_ord', label:'ODO單數',     required:false, exact:['ODO單數'],              hints:[]},
+  {key:'odo_cup', label:'ODO杯數',     required:false, exact:['ODO杯數'],              hints:[]},
   {key:'zone',    label:'分區',        required:false, exact:['分區'],                  hints:['zone']},
 ];
 function showMappingStep(){
@@ -1015,7 +1021,8 @@ function applyMapping(){
     const wRaw=get('weather');const weather=wRaw.includes('雨')?'雨':wRaw.includes('陰')?'陰':'晴';
     const r={zone:get('zone')||'未分區',store:get('store'),date:dateKey,year:TODAY.getFullYear(),month:mon,dow,weather,
       revenue:getNum('revenue'),cups:getNum('cups'),customers:getNum('customers'),discount:Math.abs(getNum('discount')),
-      ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo')};
+      ub:getNum('ub'),fp:getNum('fp'),odo:getNum('odo'),
+      ub_ord:getNum('ub_ord'),ub_cup:getNum('ub_cup'),fp_ord:getNum('fp_ord'),fp_cup:getNum('fp_cup'),odo_ord:getNum('odo_ord'),odo_cup:getNum('odo_cup')};
     if(r.store&&r.revenue>0)newRows.push(r);
   });
   if(!newRows.length){alert('轉換失敗，請確認欄位對應');return;}
@@ -1237,12 +1244,12 @@ function filterData(rows,extraDate=null){
 function sumByStore(rows){
   const map={};
   rows.forEach(r=>{
-    if(!map[r.store])map[r.store]={store:r.store,name:r.store,zone:r.zone,revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0,cnt:0};
-    const m=map[r.store];m.revenue+=r.revenue;m.cups+=r.cups;m.customers+=r.customers;m.discount+=r.discount;m.ub+=r.ub;m.fp+=r.fp;m.odo+=r.odo;m.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));m.cnt++;
+    if(!map[r.store])map[r.store]={store:r.store,name:r.store,zone:r.zone,revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0,ub_ord:0,ub_cup:0,fp_ord:0,fp_cup:0,odo_ord:0,odo_cup:0,cnt:0};
+    const m=map[r.store];m.revenue+=r.revenue;m.cups+=r.cups;m.customers+=r.customers;m.discount+=r.discount;m.ub+=r.ub;m.fp+=r.fp;m.odo+=r.odo;m.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));m.ub_ord+=(r.ub_ord||0);m.ub_cup+=(r.ub_cup||0);m.fp_ord+=(r.fp_ord||0);m.fp_cup+=(r.fp_cup||0);m.odo_ord+=(r.odo_ord||0);m.odo_cup+=(r.odo_cup||0);m.cnt++;
   });
   return Object.values(map);
 }
-function sumTotal(rows){return rows.reduce((a,r)=>{a.revenue+=r.revenue;a.cups+=r.cups;a.customers+=r.customers;a.discount+=r.discount;a.ub+=r.ub;a.fp+=r.fp;a.odo+=r.odo;a.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));return a;},{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0});}
+function sumTotal(rows){return rows.reduce((a,r)=>{a.revenue+=r.revenue;a.cups+=r.cups;a.customers+=r.customers;a.discount+=r.discount;a.ub+=r.ub;a.fp+=r.fp;a.odo+=r.odo;a.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));a.ub_ord+=(r.ub_ord||0);a.ub_cup+=(r.ub_cup||0);a.fp_ord+=(r.fp_ord||0);a.fp_cup+=(r.fp_cup||0);a.odo_ord+=(r.odo_ord||0);a.odo_cup+=(r.odo_cup||0);return a;},{revenue:0,cups:0,customers:0,discount:0,ub:0,fp:0,odo:0,onsite:0,ub_ord:0,ub_cup:0,fp_ord:0,fp_cup:0,odo_ord:0,odo_cup:0});}
 function isAnom(s){const t=s.revenue+s.discount;return(t>0&&s.discount/t>0.20)||(s.revenue>0&&(s.ub+s.fp)/s.revenue>0.65);}
 
 /* ══ INFO BAR ══ */
@@ -1254,6 +1261,7 @@ function renderInfoBar(id){
 }
 
 /* ══ TODAY ══ */
+function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
 function renderToday(){
   renderInfoBar('data-info-today');
   const ad = getActiveDates();
@@ -1365,25 +1373,47 @@ function renderToday(){
 
   renderRankWall(byStore, allRows, dayCount);
 
-  // ── 渠道圖：依當前維度拆解（營收=各渠道營收；杯數/單數無逐渠道原始值，依營收占比估算）──
+  // ── 渠道圖：金額 / 杯數 / 來客 三種比例（各渠道有原始值；現場=總−三渠道；該期缺原始值時依營收占比估算）──
+  if(!window._chMetric) window._chMetric = 'amount';
+  const CHM = window._chMetric;
   const onsiteTotal = tot.onsite || Math.max(0, tot.revenue - tot.ub - tot.fp - tot.odo);
-  const chRev = [onsiteTotal, tot.ub, tot.fp, tot.odo];
-  const chTotRev = chRev.reduce((a,b)=>a+b,0) || 1;
-  const chDimTot = state.dim==='cups' ? tot.cups : state.dim==='customers' ? tot.customers : null;
-  const chVals = state.dim==='revenue' ? chRev : chRev.map(rv=>Math.round(chDimTot*rv/chTotRev));
-  const chUnit = state.dim==='revenue' ? '元' : state.dim==='cups' ? '杯' : '單';
+  // 回傳四渠道值 [現場, UB, FP, ODO] 與是否為估算
+  function chByMetric(m){
+    if(m==='cups'){
+      const d = tot.ub_cup+tot.fp_cup+tot.odo_cup;
+      if(d>0) return {vals:[Math.max(0,tot.cups-d), tot.ub_cup, tot.fp_cup, tot.odo_cup], est:false};
+    } else if(m==='customers'){
+      const d = tot.ub_ord+tot.fp_ord+tot.odo_ord;
+      if(d>0) return {vals:[Math.max(0,tot.customers-d), tot.ub_ord, tot.fp_ord, tot.odo_ord], est:false};
+    } else {
+      return {vals:[onsiteTotal, tot.ub, tot.fp, tot.odo], est:false};
+    }
+    // 後備：該指標無逐渠道原始值（尚未重新上傳）→ 依營收占比估算
+    const rev=[onsiteTotal, tot.ub, tot.fp, tot.odo], rt=rev.reduce((a,b)=>a+b,0)||1;
+    const totDim = m==='cups'?tot.cups:tot.customers;
+    return {vals:rev.map(v=>Math.round(totDim*v/rt)), est:true};
+  }
+  const chRes = chByMetric(CHM), chVals = chRes.vals;
   const chTotalVal = chVals.reduce((a,b)=>a+b,0) || 1;
-  const fmtChV = v => (state.dim==='revenue' && v>=10000) ? (v/10000).toFixed(1)+'萬' : v.toLocaleString();
+  const chUnit = CHM==='amount'?'元':CHM==='cups'?'杯':'人';
+  const fmtChV = v => (CHM==='amount' && v>=10000) ? (v/10000).toFixed(1)+'萬' : Math.round(v).toLocaleString();
+  const chDimWord = CHM==='amount'?'營收':CHM==='cups'?'杯數':'來客';
+
+  const chTgl = document.getElementById('ch-metric-toggle');
+  if(chTgl){
+    chTgl.innerHTML = [['amount','金額'],['cups','杯數'],['customers','來客']].map(o=>{
+      const on = CHM===o[0];
+      return '<button onclick="setTodayChMetric(\''+o[0]+'\')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+o[1]+'</button>';
+    }).join('');
+  }
   const chSubEl = document.getElementById('today-channel-sub');
   const chDetailSub = document.getElementById('today-channel-detail-sub');
-  const chDimWord = state.dim==='revenue' ? '營收' : state.dim==='cups' ? '杯數' : '單數';
-  if(chSubEl) chSubEl.textContent = '自有（冷色）vs 高抽成外送（暖色）'+(state.dim==='revenue'?'':' · 依'+chDimWord+'(營收占比估算)');
+  if(chSubEl) chSubEl.textContent = '自有（冷色）vs 高抽成外送（暖色）· 依'+chDimWord+(chRes.est?'（占比估算，此期尚未含逐渠道原始值）':'');
   if(chDetailSub) chDetailSub.textContent = chDimWord+'佔比';
 
-  // 渲染：水平色階長條 + 自有/外送拆分 + 明細（取代甜甜圈）
   const chBarEl=document.getElementById('ch-bar');
   const chLegEl=document.getElementById('ch-leg');
-  if(chTotalVal<=1 || (tot.ub===0 && tot.fp===0 && tot.odo===0 && onsiteTotal===0)){
+  if(chTotalVal<=1){
     if(chBarEl) chBarEl.innerHTML='<div style="color:var(--text3);font-size:13px;padding:13px;text-align:center;width:100%">此區間無渠道資料</div>';
     if(chLegEl) chLegEl.innerHTML='';
     const s0=document.getElementById('ch-self-pc'),d0=document.getElementById('ch-deliv-pc');
@@ -1404,7 +1434,7 @@ function renderToday(){
       const p=(x.v/chTotalVal*100).toFixed(1);
       return '<div class="row"><span class="sw" style="background:'+x.c+'"></span>'+
         '<span class="nm">'+x.nm+' <span class="grp">'+x.grp+'</span></span>'+
-        '<span class="pc">'+p+'%</span></div>';
+        '<span class="pc">'+p+'% <span style="color:var(--text3);font-weight:400;font-size:11px">('+fmtChV(x.v)+chUnit+')</span></span></div>';
     }).join('');
     const selfV=chVals[0]+chVals[3], delivV=chVals[1]+chVals[2];
     const sEl=document.getElementById('ch-self-pc'), dEl=document.getElementById('ch-deliv-pc');
@@ -3705,7 +3735,8 @@ window.GAS_URL = 'https://script.google.com/macros/s/AKfycbz0nZpHKf6RFcCiZJAV5ZK
       year:Number(x.year)||TODAY.getFullYear(),month:Number(x.month)||0,dow:Number(x.dow)||0,
       weather:String(x.weather||'晴'),revenue:Number(x.revenue)||0,cups:Number(x.cups)||0,
       customers:Number(x.customers)||0,discount:Number(x.discount)||0,ub:Number(x.ub)||0,
-      fp:Number(x.fp)||0,odo:Number(x.odo)||0,onsite:Number(x.onsite)||0};
+      fp:Number(x.fp)||0,odo:Number(x.odo)||0,onsite:Number(x.onsite)||0,
+      ub_ord:Number(x.ub_ord)||0,ub_cup:Number(x.ub_cup)||0,fp_ord:Number(x.fp_ord)||0,fp_cup:Number(x.fp_cup)||0,odo_ord:Number(x.odo_ord)||0,odo_cup:Number(x.odo_cup)||0};
     if(!o.month){ o.month = parseInt(o.date.split('/')[0],10)||0; }
     return o;
   }
