@@ -1401,7 +1401,7 @@ function renderWeekly(){
   if(subEl) subEl.textContent='上週 '+wk.lastRange+'　vs　上上週 '+wk.prevRange+'　· 先看整體再看分區';
 
   function agg(dset,zone){
-    var o={rev:0,cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,disc:0,st:new Set(),dy:new Set()};
+    var o={rev:0,cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,disc:0,st:new Set(),dy:new Set(),n:0};
     DATA.forEach(function(r){
       if(!dset.has(r.date))return;
       if(!state.stores.has(r.store))return;
@@ -1409,9 +1409,9 @@ function renderWeekly(){
       o.rev+=r.revenue;o.cups+=r.cups;o.cust+=r.customers;o.disc+=(r.discount||0);
       o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;o.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
       o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);
-      o.st.add(r.store);o.dy.add(r.date);
+      o.st.add(r.store);o.dy.add(r.date);o.n++;
     });
-    o.stores=o.st.size;o.days=o.dy.size;return o;
+    o.stores=o.st.size;o.days=o.dy.size;return o;   // o.n = 店日數(每筆=一店一天)
   }
   function chAvail(a){return (a.ubO+a.fpO+a.odO)>0;}
   var fmtN=function(v,money){return (money&&Math.abs(v)>=10000)?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();};
@@ -1422,17 +1422,16 @@ function renderWeekly(){
   function fmtVal(m,v){ if(v==null) return '—'; return m.unit==='%'? v.toFixed(1)+'%' : fmtN(v,m.money)+m.unit; }
 
   var METRICS=[
-    {label:'營業淨額',val:function(a){return a.rev;},money:true,unit:'元',good:'up'},
-    {label:'每店日均營業額',val:function(a){return a.stores&&a.days?a.rev/a.stores/a.days:0;},money:true,unit:'元',good:'up'},
-    {label:'杯數',val:function(a){return a.cups;},unit:'杯',good:'up'},
-    {label:'來客',val:function(a){return a.cust;},unit:'人',good:'up'},
+    {label:'營業淨額',val:function(a){return a.rev;},money:true,unit:'元',avg:true,good:'up'},
+    {label:'杯數',val:function(a){return a.cups;},unit:'杯',avg:true,good:'up'},
+    {label:'來客',val:function(a){return a.cust;},unit:'人',avg:true,good:'up'},
     {label:'客單價',val:function(a){return a.cust?a.rev/a.cust:0;},money:true,unit:'元',good:'up'},
     {label:'杯單價',val:function(a){return a.cups?a.rev/a.cups:0;},money:true,unit:'元',good:'up'},
     {label:'折扣率',val:function(a){return (a.rev+a.disc)?a.disc/(a.rev+a.disc)*100:0;},unit:'%',pp:true,good:'down'},
-    {label:'現場金額',val:function(a){return a.onsite;},money:true,unit:'元',good:'up'},
-    {label:'UberEats 金額',val:function(a){return a.ub;},money:true,unit:'元',good:'up'},
-    {label:'Foodpanda 金額',val:function(a){return a.fp;},money:true,unit:'元',good:'up'},
-    {label:'ODO 金額',val:function(a){return a.odo;},money:true,unit:'元',good:'up'},
+    {label:'現場金額',val:function(a){return a.onsite;},money:true,unit:'元',avg:true,good:'up'},
+    {label:'UberEats 金額',val:function(a){return a.ub;},money:true,unit:'元',avg:true,good:'up'},
+    {label:'Foodpanda 金額',val:function(a){return a.fp;},money:true,unit:'元',avg:true,good:'up'},
+    {label:'ODO 金額',val:function(a){return a.odo;},money:true,unit:'元',avg:true,good:'up'},
     {label:'現場來客占比',val:function(a){return chAvail(a)?(a.cust-a.ubO-a.fpO-a.odO)/a.cust*100:null;},unit:'%',pp:true,good:'up'},
     {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,good:'down'}
   ];
@@ -1486,13 +1485,22 @@ function renderWeekly(){
         datalabels:{display:true,color:'#fff',font:{size:11,weight:'bold'},formatter:function(v,ctx){var t=ctx.dataset.data.reduce(function(a,b){return a+b;},0)||1;var p=v/t*100;return p>6?p.toFixed(0)+'%':'';}},
         tooltip:{callbacks:{label:function(ctx){var t=ctx.dataset.data.reduce(function(a,b){return a+b;},0)||1;return ctx.label+'：'+Math.round(ctx.raw).toLocaleString()+'（'+(ctx.raw/t*100).toFixed(1)+'%）';}}}}}});
 
+  var subTxt=function(t){return '<div style="font-size:10px;color:var(--text3);font-weight:400">'+t+'</div>';};
   var rowsHtml=METRICS.map(function(m){
     var vl=m.val(oL),vp=m.val(oP),chg=chgOf(m,vl,vp);
+    var cellL=fmtVal(m,vl), cellP=fmtVal(m,vp);
+    var chgCell='<span style="color:'+chgColor(m,chg)+'">'+(chg?chg.txt:'—')+'</span>';
+    if(m.avg){
+      var al=oL.n?vl/oL.n:0, ap=oP.n?vp/oP.n:0, achg=chgOf(m,al,ap);
+      cellL+=subTxt('店日均 '+fmtVal(m,al));
+      cellP+=subTxt('店日均 '+fmtVal(m,ap));
+      chgCell+='<div style="font-size:10px;font-weight:400;color:'+chgColor(m,achg)+'">日均 '+(achg?achg.txt:'—')+'</div>';
+    }
     return '<tr style="border-bottom:1px solid var(--border)">'
       +'<td style="padding:7px 10px;color:var(--text2)">'+m.label+'</td>'
-      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">'+fmtVal(m,vl)+'</td>'
-      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+fmtVal(m,vp)+'</td>'
-      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:600;color:'+chgColor(m,chg)+'">'+(chg?chg.txt:'—')+'</td></tr>';
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">'+cellL+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+cellP+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:600">'+chgCell+'</td></tr>';
   }).join('');
   ovEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:440px">'
     +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
@@ -1501,20 +1509,24 @@ function renderWeekly(){
     +'<tbody>'+rowsHtml+'</tbody></table>';
 
   var zcols=[
-    {label:'營業額',val:function(a){return a.rev;},money:true,unit:'元',good:'up'},
-    {label:'杯數',val:function(a){return a.cups;},unit:'杯',good:'up'},
-    {label:'來客',val:function(a){return a.cust;},unit:'人',good:'up'},
+    {label:'營業額',val:function(a){return a.rev;},money:true,unit:'元',avg:true,good:'up'},
+    {label:'杯數',val:function(a){return a.cups;},unit:'杯',avg:true,good:'up'},
+    {label:'來客',val:function(a){return a.cust;},unit:'人',avg:true,good:'up'},
     {label:'客單價',val:function(a){return a.cust?a.rev/a.cust:0;},money:true,unit:'元',good:'up'},
     {label:'現場來客占比',val:function(a){return chAvail(a)?(a.cust-a.ubO-a.fpO-a.odO)/a.cust*100:null;},unit:'%',pp:true,good:'up'},
     {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,good:'down'}
   ];
-  var zhead='<th style="text-align:left;padding:6px 10px">分區</th>'+zcols.map(function(c){return '<th style="text-align:right;padding:6px 10px">'+c.label+'</th>';}).join('');
+  var zhead='<th style="text-align:left;padding:6px 10px">分區</th>'+zcols.map(function(c){return '<th style="text-align:right;padding:6px 10px">'+c.label+(c.avg?'<br><span style="font-weight:400;opacity:.7">整體／店日均</span>':'')+'</th>';}).join('');
   var zbody=zones.map(function(z){
     var aL=agg(lastD,z), aP=agg(prevD,z);
     var tds=zcols.map(function(c){
       var vl=c.val(aL),vp=c.val(aP),chg=chgOf(c,vl,vp);
+      var sub;
+      if(c.avg){ var al=aL.n?vl/aL.n:0, achg=chgOf(c,al,aP.n?vp/aP.n:0);
+        sub='日均 '+fmtVal(c,al)+' <span style="color:'+chgColor(c,achg)+'">'+(achg?achg.txt:'')+'</span>'; }
+      else { sub='<span style="color:'+chgColor(c,chg)+'">'+(chg?chg.txt:'—')+'</span>'; }
       return '<td style="padding:7px 10px;text-align:right;font-family:var(--mono)"><div style="font-weight:700;color:var(--text)">'+fmtVal(c,vl)+'</div>'
-        +'<div style="font-size:10px;color:'+chgColor(c,chg)+'">'+(chg?chg.txt:'—')+'</div></td>';
+        +'<div style="font-size:10px;color:var(--text3)">'+sub+'</div></td>';
     }).join('');
     return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-weight:600;color:var(--text)">'+z+'</td>'+tds+'</tr>';
   }).join('');
@@ -1523,7 +1535,7 @@ function renderWeekly(){
     +'<tbody>'+zbody+'</tbody></table>';
 
   if(noteEl){
-    noteEl.innerHTML='「成長」= 上週 vs 上上週（正=成長綠；折扣率／外送占比 正=紅）；占比類用 pp（百分點）差。'
+    noteEl.innerHTML='每個量值同時列「<b style="color:var(--text2)">整體</b>」與「<b style="color:var(--text2)">店日均</b>」（＝整體 ÷ 店日數，每筆=一店一天；抵銷開店數／天數差異，較能反映真實表現）。「成長」上=綠、下=紅（折扣率／外送占比相反）；占比類用 pp（百分點）差。'
       +(!chAvail(oL)?'<br>⚠️ 這兩週資料尚未含各渠道單數，「現場來客占比」顯示 —，請重新上傳含渠道明細的檔。':'');
   }
 }
