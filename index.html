@@ -765,6 +765,19 @@ body.ug-is-admin .ug-admin-only{display:inline;}
             <div class="chart-sub" id="weekly-sub">自動取最近兩個完整週（週一～週日）· 先看整體再看分區</div>
           </div>
         </div>
+        <!-- 重點大字卡 -->
+        <div id="weekly-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 16px"></div>
+        <!-- 簡報用圖表 -->
+        <div class="grid-2" style="margin-bottom:20px">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">各分區營業額（上週 vs 上上週）</div>
+            <div style="height:260px;position:relative"><canvas id="weekly-zone-rev"></canvas></div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px" id="weekly-pie-title">渠道來客占比（上週）</div>
+            <div style="height:260px;position:relative"><canvas id="weekly-ch-pie"></canvas></div>
+          </div>
+        </div>
         <div style="font-size:14px;font-weight:700;color:var(--text);margin:8px 0 8px">① 整體（全公司）</div>
         <div id="weekly-overall" style="overflow-x:auto"></div>
         <div style="font-size:14px;font-weight:700;color:var(--text);margin:22px 0 8px">② 分區</div>
@@ -1424,6 +1437,55 @@ function renderWeekly(){
     {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,good:'down'}
   ];
   var oL=agg(lastD,null), oP=agg(prevD,null);
+  var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
+
+  // 重點大字卡（一眼抓重點）
+  var cardsEl=document.getElementById('weekly-cards');
+  if(cardsEl){
+    var revG=oP.rev?(oL.rev-oP.rev)/oP.rev*100:0;
+    var custG=oP.cust?(oL.cust-oP.cust)/oP.cust*100:0;
+    var aovL=oL.cust?oL.rev/oL.cust:0, aovP=oP.cust?oP.rev/oP.cust:0, aovG=aovP?(aovL-aovP)/aovP*100:0;
+    var onsPctL=chAvail(oL)?(oL.cust-oL.ubO-oL.fpO-oL.odO)/oL.cust*100:null;
+    var onsPctP=chAvail(oP)?(oP.cust-oP.ubO-oP.fpO-oP.odO)/oP.cust*100:null;
+    var onsPP=(onsPctL!=null&&onsPctP!=null)?onsPctL-onsPctP:null;
+    var grow=function(g){var c=Math.abs(g)<0.05?'var(--warn)':g>0?'#28A745':'var(--danger)';var ar=Math.abs(g)<0.05?'→':g>0?'▲':'▼';return {c:c,html:ar+' '+Math.abs(g).toFixed(1)+'%'};};
+    var bigCard=function(label,mainHtml,sub,color){return '<div style="flex:1;min-width:152px;background:var(--bg3);border:1px solid '+(color||'var(--border)')+'55;border-radius:12px;padding:14px 18px">'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:6px">'+label+'</div>'
+      +'<div style="font-size:30px;font-weight:800;font-family:var(--mono);color:'+(color||'var(--text)')+';line-height:1.1">'+mainHtml+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:6px">'+sub+'</div></div>';};
+    var fW=function(v){return Math.abs(v)>=10000?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();};
+    var gr=grow(revG),gc=grow(custG),ga=grow(aovG);
+    cardsEl.innerHTML =
+       bigCard('營收成長', gr.html, '上週 '+fW(oL.rev)+'元 · 上上週 '+fW(oP.rev)+'元', gr.c)
+      +bigCard('來客成長', gc.html, '上週 '+Math.round(oL.cust).toLocaleString()+'人 · 上上週 '+Math.round(oP.cust).toLocaleString()+'人', gc.c)
+      +bigCard('客單價成長', ga.html, '上週 '+Math.round(aovL)+'元 · 上上週 '+Math.round(aovP)+'元', ga.c)
+      +bigCard('現場來客占比', onsPctL!=null?onsPctL.toFixed(1)+'%':'—', onsPP!=null?('vs上上週 '+(onsPP>=0?'+':'')+onsPP.toFixed(1)+' pp'):'（無渠道明細）', onsPctL!=null?'var(--accent)':'var(--text3)');
+  }
+
+  // 圖A：各分區營業額 上週 vs 上上週（簡報用）
+  var zRevL=zones.map(function(z){return agg(lastD,z).rev;});
+  var zRevP=zones.map(function(z){return agg(prevD,z).rev;});
+  mkChart('weekly-zone-rev',{type:'bar',
+    data:{labels:zones,datasets:[
+      {label:'上週',data:zRevL,backgroundColor:C.b+'cc',borderColor:C.b,borderWidth:1,borderRadius:4,maxBarThickness:40},
+      {label:'上上週',data:zRevP,backgroundColor:'#9aa4b2aa',borderColor:'#9aa4b2',borderWidth:1,borderRadius:4,maxBarThickness:40}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{boxWidth:11,color:'#6B6B6B'}},datalabels:{display:false},
+        tooltip:{callbacks:{label:function(ctx){var v=ctx.raw;return ctx.dataset.label+'：'+(v>=10000?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString())+'元';}}}},
+      scales:{x:{grid:{display:false},ticks:{color:'#6B6B6B'}},y:{grid:{color:'#1e2536'},ticks:{color:'#6B6B6B',callback:function(v){return v>=10000?(v/10000).toFixed(0)+'萬':v;}}}}}});
+
+  // 圖B：渠道占比 doughnut（來客；缺渠道明細時退回金額）
+  var pieAvail=chAvail(oL);
+  var pieVals=pieAvail?[oL.cust-oL.ubO-oL.fpO-oL.odO,oL.ubO,oL.fpO,oL.odO]:[oL.onsite,oL.ub,oL.fp,oL.odo];
+  var pt=document.getElementById('weekly-pie-title'); if(pt) pt.textContent=pieAvail?'渠道來客占比（上週）':'渠道金額占比（上週·尚無渠道單數）';
+  mkChart('weekly-ch-pie',{type:'doughnut',
+    data:{labels:['現場','UberEats','Foodpanda','ODO'],datasets:[{data:pieVals,backgroundColor:['#2D5016','#DC3545','#fb923c','#22d3ee'],borderColor:'#161b27',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{boxWidth:11,color:'#6B6B6B'}},
+        datalabels:{display:true,color:'#fff',font:{size:11,weight:'bold'},formatter:function(v,ctx){var t=ctx.dataset.data.reduce(function(a,b){return a+b;},0)||1;var p=v/t*100;return p>6?p.toFixed(0)+'%':'';}},
+        tooltip:{callbacks:{label:function(ctx){var t=ctx.dataset.data.reduce(function(a,b){return a+b;},0)||1;return ctx.label+'：'+Math.round(ctx.raw).toLocaleString()+'（'+(ctx.raw/t*100).toFixed(1)+'%）';}}}}}});
+
   var rowsHtml=METRICS.map(function(m){
     var vl=m.val(oL),vp=m.val(oP),chg=chgOf(m,vl,vp);
     return '<tr style="border-bottom:1px solid var(--border)">'
@@ -1446,7 +1508,6 @@ function renderWeekly(){
     {label:'現場來客占比',val:function(a){return chAvail(a)?(a.cust-a.ubO-a.fpO-a.odO)/a.cust*100:null;},unit:'%',pp:true,good:'up'},
     {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,good:'down'}
   ];
-  var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
   var zhead='<th style="text-align:left;padding:6px 10px">分區</th>'+zcols.map(function(c){return '<th style="text-align:right;padding:6px 10px">'+c.label+'</th>';}).join('');
   var zbody=zones.map(function(z){
     var aL=agg(lastD,z), aP=agg(prevD,z);
