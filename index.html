@@ -690,6 +690,21 @@ body.ug-is-admin .ug-admin-only{display:inline;}
     <!-- TREND -->
     <div class="tab-page" id="page-trend">
       <div id="data-info-trend"></div>
+      <!-- 特定日／颱風 影響分析 -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">🌀 特定日／颱風 影響分析</div>
+            <div class="chart-sub">選事件區間，自動對比「前一週同星期」，看營收／來客／渠道受影響幅度</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="date" id="impact-start" onchange="renderImpact()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px">
+            <span style="color:var(--text3)">～</span>
+            <input type="date" id="impact-end" onchange="renderImpact()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px">
+          </div>
+        </div>
+        <div id="impact-result"></div>
+      </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><div id="weekday-summary" style="display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap;"></div><canvas id="trend-weekday"></canvas></div>
@@ -1540,6 +1555,91 @@ function renderWeekly(){
   }
 }
 
+/* ══ 特定日／颱風 影響分析：選區間 vs 前一週同星期 ══ */
+function impactAgg(dset){
+  var o={rev:0,cups:0,cust:0,ub:0,fp:0,odo:0,ubO:0,fpO:0,odO:0,st:new Set()};
+  DATA.forEach(function(r){
+    if(!dset.has(r.date))return;
+    if(!state.stores.has(r.store))return;
+    if(!state.zones.has(r.zone))return;
+    o.rev+=r.revenue;o.cups+=r.cups;o.cust+=r.customers;o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;
+    o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);o.st.add(r.store);
+  });
+  o.stores=o.st.size; o.onCust=o.cust-o.ubO-o.fpO-o.odO; o.deliv=o.ubO+o.fpO; return o;
+}
+function renderImpact(){
+  var el=document.getElementById('impact-result'); if(!el) return;
+  var sEl=document.getElementById('impact-start'), eEl=document.getElementById('impact-end');
+  if(!sEl||!eEl) return;
+  var sorted=ALL_DATES.slice().sort(function(a,b){return internalToDate(a,DATE_YEAR_MAP[a]||TODAY.getFullYear())-internalToDate(b,DATE_YEAR_MAP[b]||TODAY.getFullYear());});
+  if(!sorted.length){ el.innerHTML='<div style="color:var(--text3);padding:10px">尚無資料</div>'; return; }
+  if(!sEl.value||!eEl.value){
+    var ld=sorted[sorted.length-1], pd=sorted[sorted.length-2]||ld;
+    eEl.value=dateToInput(internalToDate(ld,DATE_YEAR_MAP[ld]||TODAY.getFullYear()));
+    sEl.value=dateToInput(internalToDate(pd,DATE_YEAR_MAP[pd]||TODAY.getFullYear()));
+  }
+  var startD=inputToDate(sEl.value), endD=inputToDate(eEl.value);
+  if(startD>endD){var t=startD;startD=endD;endD=t;}
+  var eventDates=ALL_DATES.filter(function(d){var dt=internalToDate(d,DATE_YEAR_MAP[d]||TODAY.getFullYear());return dt>=startD&&dt<=endD;});
+  if(!eventDates.length){ el.innerHTML='<div style="color:var(--text3);padding:10px">此區間無資料</div>'; return; }
+  var allSet=new Set(ALL_DATES);
+  var DOWZH=['日','一','二','三','四','五','六'];
+  var pairs=eventDates.map(function(d){
+    var yr=DATE_YEAR_MAP[d]||TODAY.getFullYear(); var dt=internalToDate(d,yr);
+    var bd=new Date(dt.getTime()-7*86400000);
+    var bk=('0'+(bd.getMonth()+1)).slice(-2)+'/'+('0'+bd.getDate()).slice(-2);
+    return {ev:d, evDt:dt, dow:DOWZH[dt.getDay()], base:bk, has:allSet.has(bk)};
+  });
+  var baseDates=pairs.filter(function(p){return p.has;}).map(function(p){return p.base;});
+  var E=impactAgg(new Set(eventDates)), B=impactAgg(new Set(baseDates));
+  if(!baseDates.length){ el.innerHTML='<div style="color:var(--warn);padding:10px">找不到「前一週同星期」的資料可比對（可能資料未涵蓋前一週）。</div>'; return; }
+
+  var fmtM=function(v){var a=Math.abs(v);return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString());};
+  var imp=function(e,b){return b?(e-b)/b*100:null;};
+  var col=function(p){return p==null?'var(--text3)':Math.abs(p)<0.5?'var(--warn)':p<0?'var(--danger)':'#28A745';};
+  var ptxt=function(p){return p==null?'—':(p>=0?'+':'')+p.toFixed(0)+'%';};
+
+  var bigCard=function(label,p,sub){var c=col(p);var ar=p==null?'':p<0?'▼':p>0?'▲':'→';
+    return '<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid '+c+'55;border-radius:12px;padding:14px 18px">'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:6px">'+label+'</div>'
+      +'<div style="font-size:28px;font-weight:800;font-family:var(--mono);color:'+c+';line-height:1.1">'+ar+' '+(p==null?'—':Math.abs(p).toFixed(0)+'%')+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:6px">'+sub+'</div></div>';};
+
+  var openE=E.stores?E.rev/E.stores:0, openB=B.stores?B.rev/B.stores:0, openImp=imp(openE,openB);
+  var cards='<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 8px">'
+    + bigCard('營收影響', imp(E.rev,B.rev), '事件 '+fmtM(E.rev)+'元 · 基準 '+fmtM(B.rev)+'元')
+    + bigCard('總來客影響', imp(E.cust,B.cust), '事件 '+Math.round(E.cust).toLocaleString()+' · 基準 '+Math.round(B.cust).toLocaleString())
+    + bigCard('現場來客影響', imp(E.onCust,B.onCust), '事件 '+Math.round(E.onCust).toLocaleString()+' · 基準 '+Math.round(B.onCust).toLocaleString())
+    + bigCard('外送單影響', imp(E.deliv,B.deliv), '事件 '+Math.round(E.deliv).toLocaleString()+'單 · 基準 '+Math.round(B.deliv).toLocaleString()+'單')
+    + '</div>';
+
+  var openNote='<div style="font-size:12px;color:var(--text2);margin:4px 0 12px;line-height:1.7">'
+    +'開店數 <b>'+E.stores+'</b> 家（基準 '+B.stores+' 家'+(B.stores>E.stores?'，事件少開 <b style="color:var(--danger)">'+(B.stores-E.stores)+'</b> 家':'')+'）。'
+    +'排除關店、只看「<b>有開的店</b>」店均：<b style="color:'+col(openImp)+'">'+ptxt(openImp)+'</b>（事件 '+fmtM(openE)+' vs 基準 '+fmtM(openB)+'／店）。</div>';
+
+  var body=pairs.map(function(p){
+    var eD=impactAgg(new Set([p.ev])), bD=p.has?impactAgg(new Set([p.base])):null;
+    var cell=function(e,b,money){var pp=bD?imp(e,b):null;return '<td style="padding:6px 9px;text-align:right;font-family:var(--mono)"><div style="font-weight:700;color:var(--text)">'+(money?fmtM(e)+'元':Math.round(e).toLocaleString())+'</div><div style="font-size:10px;color:'+col(pp)+'">'+ptxt(pp)+'</div></td>';};
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:6px 9px;font-weight:600;color:var(--text)">'+p.ev+'（'+p.dow+'）</td>'
+      +'<td style="padding:6px 9px;color:var(--text3);font-size:11px">'+(p.has?p.base:'無基準')+'</td>'
+      +'<td style="padding:6px 9px;text-align:right;font-family:var(--mono)">'+eD.stores+(bD?' <span style="color:var(--text3);font-size:10px">/'+bD.stores+'</span>':'')+'</td>'
+      +cell(eD.rev, bD?bD.rev:0, true)
+      +cell(eD.onCust, bD?bD.onCust:0, false)
+      +cell(eD.deliv, bD?bD.deliv:0, false)
+      +'</tr>';
+  }).join('');
+  var table='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">'
+    +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+    +'<th style="text-align:left;padding:6px 9px">事件日</th><th style="text-align:left;padding:6px 9px">基準日(前週)</th>'
+    +'<th style="text-align:right;padding:6px 9px">開店</th><th style="text-align:right;padding:6px 9px">營業淨額</th>'
+    +'<th style="text-align:right;padding:6px 9px">現場來客</th><th style="text-align:right;padding:6px 9px">外送單</th></tr></thead>'
+    +'<tbody>'+body+'</tbody></table></div>';
+
+  el.innerHTML=cards+openNote+table
+    +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 基準＝事件日的「前一週同星期」（往前 7 天）。%＝事件 vs 基準（下降紅、上升綠）。「有開的店店均」把關店因素排除，才看得出實際單店受創程度。</div>';
+}
+
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
 function renderToday(){
   renderInfoBar('data-info-today');
@@ -2365,6 +2465,7 @@ function renderWeeklyCompare(){
 /* ══ TREND ══ */
 function renderTrend(){
   renderInfoBar('data-info-trend');
+  try{ renderImpact(); }catch(e){}
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();
   const byDate={};const storesByDate={};
