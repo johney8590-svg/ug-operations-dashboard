@@ -1681,6 +1681,7 @@ function renderToday(){
   const storeCount = byStore.length || 1;
   // 整體日均 = 全體總營收 ÷ 店家數 ÷ 天數
   const avgDailyRev = Math.round(tot.revenue / storeCount / dayCount);
+  const avgStoreRev = Math.round(tot.revenue / storeCount);   // 平均單店營收（期間累計 ÷ 店數）
   const avgDailyCups= Math.round(tot.cups    / storeCount / dayCount);
   const avgDailyCust= Math.round(tot.customers/ storeCount/ dayCount);
   const avgAov = tot.customers > 0 ? Math.round(tot.revenue / tot.customers) : 0;
@@ -1712,6 +1713,11 @@ function renderToday(){
       <div class="kpi-label">${dimLabel}</div>
       <div class="kpi-value blue">${fmtMain(dimAvg)}<span style="font-size:13px;color:var(--text2)">${state.dim==='revenue'?'':''+dimUnit}</span></div>
       <div class="kpi-sub">${fmtSub(dimTotal)}</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-label">平均單店營收</div>
+      <div class="kpi-value blue">${avgStoreRev>=10000?(avgStoreRev/10000).toFixed(1)+'萬':avgStoreRev.toLocaleString()}<span style="font-size:13px;color:var(--text2)">元</span></div>
+      <div class="kpi-sub">期間累計 ÷ ${storeCount} 店 · 每店日均 ${avgDailyRev>=10000?(avgDailyRev/10000).toFixed(1)+'萬':avgDailyRev.toLocaleString()}元</div>
     </div>
     <div class="kpi-card green">
       <div class="kpi-label">每店日均杯數</div>
