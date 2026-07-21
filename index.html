@@ -815,7 +815,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         <div id="monthly-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px"></div>
         <div class="grid-2" style="margin-bottom:20px">
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
-            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">營收驅動橋（來客 × 客單價 拆解）</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">營收驅動橋（來客 × 客單價 拆解）<span style="font-weight:400;font-size:10px;color:var(--text3)">　·　Y軸截斷顯示，看差額不看柱高</span></div>
             <div style="height:270px;position:relative"><canvas id="monthly-bridge"></canvas></div>
           </div>
           <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
@@ -1761,18 +1761,33 @@ function renderMonthly(){
     +bigCard('外送抽傭', fmtM(L.comm)+'元', ptxt(commG)+' · 占營收 '+(L.rev?(L.comm/L.rev*100).toFixed(1):'—')+'%', gcol(commG,true));
 
   // ── 圖A：營收驅動橋（waterfall）──
+  // Y 軸截斷顯示（不從 0 起）：月營收上億、效果柱僅數百萬～千萬級，
+  // 若從 0 畫效果柱會細到看不見；截斷後階梯與標籤才清晰（顧問簡報慣例）。
   var b1=P.rev+trafficEff;
-  var wfData=[[0,P.rev],[P.rev,b1],[b1,L.rev],[0,L.rev]];
-  var wfColors=['#9aa4b2aa', trafficEff>=0?'#28A745cc':'#DC3545cc', priceEff>=0?'#28A745cc':'#DC3545cc', C.a+'cc'];
+  var wfSegs=[
+    {lo:0,             hi:P.rev,             label:fmtM(P.rev),                                  c:'#9aa4b2'},
+    {lo:Math.min(P.rev,b1), hi:Math.max(P.rev,b1), label:(trafficEff>=0?'+':'')+fmtM(trafficEff), c:trafficEff>=0?'#28A745':'#DC3545'},
+    {lo:Math.min(b1,L.rev), hi:Math.max(b1,L.rev), label:(priceEff>=0?'+':'')+fmtM(priceEff),     c:priceEff>=0?'#28A745':'#DC3545'},
+    {lo:0,             hi:L.rev,             label:fmtM(L.rev),                                  c:C.a}
+  ];
+  var wfMin=Math.min(P.rev,L.rev,b1), wfMax=Math.max(P.rev,L.rev,b1);
+  var wfSpan=(wfMax-wfMin)||Math.max(wfMax*0.1,1);
+  var yMin=Math.max(0, wfMin-wfSpan*0.4), yMax=wfMax+wfSpan*0.25;
   mkChart('monthly-bridge',{type:'bar',
     data:{labels:[mLbl(MP)+'營收','來客效果','客單價效果',mLbl(ML)+'營收'],
-      datasets:[{data:wfData,backgroundColor:wfColors,borderColor:wfColors.map(function(c){return c.slice(0,7);}),borderWidth:1,borderRadius:4,maxBarThickness:64}]},
+      datasets:[{data:wfSegs.map(function(s){return [s.lo,s.hi];}),
+        backgroundColor:wfSegs.map(function(s){return s.c+'cc';}),
+        borderColor:wfSegs.map(function(s){return s.c;}),
+        borderWidth:1,borderRadius:3,maxBarThickness:64}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},
-        datalabels:{display:true,anchor:'end',align:'end',font:{size:10,weight:'bold'},color:'#6B6B6B',
-          formatter:function(v,ctx){var d=v[1]-v[0];if(ctx.dataIndex===0||ctx.dataIndex===3)return fmtM(d);return (d>=0?'+':'')+fmtM(d);}},
-        tooltip:{callbacks:{label:function(ctx){var d=ctx.raw[1]-ctx.raw[0];return (ctx.dataIndex===0||ctx.dataIndex===3?'':(d>=0?'+':''))+fmtM(d)+'元';}}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'#1e2536'},ticks:{callback:function(v){return v>=10000?(v/10000).toFixed(0)+'萬':v;}}}}}});
+        datalabels:{display:true,anchor:'end',align:'end',offset:2,font:{size:11,weight:'bold'},
+          color:function(ctx){return wfSegs[ctx.dataIndex].c;},
+          formatter:function(v,ctx){return wfSegs[ctx.dataIndex].label;}},
+        tooltip:{callbacks:{label:function(ctx){return wfSegs[ctx.dataIndex].label+'元';}}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},
+        y:{min:yMin,max:yMax,grid:{color:'#1e2536'},
+          ticks:{callback:function(v){return v>=10000?(v/10000).toFixed(0)+'萬':Math.round(v);}}}}}});
 
   // ── 圖B：各分區營業額 ──
   var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
