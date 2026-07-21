@@ -506,6 +506,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
   <div class="nav-section">分析</div>
   <div class="nav-item active" id="nav-today" onclick="switchPage('today',this)"><span style="width:20px;text-align:center">📑</span> 今日現況</div>
   <div class="nav-item" id="nav-weekly" onclick="switchPage('weekly',this)"><span style="width:20px;text-align:center">📅</span> 週報</div>
+  <div class="nav-item" id="nav-monthly" onclick="switchPage('monthly',this)"><span style="width:20px;text-align:center">📆</span> 月報</div>
   <div class="nav-item" id="nav-trend" onclick="switchPage('trend',this)"><span style="width:20px;text-align:center">📈</span> 趨勢分析</div>
   <div class="nav-item" id="nav-compare" onclick="switchPage('compare',this)"><span style="width:20px;text-align:center">📊</span> 門市對比</div>
       <div class="nav-item" id="nav-target" onclick="switchPage('target',this)"><span style="width:20px;text-align:center">🎯</span> 目標缺口</div>
@@ -801,6 +802,39 @@ body.ug-is-admin .ug-admin-only{display:inline;}
       </div>
     </div>
 
+    <!-- 月報 -->
+    <div class="tab-page" id="page-monthly">
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">📆 月報 · 上月 vs 上上月</div>
+            <div class="chart-sub" id="monthly-sub">自動取最近兩個完整月 · 結論先行 → 驅動拆解 → 分區/門市 → 行動</div>
+          </div>
+        </div>
+        <div id="monthly-bluf" style="border-left:3px solid var(--accent);background:var(--bg3);border-radius:0 10px 10px 0;padding:12px 16px;margin:8px 0 14px;font-size:13px;line-height:1.8;color:var(--text)"></div>
+        <div id="monthly-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px"></div>
+        <div class="grid-2" style="margin-bottom:20px">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">營收驅動橋（來客 × 客單價 拆解）</div>
+            <div style="height:270px;position:relative"><canvas id="monthly-bridge"></canvas></div>
+          </div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px">各分區營業額（上月 vs 上上月）</div>
+            <div style="height:270px;position:relative"><canvas id="monthly-zone-rev"></canvas></div>
+          </div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin:8px 0 8px">① 整體指標</div>
+        <div id="monthly-overall" style="overflow-x:auto"></div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin:22px 0 8px">② 分區</div>
+        <div id="monthly-zone" style="overflow-x:auto"></div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin:22px 0 8px">③ 門市 Top / Bottom（同店月比）</div>
+        <div id="monthly-movers" style="display:flex;gap:14px;flex-wrap:wrap"></div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin:22px 0 8px">④ 建議行動</div>
+        <div id="monthly-actions"></div>
+        <div id="monthly-note" style="font-size:11px;color:var(--text3);margin-top:14px;line-height:1.7"></div>
+      </div>
+    </div>
+
     <!-- 目標缺口頁 -->
     <div class="tab-page" id="page-target">
       <div class="chart-panel">
@@ -875,6 +909,10 @@ body.ug-is-admin .ug-admin-only{display:inline;}
   <div class="mobile-tab-item" id="mtab-weekly" onclick="mobileTab('weekly',this)">
     <span class="mobile-tab-icon">📅</span>
     <span class="mobile-tab-label">週報</span>
+  </div>
+  <div class="mobile-tab-item" id="mtab-monthly" onclick="mobileTab('monthly',this)">
+    <span class="mobile-tab-icon">📆</span>
+    <span class="mobile-tab-label">月報</span>
   </div>
   <div class="mobile-tab-item" id="mtab-trend" onclick="mobileTab('trend',this)">
     <span class="mobile-tab-icon">📈</span>
@@ -1347,7 +1385,7 @@ function closeAll(){['zone-dd','store-dd','dr-panel'].forEach(id=>document.getEl
 document.addEventListener('click',()=>closeAll());
 
 /* ══ PAGE / DIM ══ */
-const PAGE_TITLES={upload:'更新資料',today:'今日現況',weekly:'週報',trend:'趨勢分析',compare:'門市對比',target:'目標缺口'};
+const PAGE_TITLES={upload:'更新資料',today:'今日現況',weekly:'週報',monthly:'月報',trend:'趨勢分析',compare:'門市對比',target:'目標缺口'};
 function switchPage(p,el){
   state.page=p;
   document.querySelectorAll('.tab-page').forEach(x=>x.classList.remove('active'));
@@ -1638,6 +1676,225 @@ function renderImpact(){
 
   el.innerHTML=cards+openNote+table
     +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 基準＝事件日的「前一週同星期」（往前 7 天）。%＝事件 vs 基準（下降紅、上升綠）。「有開的店店均」把關店因素排除，才看得出實際單店受創程度。</div>';
+}
+
+/* ══ 月報：上月 vs 上上月（自動取最近兩個完整月；麥肯錫式 BLUF→驅動拆解→SSSG→movers→行動）══ */
+function renderMonthly(){
+  var blufEl=document.getElementById('monthly-bluf'); if(!blufEl) return;
+  var subEl=document.getElementById('monthly-sub');
+  var fmtM=function(v){var a=Math.abs(v);return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString());};
+  var pct=function(a,b){return b?(a-b)/b*100:null;};
+  var ptxt=function(p,d){return p==null?'—':(p>=0?'+':'')+p.toFixed(d==null?1:d)+'%';};
+  var gcol=function(p,inv){if(p==null)return 'var(--text3)';if(Math.abs(p)<0.5)return 'var(--warn)';var good=inv?p<0:p>0;return good?'#28A745':'var(--danger)';};
+
+  // ── 分月（吃門市/分區篩選）──
+  var mset={};
+  DATA.forEach(function(r){
+    if(!state.stores.has(r.store)||!state.zones.has(r.zone))return;
+    var ym=r.year*100+r.month;
+    if(!mset[ym])mset[ym]={ym:ym,year:r.year,month:r.month,maxDay:0,rows:[]};
+    var day=parseInt(String(r.date).split('/')[1],10)||0;
+    if(day>mset[ym].maxDay)mset[ym].maxDay=day;
+    mset[ym].rows.push(r);
+  });
+  var months=Object.keys(mset).map(function(k){return mset[k];}).sort(function(a,b){return b.ym-a.ym;});
+  var complete=months.filter(function(m){var dim=new Date(m.year,m.month,0).getDate();return m.maxDay>=dim;});
+  var pool=complete.length>=2?complete:months;
+  if(pool.length<2){ blufEl.innerHTML='尚無兩個月的資料可比較。'; return; }
+  var ML=pool[0], MP=pool[1];   // 上月、上上月
+  var mLbl=function(m){return m.month+'月';};
+  if(subEl) subEl.textContent='上月 '+mLbl(ML)+'（'+ML.year+'）　vs　上上月 '+mLbl(MP)+(complete.length>=2?'':' ⚠️ 含未滿月資料')+' · 結論先行 → 驅動拆解 → 分區/門市 → 行動';
+
+  // ── 彙總 ──
+  function aggRows(rows,zone){
+    var o={rev:0,cups:0,cust:0,disc:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,st:new Set(),dy:new Set(),n:0};
+    rows.forEach(function(r){
+      if(zone&&r.zone!==zone)return;
+      o.rev+=r.revenue;o.cups+=r.cups;o.cust+=r.customers;o.disc+=(r.discount||0);
+      o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;o.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+      o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);
+      o.st.add(r.store);o.dy.add(r.date);o.n++;
+    });
+    o.stores=o.st.size;o.days=o.dy.size;
+    o.comm=o.ub*0.33+o.fp*0.31;
+    return o;
+  }
+  function chAvail(a){return (a.ubO+a.fpO+a.odO)>0;}
+  var L=aggRows(ML.rows,null), P=aggRows(MP.rows,null);
+
+  // ── 驅動拆解：營收Δ = 來客效果 + 客單價效果 ──
+  var aovL=L.cust?L.rev/L.cust:0, aovP=P.cust?P.rev/P.cust:0;
+  var trafficEff=(L.cust-P.cust)*aovP;
+  var priceEff=L.cust*(aovL-aovP);
+  var revG=pct(L.rev,P.rev), custG=pct(L.cust,P.cust), aovG=pct(aovL,aovP);
+  var sdL=L.n?L.rev/L.n:0, sdP=P.n?P.rev/P.n:0, sdG=pct(sdL,sdP);   // 店日均
+
+  // ── SSSG 同店成長（兩個月都有、各 ≥15 天）──
+  function storeStats(rows){var m={};rows.forEach(function(r){if(!m[r.store])m[r.store]={rev:0,days:new Set(),zone:r.zone};m[r.store].rev+=r.revenue;m[r.store].days.add(r.date);});return m;}
+  var stL=storeStats(ML.rows), stP=storeStats(MP.rows);
+  var common=Object.keys(stL).filter(function(s){return stP[s]&&stL[s].days.size>=15&&stP[s].days.size>=15;});
+  var ssRevL=0,ssSdL=0,ssRevP=0,ssSdP=0;
+  common.forEach(function(s){ssRevL+=stL[s].rev;ssSdL+=stL[s].days.size;ssRevP+=stP[s].rev;ssSdP+=stP[s].days.size;});
+  var sssg=(ssSdL&&ssSdP)?pct(ssRevL/ssSdL,ssRevP/ssSdP):null;
+
+  // ── BLUF ──
+  var mainDriver=Math.abs(trafficEff)>=Math.abs(priceEff)?'來客':'客單價';
+  var blufColor=gcol(revG);
+  blufEl.innerHTML='<b style="color:'+blufColor+';font-size:15px">'+mLbl(ML)+'營收 '+fmtM(L.rev)+'元，較'+mLbl(MP)+' '+ptxt(revG)+'</b>'
+    +'　主因<b>'+mainDriver+'</b>（來客貢獻 '+fmtM(trafficEff)+'元、客單價貢獻 '+fmtM(priceEff)+'元）。'
+    +'同店成長 <b style="color:'+gcol(sssg)+'">'+ptxt(sssg)+'</b>（'+common.length+' 家可比）'
+    +(sssg!=null&&revG!=null&&Math.abs(revG-sssg)>2?'，整體與同店差 '+(revG-sssg).toFixed(1)+' pp 來自店數/營業天數變化':'')+'。'
+    +'<span style="color:var(--text3);font-size:11px">　'+mLbl(ML)+' '+L.stores+'店/'+L.n.toLocaleString()+'店日 · '+mLbl(MP)+' '+P.stores+'店/'+P.n.toLocaleString()+'店日</span>';
+
+  // ── 大字卡 ──
+  var bigCard=function(label,mainHtml,sub,color){return '<div style="flex:1;min-width:150px;background:var(--bg3);border:1px solid '+(color||'var(--border)')+'55;border-radius:12px;padding:13px 16px">'
+    +'<div style="font-size:11px;color:var(--text3);margin-bottom:5px">'+label+'</div>'
+    +'<div style="font-size:26px;font-weight:800;font-family:var(--mono);color:'+(color||'var(--text)')+';line-height:1.1">'+mainHtml+'</div>'
+    +'<div style="font-size:10px;color:var(--text3);margin-top:5px">'+sub+'</div></div>';};
+  var arrow=function(p){return p==null?'':Math.abs(p)<0.5?'→':p>0?'▲':'▼';};
+  var commG=pct(L.comm,P.comm);
+  document.getElementById('monthly-cards').innerHTML=
+     bigCard('營收成長', arrow(revG)+' '+(revG==null?'—':Math.abs(revG).toFixed(1)+'%'), '店日均 '+ptxt(sdG)+'（'+fmtM(sdL)+'/店日）', gcol(revG))
+    +bigCard('同店成長 SSSG', arrow(sssg)+' '+(sssg==null?'—':Math.abs(sssg).toFixed(1)+'%'), common.length+' 家可比門市 · 排除新開/關店', gcol(sssg))
+    +bigCard('來客成長', arrow(custG)+' '+(custG==null?'—':Math.abs(custG).toFixed(1)+'%'), mLbl(ML)+' '+Math.round(L.cust).toLocaleString()+' vs '+Math.round(P.cust).toLocaleString(), gcol(custG))
+    +bigCard('客單價', Math.round(aovL)+'元', 'vs '+Math.round(aovP)+'元（'+ptxt(aovG)+'）', gcol(aovG))
+    +bigCard('外送抽傭', fmtM(L.comm)+'元', ptxt(commG)+' · 占營收 '+(L.rev?(L.comm/L.rev*100).toFixed(1):'—')+'%', gcol(commG,true));
+
+  // ── 圖A：營收驅動橋（waterfall）──
+  var b1=P.rev+trafficEff;
+  var wfData=[[0,P.rev],[P.rev,b1],[b1,L.rev],[0,L.rev]];
+  var wfColors=['#9aa4b2aa', trafficEff>=0?'#28A745cc':'#DC3545cc', priceEff>=0?'#28A745cc':'#DC3545cc', C.a+'cc'];
+  mkChart('monthly-bridge',{type:'bar',
+    data:{labels:[mLbl(MP)+'營收','來客效果','客單價效果',mLbl(ML)+'營收'],
+      datasets:[{data:wfData,backgroundColor:wfColors,borderColor:wfColors.map(function(c){return c.slice(0,7);}),borderWidth:1,borderRadius:4,maxBarThickness:64}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        datalabels:{display:true,anchor:'end',align:'end',font:{size:10,weight:'bold'},color:'#6B6B6B',
+          formatter:function(v,ctx){var d=v[1]-v[0];if(ctx.dataIndex===0||ctx.dataIndex===3)return fmtM(d);return (d>=0?'+':'')+fmtM(d);}},
+        tooltip:{callbacks:{label:function(ctx){var d=ctx.raw[1]-ctx.raw[0];return (ctx.dataIndex===0||ctx.dataIndex===3?'':(d>=0?'+':''))+fmtM(d)+'元';}}}},
+      scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{grid:{color:'#1e2536'},ticks:{callback:function(v){return v>=10000?(v/10000).toFixed(0)+'萬':v;}}}}}});
+
+  // ── 圖B：各分區營業額 ──
+  var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
+  mkChart('monthly-zone-rev',{type:'bar',
+    data:{labels:zones,datasets:[
+      {label:mLbl(ML),data:zones.map(function(z){return aggRows(ML.rows,z).rev;}),backgroundColor:C.b+'cc',borderColor:C.b,borderWidth:1,borderRadius:4,maxBarThickness:40},
+      {label:mLbl(MP),data:zones.map(function(z){return aggRows(MP.rows,z).rev;}),backgroundColor:'#9aa4b2aa',borderColor:'#9aa4b2',borderWidth:1,borderRadius:4,maxBarThickness:40}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{boxWidth:11,color:'#6B6B6B'}},datalabels:{display:false},
+        tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+'：'+fmtM(ctx.raw)+'元';}}}},
+      scales:{x:{grid:{display:false},ticks:{color:'#6B6B6B'}},y:{grid:{color:'#1e2536'},ticks:{color:'#6B6B6B',callback:function(v){return v>=10000?(v/10000).toFixed(0)+'萬':v;}}}}}});
+
+  // ── ① 整體指標表（整體＋店日均雙列，沿用週報格式）──
+  var METRICS=[
+    {label:'營業淨額',val:function(a){return a.rev;},money:true,unit:'元',avg:true},
+    {label:'杯數',val:function(a){return a.cups;},unit:'杯',avg:true},
+    {label:'來客',val:function(a){return a.cust;},unit:'人',avg:true},
+    {label:'客單價',val:function(a){return a.cust?a.rev/a.cust:0;},money:true,unit:'元'},
+    {label:'杯單價',val:function(a){return a.cups?a.rev/a.cups:0;},money:true,unit:'元'},
+    {label:'折扣率',val:function(a){return (a.rev+a.disc)?a.disc/(a.rev+a.disc)*100:0;},unit:'%',pp:true,inv:true},
+    {label:'現場金額',val:function(a){return a.onsite;},money:true,unit:'元',avg:true},
+    {label:'UberEats 金額',val:function(a){return a.ub;},money:true,unit:'元',avg:true},
+    {label:'Foodpanda 金額',val:function(a){return a.fp;},money:true,unit:'元',avg:true},
+    {label:'ODO 金額',val:function(a){return a.odo;},money:true,unit:'元',avg:true},
+    {label:'外送抽傭(UB33%·FP31%)',val:function(a){return a.comm;},money:true,unit:'元',avg:true,inv:true},
+    {label:'現場來客占比',val:function(a){return chAvail(a)?(a.cust-a.ubO-a.fpO-a.odO)/a.cust*100:null;},unit:'%',pp:true},
+    {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,inv:true}
+  ];
+  var fmtVal=function(m,v){if(v==null)return '—';return m.unit==='%'?v.toFixed(1)+'%':fmtM(v)+m.unit;};
+  var chgTxt=function(m,vl,vp){if(vl==null||vp==null)return null;if(m.pp){var d=vl-vp;return {v:d,txt:(d>=0?'+':'')+d.toFixed(1)+' pp'};}var c=pct(vl,vp);return c==null?null:{v:c,txt:ptxt(c)};};
+  var chgCol=function(m,c){return c==null?'var(--text3)':gcol(c.v,m.inv);};
+  var sub10=function(t){return '<div style="font-size:10px;color:var(--text3);font-weight:400">'+t+'</div>';};
+  var rowsHtml=METRICS.map(function(m){
+    var vl=m.val(L),vp=m.val(P),c=chgTxt(m,vl,vp);
+    var cl=fmtVal(m,vl),cp=fmtVal(m,vp),cc='<span style="color:'+chgCol(m,c)+'">'+(c?c.txt:'—')+'</span>';
+    if(m.avg){var al=L.n?vl/L.n:0,ap=P.n?vp/P.n:0,ac=chgTxt(m,al,ap);
+      cl+=sub10('店日均 '+fmtVal(m,al));cp+=sub10('店日均 '+fmtVal(m,ap));
+      cc+='<div style="font-size:10px;font-weight:400;color:'+chgCol(m,ac)+'">日均 '+(ac?ac.txt:'—')+'</div>';}
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:7px 10px;color:var(--text2)">'+m.label+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">'+cl+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+cp+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:600">'+cc+'</td></tr>';
+  }).join('');
+  document.getElementById('monthly-overall').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:460px">'
+    +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+    +'<th style="text-align:left;padding:6px 10px">指標</th><th style="text-align:right;padding:6px 10px">'+mLbl(ML)+'</th>'
+    +'<th style="text-align:right;padding:6px 10px">'+mLbl(MP)+'</th><th style="text-align:right;padding:6px 10px">成長</th></tr></thead>'
+    +'<tbody>'+rowsHtml+'</tbody></table>';
+
+  // ── ② 分區表 ──
+  var zcols=[
+    {label:'營業額',val:function(a){return a.rev;},money:true,unit:'元',avg:true},
+    {label:'杯數',val:function(a){return a.cups;},unit:'杯',avg:true},
+    {label:'來客',val:function(a){return a.cust;},unit:'人',avg:true},
+    {label:'客單價',val:function(a){return a.cust?a.rev/a.cust:0;},money:true,unit:'元'},
+    {label:'外送金額占比',val:function(a){return a.rev?(a.ub+a.fp)/a.rev*100:0;},unit:'%',pp:true,inv:true}
+  ];
+  var zhead='<th style="text-align:left;padding:6px 10px">分區</th>'+zcols.map(function(c){return '<th style="text-align:right;padding:6px 10px">'+c.label+(c.avg?'<br><span style="font-weight:400;opacity:.7">整體／店日均</span>':'')+'</th>';}).join('');
+  var zbody=zones.map(function(z){
+    var aL=aggRows(ML.rows,z), aP=aggRows(MP.rows,z);
+    var tds=zcols.map(function(c){
+      var vl=c.val(aL),vp=c.val(aP),cg=chgTxt(c,vl,vp),s;
+      if(c.avg){var al=aL.n?vl/aL.n:0,acg=chgTxt(c,al,aP.n?vp/aP.n:0);
+        s='日均 '+fmtVal(c,al)+' <span style="color:'+chgCol(c,acg)+'">'+(acg?acg.txt:'')+'</span>';}
+      else s='<span style="color:'+chgCol(c,cg)+'">'+(cg?cg.txt:'—')+'</span>';
+      return '<td style="padding:7px 10px;text-align:right;font-family:var(--mono)"><div style="font-weight:700;color:var(--text)">'+fmtVal(c,vl)+'</div><div style="font-size:10px;color:var(--text3)">'+s+'</div></td>';
+    }).join('');
+    return '<tr style="border-bottom:1px solid var(--border)"><td style="padding:7px 10px;font-weight:600;color:var(--text)">'+z+'</td>'+tds+'</tr>';
+  }).join('');
+  document.getElementById('monthly-zone').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:600px">'
+    +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'+zhead+'</tr></thead><tbody>'+zbody+'</tbody></table>';
+
+  // ── ③ 門市 movers（同店，店日均成長排序）──
+  var movers=common.map(function(s){
+    var dl=stL[s].rev/stL[s].days.size, dp=stP[s].rev/stP[s].days.size;
+    return {store:s,zone:stL[s].zone,dl:dl,dp:dp,g:pct(dl,dp)};
+  }).filter(function(m){return m.g!=null;}).sort(function(a,b){return b.g-a.g;});
+  var moverTbl=function(title,list,color){
+    var body=list.map(function(m){
+      return '<tr style="border-bottom:1px solid var(--border)">'
+        +'<td style="padding:6px 9px;font-weight:600;color:var(--text)">'+m.store+'</td>'
+        +'<td style="padding:6px 9px;color:var(--text3);font-size:11px">'+String(m.zone).slice(0,3)+'</td>'
+        +'<td style="padding:6px 9px;text-align:right;font-family:var(--mono)">'+fmtM(m.dl)+'</td>'
+        +'<td style="padding:6px 9px;text-align:right;font-family:var(--mono);color:var(--text3)">'+fmtM(m.dp)+'</td>'
+        +'<td style="padding:6px 9px;text-align:right;font-family:var(--mono);font-weight:700;color:'+gcol(m.g)+'">'+ptxt(m.g)+'</td></tr>';
+    }).join('');
+    return '<div style="flex:1;min-width:290px"><div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:6px">'+title+'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--text3);font-size:10px;border-bottom:1.5px solid var(--border)">'
+      +'<th style="text-align:left;padding:5px 9px">門市</th><th style="text-align:left;padding:5px 9px">區</th>'
+      +'<th style="text-align:right;padding:5px 9px">'+mLbl(ML)+'日均</th><th style="text-align:right;padding:5px 9px">'+mLbl(MP)+'日均</th>'
+      +'<th style="text-align:right;padding:5px 9px">成長</th></tr></thead><tbody>'+body+'</tbody></table></div>';
+  };
+  document.getElementById('monthly-movers').innerHTML=
+    moverTbl('🏆 成長 Top 5',movers.slice(0,5),'#28A745')
+    +moverTbl('⚠️ 衰退 Top 5',movers.slice(-5).reverse(),'var(--danger)');
+
+  // ── ④ 建議行動（規則式，依影響額排序）──
+  var acts=[];
+  if(trafficEff<0)acts.push({w:Math.abs(trafficEff),t:'<b>來客回補</b>：來客 '+ptxt(custG)+'（影響約 '+fmtM(trafficEff)+'元）。優先：會員召回檔期、外送平台曝光加碼、弱勢分區在地活動。'});
+  if(priceEff<0)acts.push({w:Math.abs(priceEff),t:'<b>客單價修復</b>：客單價 '+Math.round(aovP)+'→'+Math.round(aovL)+'元（影響約 '+fmtM(priceEff)+'元）。檢查折扣活動強度與品項組合，推大杯化／加購／套組。'});
+  var discL=(L.rev+L.disc)?L.disc/(L.rev+L.disc)*100:0, discP=(P.rev+P.disc)?P.disc/(P.rev+P.disc)*100:0;
+  if(discL-discP>0.5)acts.push({w:L.disc-P.disc,t:'<b>折扣控管</b>：折扣率 +'+(discL-discP).toFixed(1)+' pp（多讓 '+fmtM(L.disc-P.disc)+'元），確認活動 ROI 是否有換到增量來客。'});
+  var dshL=L.rev?(L.ub+L.fp)/L.rev*100:0, dshP=P.rev?(P.ub+P.fp)/P.rev*100:0;
+  if(dshL-dshP>1)acts.push({w:L.comm-P.comm,t:'<b>外送依賴上升</b>：外送占比 +'+(dshL-dshP).toFixed(1)+' pp，抽傭 '+ptxt(commG)+'（'+fmtM(L.comm)+'元/月）。留意獲利稀釋，強化 ODO 自取導流。'});
+  if(sssg!=null&&revG!=null&&revG-sssg>2)acts.push({w:0,t:'<b>成長品質</b>：整體 '+ptxt(revG)+' 高於同店 '+ptxt(sssg)+'，成長主要靠店數擴張——追蹤新店爬坡是否達模型。'});
+  var worst=movers.slice(-3).reverse().filter(function(m){return m.g<-5;});
+  if(worst.length)acts.push({w:1,t:'<b>重點門市</b>：'+worst.map(function(m){return m.store+'（'+ptxt(m.g)+'）';}).join('、')+' 衰退明顯，建議督導本週訪店找原因（商圈/人力/品質）。'});
+  if(!acts.length)acts.push({w:0,t:'各指標穩定，維持現行動作；可把資源投入最強分區的加深經營。'});
+  acts.sort(function(a,b){return b.w-a.w;});
+  document.getElementById('monthly-actions').innerHTML=acts.slice(0,4).map(function(a,i){
+    return '<div style="display:flex;gap:10px;align-items:flex-start;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:11px 14px;margin-bottom:8px">'
+      +'<span style="font-family:var(--mono);font-weight:800;color:var(--accent);font-size:15px">'+(i+1)+'</span>'
+      +'<div style="font-size:12.5px;color:var(--text2);line-height:1.7">'+a.t+'</div></div>';
+  }).join('');
+
+  // ── 天氣脈絡註記 ──
+  var rainShare=function(rows){var n=0,r2=0;rows.forEach(function(r){n++;if(r.weather==='雨')r2++;});return n?r2/n*100:0;};
+  var rL=rainShare(ML.rows), rP=rainShare(MP.rows);
+  document.getElementById('monthly-note').innerHTML=
+    '天氣脈絡：'+mLbl(ML)+' 雨天店日占 '+rL.toFixed(0)+'% vs '+mLbl(MP)+' '+rP.toFixed(0)+'%'+(Math.abs(rL-rP)>5?'（差 '+(rL-rP).toFixed(0)+' pp，對來客有外生影響，判讀時需打折）':'（相近，天氣非主因）')+'。'
+    +'<br>量值均列「整體／店日均」；SSSG＝兩個月皆營業 ≥15 天之同店、以店日均計。成長方向：綠=好、紅=壞（折扣率/外送占比/抽傭反向）。';
 }
 
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
@@ -3744,6 +4001,7 @@ function renderWeatherValidation(){
 function renderAll(){
   if(state.page==='today')renderToday();
   if(state.page==='weekly')renderWeekly();
+  if(state.page==='monthly')renderMonthly();
   if(state.page==='trend')renderTrend();
   if(state.page==='compare')renderCompare();
   if(state.page==='target')renderTarget();
