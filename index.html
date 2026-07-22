@@ -706,6 +706,23 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         </div>
         <div id="impact-result"></div>
       </div>
+      <!-- 單店日營收 · 同星期對比 -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">📊 單店日營收 · 同星期對比</div>
+            <div class="chart-sub">選一天，對比「過去 N 週同一星期」的單店平均日營收（全區＋各區）</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="date" id="wkday-date" onchange="renderWeekdayCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px">
+            <select id="wkday-n" onchange="renderWeekdayCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-family:var(--font);font-size:12px">
+              <option value="2">近2週</option><option value="4" selected>近4週</option><option value="8">近8週</option>
+            </select>
+          </div>
+        </div>
+        <div id="wkday-headline" style="margin:6px 0 12px"></div>
+        <div id="wkday-result" style="overflow-x:auto"></div>
+      </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><div id="weekday-summary" style="display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap;"></div><canvas id="trend-weekday"></canvas></div>
@@ -1912,6 +1929,76 @@ function renderMonthly(){
     +'<br>量值均列「整體／店日均」；SSSG＝兩個月皆營業 ≥15 天之同店、以店日均計。成長方向：綠=好、紅=壞（折扣率/外送占比/抽傭反向）。';
 }
 
+/* ══ 單店日營收 · 同星期對比：某日 vs 過去 N 週同一星期（主看單店平均日營收）══ */
+function renderWeekdayCompare(){
+  var el=document.getElementById('wkday-result'); if(!el) return;
+  var headEl=document.getElementById('wkday-headline');
+  var dEl=document.getElementById('wkday-date'), nEl=document.getElementById('wkday-n');
+  if(!dEl||!ALL_DATES||!ALL_DATES.length){ return; }
+  var yrOf=function(d){return DATE_YEAR_MAP[d]||TODAY.getFullYear();};
+  var sorted=ALL_DATES.slice().sort(function(a,b){return internalToDate(a,yrOf(a))-internalToDate(b,yrOf(b));});
+  if(!dEl.value){ var ld=sorted[sorted.length-1]; dEl.value=dateToInput(internalToDate(ld,yrOf(ld))); }
+  var N=parseInt((nEl&&nEl.value)||'4',10);
+  var selDate=inputToDate(dEl.value);
+  var mmdd=function(dt){return ('0'+(dt.getMonth()+1)).slice(-2)+'/'+('0'+dt.getDate()).slice(-2);};
+  var selMMDD=mmdd(selDate);
+  var allSet=new Set(ALL_DATES);
+  var DOWZH=['日','一','二','三','四','五','六'];
+  var dow=DOWZH[selDate.getDay()];
+  if(!allSet.has(selMMDD)){ if(headEl)headEl.innerHTML='<span style="color:var(--text3)">'+selMMDD+'（週'+dow+'）當日無資料</span>'; el.innerHTML=''; return; }
+  var pastDates=[];
+  for(var k=1;k<=N;k++){ var pd=new Date(selDate.getTime()-k*7*86400000); var m2=mmdd(pd); if(allSet.has(m2)) pastDates.push(m2); }
+
+  function agg(dset,zone){ var o={rev:0,cups:0,cust:0,sd:0,st:new Set()};
+    DATA.forEach(function(r){ if(!dset.has(r.date))return; if(!state.stores.has(r.store))return; if(zone?r.zone!==zone:!state.zones.has(r.zone))return;
+      o.rev+=r.revenue;o.cups+=r.cups;o.cust+=r.customers;o.sd++;o.st.add(r.store); });
+    return o; }
+  var fmtM=function(v){var a=Math.abs(v);return (v<0?'−':'')+(a>=10000?(a/10000).toFixed(1)+'萬':Math.round(a).toLocaleString());};
+  var pctv=function(a,b){return b?(a-b)/b*100:null;};
+  var col=function(p){return p==null?'var(--text3)':Math.abs(p)<0.5?'var(--warn)':p>0?'#28A745':'var(--danger)';};
+  var arw=function(p){return p==null?'':Math.abs(p)<0.5?'→':p>0?'▲':'▼';};
+  var ptxt=function(p){return p==null?'—':(p>=0?'+':'')+p.toFixed(1)+'%';};
+
+  var evSet=new Set([selMMDD]), baSet=new Set(pastDates);
+  var E=agg(evSet,null), B=agg(baSet,null);
+  var eps=E.sd?E.rev/E.sd:0, bps=B.sd?B.rev/B.sd:0;   // 單店日營收
+  if(headEl){
+    if(!pastDates.length){ headEl.innerHTML='<span style="color:var(--warn)">找不到過去 '+N+' 週的週'+dow+'資料可比較</span>'; }
+    else {
+      var g=pctv(eps,bps);
+      headEl.innerHTML='<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline">'
+        +'<div><div style="font-size:11px;color:var(--text3);margin-bottom:2px">'+selMMDD+'（週'+dow+'）全區單店日營收</div>'
+        +'<div style="font-size:30px;font-weight:800;font-family:var(--mono);color:'+col(g)+';line-height:1.1">'+fmtM(eps)+'元 <span style="font-size:17px">'+arw(g)+' '+ptxt(g)+'</span></div></div>'
+        +'<div style="font-size:12px;color:var(--text2);line-height:1.8">vs 近 '+pastDates.length+' 個週'+dow+'均 <b>'+fmtM(bps)+'元</b>／店<br>'
+        +'<span style="color:var(--text3)">當日總額 '+fmtM(E.rev)+'元（'+E.st.size+'店）· 基準日：'+pastDates.join('、')+'</span></div></div>';
+    }
+  }
+
+  var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
+  var rows=[{name:'全區',E:E,B:B}].concat(zones.map(function(z){return {name:z,E:agg(evSet,z),B:agg(baSet,z)};}));
+  var body=rows.map(function(r){
+    var e=r.E.sd?r.E.rev/r.E.sd:0, b=r.B.sd?r.B.rev/r.B.sd:0, g=pctv(e,b);
+    var bold=r.name==='全區'?'background:var(--bg3);font-weight:700':'';
+    return '<tr style="border-bottom:1px solid var(--border);'+bold+'">'
+      +'<td style="padding:7px 10px;font-weight:600;color:var(--text)">'+r.name+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">'+fmtM(e)+'元</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+fmtM(b)+'元</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:'+col(g)+'">'+arw(g)+' '+ptxt(g)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3);font-size:11px">'+fmtM(r.E.rev)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;color:var(--text3);font-size:11px">'+r.E.st.size+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:520px">'
+    +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+    +'<th style="text-align:left;padding:6px 10px">分區</th>'
+    +'<th style="text-align:right;padding:6px 10px">單店日營收<br><span style="font-weight:400;opacity:.7">當日</span></th>'
+    +'<th style="text-align:right;padding:6px 10px">近'+(pastDates.length||N)+'週週'+dow+'均</th>'
+    +'<th style="text-align:right;padding:6px 10px">成長</th>'
+    +'<th style="text-align:right;padding:6px 10px">當日總額<br><span style="font-weight:400;opacity:.7">輔</span></th>'
+    +'<th style="text-align:right;padding:6px 10px">店數</th></tr></thead>'
+    +'<tbody>'+body+'</tbody></table>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 <b>主指標＝單店日營收</b>（當日總額 ÷ 當日開店數），已抵銷開店數差異，最能反映真實體質。基準＝過去 N 個「同一星期」的單店日營收（Σ營收 ÷ Σ店日）。綠=成長、紅=衰退。</div>';
+}
+
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
 function renderToday(){
   renderInfoBar('data-info-today');
@@ -2744,6 +2831,7 @@ function renderWeeklyCompare(){
 function renderTrend(){
   renderInfoBar('data-info-trend');
   try{ renderImpact(); }catch(e){}
+  try{ renderWeekdayCompare(); }catch(e){}
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();
   const byDate={};const storesByDate={};
