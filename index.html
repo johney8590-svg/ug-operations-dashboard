@@ -761,6 +761,8 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         </div>
         <div id="chcmp-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px"></div>
         <div id="chcmp-table" style="overflow-x:auto"></div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin:18px 0 8px">各分區 · 哪一區外送掉最多</div>
+        <div id="chcmp-zone" style="overflow-x:auto"></div>
       </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
@@ -2147,8 +2149,8 @@ function renderChannelCompare(){
   var aDates=rangeDates(ids[0].value,ids[1].value), bDates=rangeDates(ids[2].value,ids[3].value);
   if(!aDates.length||!bDates.length){ if(cardsEl)cardsEl.innerHTML=''; tblEl.innerHTML='<div style="color:var(--warn);padding:10px">A 或 B 區間沒有資料，請重選日期。</div>'; return; }
 
-  function agg(dates){var o={cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,ubC:0,fpC:0,odC:0,sd:0,st:new Set(),dy:new Set()};var ds=new Set(dates);
-    DATA.forEach(function(r){ if(!ds.has(r.date))return; if(!state.stores.has(r.store))return; if(!state.zones.has(r.zone))return;
+  function agg(dates,zone){var o={cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,ubC:0,fpC:0,odC:0,sd:0,st:new Set(),dy:new Set()};var ds=new Set(dates);
+    DATA.forEach(function(r){ if(!ds.has(r.date))return; if(!state.stores.has(r.store))return; if(zone? r.zone!==zone : !state.zones.has(r.zone))return;
       o.cups+=r.cups;o.cust+=r.customers;o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;o.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
       o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);o.ubC+=(r.ub_cup||0);o.fpC+=(r.fp_cup||0);o.odC+=(r.odo_cup||0);o.sd++;o.st.add(r.store);o.dy.add(r.date);});
     return o;}
@@ -2202,6 +2204,31 @@ function renderChannelCompare(){
     +'<th style="text-align:right;padding:6px 10px">A占比</th><th style="text-align:right;padding:6px 10px">B占比</th>'
     +'<th style="text-align:right;padding:6px 10px">占比移轉</th></tr></thead><tbody>'+body+totRow+'</tbody></table>'
     +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 <b>'+basisLbl+'</b>基準（'+(basis==='avg'?'各渠道值 ÷ 店日數，抵銷期間長度/店數差異，故 7月 vs 3月、5天 vs 一整月 都可比':'原始總量')+'）。<b>占比移轉</b>＝A占比−B占比（pp）：正值代表該渠道在 A 期權重上升。看「UB 占比 ↓、現場占比 ↑」就是通路從外送移回現場。</div>';
+
+  // ── 各分區：各渠道成長 + 外送占比移轉（找哪區外送掉最多）──
+  var zEl=document.getElementById('chcmp-zone'); if(zEl){
+    var zones=(typeof ZONES!=='undefined'?ZONES:[...state.zones]).filter(function(z){return state.zones.has(z);});
+    var gcell=function(g){return '<td style="padding:6px 9px;text-align:right;font-family:var(--mono);font-weight:600;color:'+col(g)+'">'+arw(g)+' '+ptxt(g)+'</td>';};
+    var zrows=zones.map(function(z){
+      var Az=agg(aDates,z), Bz=agg(bDates,z);
+      var tA=CH.reduce(function(s,c){return s+cval(Az,c[0]);},0)||1, tB=CH.reduce(function(s,c){return s+cval(Bz,c[0]);},0)||1;
+      var delA=(cval(Az,'ub')+cval(Az,'fp'))/tA*100, delB=(cval(Bz,'ub')+cval(Bz,'fp'))/tB*100, ddpp=delA-delB;
+      return '<tr style="border-bottom:1px solid var(--border)">'
+        +'<td style="padding:6px 9px;font-weight:600;color:var(--text)">'+z+'</td>'
+        +gcell(pctv(cval(Az,'on'),cval(Bz,'on')))
+        +gcell(pctv(cval(Az,'ub'),cval(Bz,'ub')))
+        +gcell(pctv(cval(Az,'fp'),cval(Bz,'fp')))
+        +gcell(pctv(cval(Az,'odo'),cval(Bz,'odo')))
+        +'<td style="padding:6px 9px;text-align:right;font-family:var(--mono);font-size:11px">'+delA.toFixed(1)+'%→'+delB.toFixed(1)+'% <span style="color:'+(Math.abs(ddpp)<0.5?'var(--text3)':ddpp<0?'#28A745':'var(--danger)')+'">('+(ddpp>=0?'+':'')+ddpp.toFixed(1)+'pp)</span></td></tr>';
+    }).join('');
+    zEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:600px">'
+      +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+      +'<th style="text-align:left;padding:6px 9px">分區</th>'
+      +'<th style="text-align:right;padding:6px 9px">現場</th><th style="text-align:right;padding:6px 9px">UberEats</th>'
+      +'<th style="text-align:right;padding:6px 9px">Foodpanda</th><th style="text-align:right;padding:6px 9px">ODO</th>'
+      +'<th style="text-align:right;padding:6px 9px">外送占比 A→B</th></tr></thead><tbody>'+zrows+'</tbody></table>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.7">各格＝該分區該渠道 A vs B 的'+metricLbl+'成長（'+basisLbl+'）。最右「外送占比」下降(綠)＝該區更靠現場、外送退場；上升(紅)＝更依賴外送。</div>';
+  }
 }
 
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
