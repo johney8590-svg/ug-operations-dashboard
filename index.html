@@ -735,8 +735,32 @@ body.ug-is-admin .ug-admin-only{display:inline;}
             <div id="chmon-basis-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
           </div>
         </div>
+        <div id="chmon-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 12px"></div>
         <div id="chmon-summary" style="font-size:12px;color:var(--text2);line-height:1.8;margin:4px 0 12px"></div>
         <div style="height:300px;position:relative"><canvas id="chmon-chart"></canvas></div>
+      </div>
+      <!-- 渠道區間對比（自選 A vs B） -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">🔀 渠道區間對比（自選 A vs B）</div>
+            <div class="chart-sub">任選兩段期間比各渠道（如 7月 vs 3月、本週一~五 vs 6月同期）· 預設店日均可比不同長度</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div id="chcmp-metric-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
+            <div id="chcmp-basis-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 12px;font-size:12px;color:var(--text2)">
+          <div style="display:flex;gap:5px;align-items:center"><b style="color:var(--accent)">A</b>
+            <input type="date" id="chcmp-a-start" onchange="renderChannelCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px">～
+            <input type="date" id="chcmp-a-end" onchange="renderChannelCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px"></div>
+          <div style="display:flex;gap:5px;align-items:center"><b style="color:var(--text2)">B</b>
+            <input type="date" id="chcmp-b-start" onchange="renderChannelCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px">～
+            <input type="date" id="chcmp-b-end" onchange="renderChannelCompare()" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--font);font-size:12px"></div>
+        </div>
+        <div id="chcmp-cards" style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px"></div>
+        <div id="chcmp-table" style="overflow-x:auto"></div>
       </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
@@ -2078,6 +2102,106 @@ function renderChannelMonthly(){
     + months.map(function(m){return m.month+'月 '+fmtV(chVal(m,'ub'))+unit+(m.full?'':'<span style="color:var(--warn)">*</span>');}).join('　→　')
     + '<br><span style="color:'+gcol+';font-weight:700">'+f0.month+'月→'+f1.month+'月（完整月）'+(g==null?'—':(g>=0?'+':'')+g.toFixed(1)+'%')+'</span>'
     + (partial?'　<span style="color:var(--text3);font-size:11px">＊未滿月，「整體」下數字偏低屬正常，看趨勢建議切「店日均」</span>':'');
+
+  // ── 各渠道字卡：首月→最後完整月變化 ──
+  var cardsEl=document.getElementById('chmon-cards');
+  if(cardsEl){
+    cardsEl.innerHTML=CH.map(function(c){
+      var v0=chVal(f0,c[0]), v1=chVal(f1,c[0]), gg=v0?((v1-v0)/v0*100):null;
+      var cc=gg==null?'var(--text3)':Math.abs(gg)<0.5?'var(--warn)':gg>0?'#28A745':'var(--danger)';
+      var ar=gg==null?'':Math.abs(gg)<0.5?'→':gg>0?'▲':'▼';
+      return '<div style="flex:1;min-width:130px;background:var(--bg3);border:1px solid '+cc+'55;border-radius:10px;padding:11px 14px">'
+        +'<div style="font-size:11px;color:var(--text3);margin-bottom:4px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c[2]+';margin-right:5px"></span>'+c[1]+'</div>'
+        +'<div style="font-size:21px;font-weight:800;font-family:var(--mono);color:'+cc+';line-height:1.1">'+ar+' '+(gg==null?'—':Math.abs(gg).toFixed(1)+'%')+'</div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:4px">'+f0.month+'月 '+fmtV(v0)+' → '+f1.month+'月 '+fmtV(v1)+'</div></div>';
+    }).join('');
+  }
+}
+
+/* ══ 渠道區間對比：自選 A/B 兩段期間（主看店日均，可比不同長度）══ */
+function setChCmpMetric(m){ window._chCmpMetric=m; renderChannelCompare(); }
+function setChCmpBasis(b){ window._chCmpBasis=b; renderChannelCompare(); }
+function renderChannelCompare(){
+  var tblEl=document.getElementById('chcmp-table'); if(!tblEl) return;
+  var cardsEl=document.getElementById('chcmp-cards');
+  var ids=['chcmp-a-start','chcmp-a-end','chcmp-b-start','chcmp-b-end'].map(function(i){return document.getElementById(i);});
+  if(ids.indexOf(null)>=0 || !ALL_DATES || !ALL_DATES.length) return;
+  if(!window._chCmpMetric)window._chCmpMetric='amount';
+  if(!window._chCmpBasis)window._chCmpBasis='avg';
+  var metric=window._chCmpMetric, basis=window._chCmpBasis;
+  var metricLbl=metric==='amount'?'金額':metric==='cups'?'杯數':'單數';
+  var unit=metric==='amount'?'元':metric==='cups'?'杯':'單';
+  var yrOf=function(d){return DATE_YEAR_MAP[d]||TODAY.getFullYear();};
+  var sorted=ALL_DATES.slice().sort(function(a,b){return internalToDate(a,yrOf(a))-internalToDate(b,yrOf(b));});
+  if(!sorted.length)return;
+  if(!ids[1].value){ var le=internalToDate(sorted[sorted.length-1],yrOf(sorted[sorted.length-1]));
+    var as=new Date(le.getTime()-29*86400000), be=new Date(as.getTime()-86400000), bs=new Date(be.getTime()-29*86400000);
+    ids[0].value=dateToInput(as);ids[1].value=dateToInput(le);ids[2].value=dateToInput(bs);ids[3].value=dateToInput(be); }
+  var seg=function(id,items,cur,fn){var el=document.getElementById(id);if(!el)return;
+    el.innerHTML=items.map(function(it){var on=it[0]===cur;return '<button onclick="'+fn+'(\''+it[0]+'\')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+it[1]+'</button>';}).join('');};
+  seg('chcmp-metric-btns',[['amount','金額'],['cups','杯數'],['orders','單數']],metric,'setChCmpMetric');
+  seg('chcmp-basis-btns',[['avg','店日均'],['total','整體']],basis,'setChCmpBasis');
+
+  function rangeDates(sv,ev){ if(!sv||!ev)return []; var s=inputToDate(sv),e=inputToDate(ev); if(s>e){var t=s;s=e;e=t;}
+    return ALL_DATES.filter(function(d){var dt=internalToDate(d,yrOf(d));return dt>=s&&dt<=e;}); }
+  var aDates=rangeDates(ids[0].value,ids[1].value), bDates=rangeDates(ids[2].value,ids[3].value);
+  if(!aDates.length||!bDates.length){ if(cardsEl)cardsEl.innerHTML=''; tblEl.innerHTML='<div style="color:var(--warn);padding:10px">A 或 B 區間沒有資料，請重選日期。</div>'; return; }
+
+  function agg(dates){var o={cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,ubC:0,fpC:0,odC:0,sd:0,st:new Set(),dy:new Set()};var ds=new Set(dates);
+    DATA.forEach(function(r){ if(!ds.has(r.date))return; if(!state.stores.has(r.store))return; if(!state.zones.has(r.zone))return;
+      o.cups+=r.cups;o.cust+=r.customers;o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;o.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+      o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);o.ubC+=(r.ub_cup||0);o.fpC+=(r.fp_cup||0);o.odC+=(r.odo_cup||0);o.sd++;o.st.add(r.store);o.dy.add(r.date);});
+    return o;}
+  var cval=function(o,ch){var v;
+    if(metric==='amount')v= ch==='on'?o.onsite:ch==='ub'?o.ub:ch==='fp'?o.fp:o.odo;
+    else if(metric==='cups')v= ch==='on'?(o.cups-o.ubC-o.fpC-o.odC):ch==='ub'?o.ubC:ch==='fp'?o.fpC:o.odC;
+    else v= ch==='on'?(o.cust-o.ubO-o.fpO-o.odO):ch==='ub'?o.ubO:ch==='fp'?o.fpO:o.odO;
+    v=Math.max(0,v); return basis==='avg'?(o.sd?v/o.sd:0):v; };
+  var A=agg(aDates), B=agg(bDates);
+  var fmtV=function(v){return (metric==='amount'&&Math.abs(v)>=10000)?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();};
+  var pctv=function(a,b){return b?(a-b)/b*100:null;};
+  var col=function(p){return p==null?'var(--text3)':Math.abs(p)<0.5?'var(--warn)':p>0?'#28A745':'var(--danger)';};
+  var arw=function(p){return p==null?'':Math.abs(p)<0.5?'→':p>0?'▲':'▼';};
+  var ptxt=function(p){return p==null?'—':(p>=0?'+':'')+p.toFixed(1)+'%';};
+  var CH=[['on','現場','#2D5016'],['ub','UberEats','#DC3545'],['fp','Foodpanda','#fb923c'],['odo','ODO','#22d3ee']];
+  var totA=CH.reduce(function(s,c){return s+cval(A,c[0]);},0)||1, totB=CH.reduce(function(s,c){return s+cval(B,c[0]);},0)||1;
+
+  // 字卡（4 渠道，選定指標 A vs B）
+  if(cardsEl) cardsEl.innerHTML=CH.map(function(c){var a=cval(A,c[0]),b=cval(B,c[0]),g=pctv(a,b),cc=col(g);
+    return '<div style="flex:1;min-width:142px;background:var(--bg3);border:1px solid '+cc+'55;border-radius:12px;padding:13px 16px">'
+      +'<div style="font-size:11px;color:var(--text3);margin-bottom:5px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c[2]+';margin-right:5px"></span>'+c[1]+' '+metricLbl+'</div>'
+      +'<div style="font-size:24px;font-weight:800;font-family:var(--mono);color:'+cc+';line-height:1.1">'+arw(g)+' '+(g==null?'—':Math.abs(g).toFixed(1)+'%')+'</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:5px">A '+fmtV(a)+unit+' · B '+fmtV(b)+unit+'</div></div>';
+  }).join('');
+
+  // 表（含占比移轉）
+  var body=CH.map(function(c){var a=cval(A,c[0]),b=cval(B,c[0]),g=pctv(a,b),sa=a/totA*100,sb=b/totB*100,dpp=sa-sb;
+    return '<tr style="border-bottom:1px solid var(--border)">'
+      +'<td style="padding:7px 10px;font-weight:600;color:var(--text)"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+c[2]+';margin-right:6px"></span>'+c[1]+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:var(--text)">'+fmtV(a)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+fmtV(b)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);font-weight:700;color:'+col(g)+'">'+arw(g)+' '+ptxt(g)+'</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono)">'+sa.toFixed(1)+'%</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+sb.toFixed(1)+'%</td>'
+      +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text2)">'+(dpp>=0?'+':'')+dpp.toFixed(1)+' pp</td></tr>';
+  }).join('');
+  var gTot=pctv(totA,totB);
+  var totRow='<tr style="border-top:1.5px solid var(--border);background:var(--bg3);font-weight:700">'
+    +'<td style="padding:7px 10px;color:var(--text)">合計</td>'
+    +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono)">'+fmtV(totA)+'</td>'
+    +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:var(--text3)">'+fmtV(totB)+'</td>'
+    +'<td style="padding:7px 10px;text-align:right;font-family:var(--mono);color:'+col(gTot)+'">'+arw(gTot)+' '+ptxt(gTot)+'</td>'
+    +'<td colspan="3" style="padding:7px 10px;text-align:right;color:var(--text3);font-size:11px;font-weight:400">A：'+A.st.size+'店/'+A.dy.size+'天 · B：'+B.st.size+'店/'+B.dy.size+'天</td></tr>';
+  var basisLbl=basis==='avg'?'店日均':'整體';
+  tblEl.innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:640px">'
+    +'<thead><tr style="color:var(--text3);font-size:11px;border-bottom:1.5px solid var(--border)">'
+    +'<th style="text-align:left;padding:6px 10px">渠道</th>'
+    +'<th style="text-align:right;padding:6px 10px">A · '+metricLbl+'<br><span style="font-weight:400;opacity:.7">'+basisLbl+'</span></th>'
+    +'<th style="text-align:right;padding:6px 10px">B · '+metricLbl+'</th>'
+    +'<th style="text-align:right;padding:6px 10px">成長</th>'
+    +'<th style="text-align:right;padding:6px 10px">A占比</th><th style="text-align:right;padding:6px 10px">B占比</th>'
+    +'<th style="text-align:right;padding:6px 10px">占比移轉</th></tr></thead><tbody>'+body+totRow+'</tbody></table>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 <b>'+basisLbl+'</b>基準（'+(basis==='avg'?'各渠道值 ÷ 店日數，抵銷期間長度/店數差異，故 7月 vs 3月、5天 vs 一整月 都可比':'原始總量')+'）。<b>占比移轉</b>＝A占比−B占比（pp）：正值代表該渠道在 A 期權重上升。看「UB 占比 ↓、現場占比 ↑」就是通路從外送移回現場。</div>';
 }
 
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
@@ -2914,6 +3038,7 @@ function renderTrend(){
   try{ renderImpact(); }catch(e){}
   try{ renderWeekdayCompare(); }catch(e){}
   try{ renderChannelMonthly(); }catch(e){}
+  try{ renderChannelCompare(); }catch(e){}
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();
   const byDate={};const storesByDate={};
