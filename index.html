@@ -723,6 +723,21 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         <div id="wkday-headline" style="margin:6px 0 12px"></div>
         <div id="wkday-result" style="overflow-x:auto"></div>
       </div>
+      <!-- 渠道月趨勢 -->
+      <div class="chart-panel">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">📈 渠道月趨勢</div>
+            <div class="chart-sub">各渠道逐月變化，看外送（UB/FP）是否下滑、現場是否補上</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div id="chmon-metric-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
+            <div id="chmon-basis-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px"></div>
+          </div>
+        </div>
+        <div id="chmon-summary" style="font-size:12px;color:var(--text2);line-height:1.8;margin:4px 0 12px"></div>
+        <div style="height:300px;position:relative"><canvas id="chmon-chart"></canvas></div>
+      </div>
       <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><div id="weekday-summary" style="display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap;"></div><canvas id="trend-weekday"></canvas></div>
@@ -1999,6 +2014,72 @@ function renderWeekdayCompare(){
     +'<div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.7">📌 <b>主指標＝單店日營收</b>（當日總額 ÷ 當日開店數），已抵銷開店數差異，最能反映真實體質。基準＝過去 N 個「同一星期」的單店日營收（Σ營收 ÷ Σ店日）。綠=成長、紅=衰退。</div>';
 }
 
+/* ══ 渠道月趨勢：各渠道 金額／杯數／單數 逐月線圖（看 UB/FP 是否下滑）══ */
+function setChMonMetric(m){ window._chMonMetric=m; renderChannelMonthly(); }
+function setChMonBasis(b){ window._chMonBasis=b; renderChannelMonthly(); }
+function renderChannelMonthly(){
+  var sumEl=document.getElementById('chmon-summary'); if(!sumEl) return;
+  if(!window._chMonMetric) window._chMonMetric='amount';
+  if(!window._chMonBasis)  window._chMonBasis='total';
+  var metric=window._chMonMetric, basis=window._chMonBasis;
+
+  var byMonth={};
+  DATA.forEach(function(r){
+    if(!state.stores.has(r.store)||!state.zones.has(r.zone))return;
+    var ym=r.year*100+r.month;
+    if(!byMonth[ym])byMonth[ym]={ym:ym,year:r.year,month:r.month,maxDay:0,rev:0,cups:0,cust:0,ub:0,fp:0,odo:0,onsite:0,ubO:0,fpO:0,odO:0,ubC:0,fpC:0,odC:0,sd:0};
+    var o=byMonth[ym]; var day=parseInt(String(r.date).split('/')[1],10)||0; if(day>o.maxDay)o.maxDay=day;
+    o.rev+=r.revenue;o.cups+=r.cups;o.cust+=r.customers;o.ub+=r.ub;o.fp+=r.fp;o.odo+=r.odo;
+    o.onsite+=(r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+    o.ubO+=(r.ub_ord||0);o.fpO+=(r.fp_ord||0);o.odO+=(r.odo_ord||0);
+    o.ubC+=(r.ub_cup||0);o.fpC+=(r.fp_cup||0);o.odC+=(r.odo_cup||0);o.sd++;
+  });
+  var months=Object.keys(byMonth).map(function(k){return byMonth[k];}).sort(function(a,b){return a.ym-b.ym;});
+  if(months.length<2){ sumEl.innerHTML='<span style="color:var(--text3)">資料月份不足。</span>'; destroyChart('chmon-chart'); return; }
+  months.forEach(function(m){ m.full=m.maxDay>=new Date(m.year,m.month,0).getDate(); });
+
+  var chVal=function(o,ch){ var v;
+    if(metric==='amount'){ v= ch==='on'?o.onsite: ch==='ub'?o.ub: ch==='fp'?o.fp: o.odo; }
+    else if(metric==='cups'){ v= ch==='on'?(o.cups-o.ubC-o.fpC-o.odC): ch==='ub'?o.ubC: ch==='fp'?o.fpC: o.odC; }
+    else { v= ch==='on'?(o.cust-o.ubO-o.fpO-o.odO): ch==='ub'?o.ubO: ch==='fp'?o.fpO: o.odO; }
+    if(basis==='avg') v=o.sd? v/o.sd : 0;
+    return Math.max(0,v);
+  };
+  var unit=metric==='amount'?'元':metric==='cups'?'杯':'單';
+  var metricLbl=metric==='amount'?'金額':metric==='cups'?'杯數':'單數';
+  var basisLbl=basis==='avg'?'店日均':'整體';
+  var fmtV=function(v){return (metric==='amount'&&Math.abs(v)>=10000)?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();};
+
+  // 按鈕
+  var seg=function(id,items,cur,fn){var el=document.getElementById(id);if(!el)return;
+    el.innerHTML=items.map(function(it){var on=it[0]===cur;return '<button onclick="'+fn+'(\''+it[0]+'\')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:var(--font);background:'+(on?'var(--accent)':'transparent')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'600':'400')+'">'+it[1]+'</button>';}).join('');};
+  seg('chmon-metric-btns',[['amount','金額'],['cups','杯數'],['orders','單數']],metric,'setChMonMetric');
+  seg('chmon-basis-btns',[['total','整體'],['avg','店日均']],basis,'setChMonBasis');
+
+  var labels=months.map(function(m){return m.month+'月'+(m.full?'':'*');});
+  var CH=[['on','現場','#2D5016'],['ub','UberEats','#DC3545'],['fp','Foodpanda','#fb923c'],['odo','ODO','#22d3ee']];
+  var datasets=CH.map(function(c){return {label:c[1],data:months.map(function(m){return chVal(m,c[0]);}),
+    borderColor:c[2],backgroundColor:c[2]+'22',borderWidth:c[0]==='ub'?3:2,pointRadius:3,pointHoverRadius:6,tension:0.25,fill:false,
+    borderDash:c[0]==='ub'?[]:(c[0]==='fp'?[]:[])};});
+  mkChart('chmon-chart',{type:'line',data:{labels:labels,datasets:datasets},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
+      plugins:{legend:{labels:{boxWidth:11,color:'#6B6B6B'}},datalabels:{display:false},
+        tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+'：'+fmtV(ctx.raw)+unit;}}}},
+      scales:{x:{grid:{display:false},ticks:{color:'#6B6B6B'}},y:{grid:{color:'#1e2536'},ticks:{color:'#6B6B6B',callback:function(v){return (metric==='amount'&&v>=10000)?(v/10000).toFixed(0)+'萬':v;}}}}}});
+
+  // UB 摘要（首月 → 最後一個完整月）
+  var fulls=months.filter(function(m){return m.full;});
+  var f0=fulls[0]||months[0], f1=fulls[fulls.length-1]||months[months.length-1];
+  var u0=chVal(f0,'ub'), u1=chVal(f1,'ub');
+  var g=u0?((u1-u0)/u0*100):null;
+  var gcol=g==null?'var(--text3)':g<0?'var(--danger)':'#28A745';
+  var partial=months.some(function(m){return !m.full;});
+  sumEl.innerHTML='<b>UberEats '+metricLbl+'（'+basisLbl+'）</b>：'
+    + months.map(function(m){return m.month+'月 '+fmtV(chVal(m,'ub'))+unit+(m.full?'':'<span style="color:var(--warn)">*</span>');}).join('　→　')
+    + '<br><span style="color:'+gcol+';font-weight:700">'+f0.month+'月→'+f1.month+'月（完整月）'+(g==null?'—':(g>=0?'+':'')+g.toFixed(1)+'%')+'</span>'
+    + (partial?'　<span style="color:var(--text3);font-size:11px">＊未滿月，「整體」下數字偏低屬正常，看趨勢建議切「店日均」</span>':'');
+}
+
 function setTodayChMetric(m){ window._chMetric = m; renderToday(); }
 function renderToday(){
   renderInfoBar('data-info-today');
@@ -2832,6 +2913,7 @@ function renderTrend(){
   renderInfoBar('data-info-trend');
   try{ renderImpact(); }catch(e){}
   try{ renderWeekdayCompare(); }catch(e){}
+  try{ renderChannelMonthly(); }catch(e){}
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();
   const byDate={};const storesByDate={};
