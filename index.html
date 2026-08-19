@@ -764,7 +764,7 @@ body.ug-is-admin .ug-admin-only{display:inline;}
         <div style="font-size:13px;font-weight:700;color:var(--text);margin:18px 0 8px">各分區 · 哪一區外送掉最多</div>
         <div id="chcmp-zone" style="overflow-x:auto"></div>
       </div>
-      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
+      <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">每日走勢折線圖</div><div class="chart-sub" id="trend-sub">依篩選門市與日期區間</div></div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><div id="trend-ch-btns" style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"></div><div style="display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:3px;"><button class="rank-sort-btn active" id="trend-mode-total" onclick="setTrendMode('total',this)">店累積</button><button class="rank-sort-btn" id="trend-mode-avg" onclick="setTrendMode('avg',this)">店均</button></div></div></div><div id="trend-summary" style="display:flex;gap:10px;margin:4px 0 14px;flex-wrap:wrap;"></div><canvas id="trend-line" class="trend-canvas"></canvas></div>
       <div class="grid-2">
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">週間分佈（每店日均）</div><div class="chart-sub" id="weekday-sub">本期 vs 前4週基線</div></div></div><div id="weekday-summary" style="display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap;"></div><canvas id="trend-weekday"></canvas></div>
         <div class="chart-panel"><div class="chart-header"><div><div class="chart-title">天氣影響分析</div><div class="chart-sub">晴 / 陰 / 雨 日平均對比</div></div></div><canvas id="trend-weather"></canvas></div>
@@ -1457,6 +1457,12 @@ function switchPage(p,el){
   renderAll();
 }
 function setDim(dim,btn){state.dim=dim;document.querySelectorAll('.dim-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderAll();}
+function toggleTrendCh(k){
+  if(!window._trendCh) window._trendCh=new Set(['total']);
+  if(window._trendCh.has(k)){ if(window._trendCh.size>1) window._trendCh.delete(k); }
+  else window._trendCh.add(k);
+  renderTrend();
+}
 function setTrendMode(mode,btn){state.trendMode=mode;document.querySelectorAll('#trend-mode-total,#trend-mode-avg').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderTrend();}
 
 /* ══ FILTER ══ */
@@ -3068,71 +3074,120 @@ function renderTrend(){
   try{ renderChannelCompare(); }catch(e){}
   const rows=filterData(DATA);const dim=DIM_KEY[state.dim];
   const ad=getActiveDates();
-  const byDate={};const storesByDate={};
+
+  // ── 渠道定義（可複選）──
+  const TCH=[
+    {k:'total', nm:'總計',      c:C.a},
+    {k:'onsite',nm:'現場',      c:'#4A7C23'},
+    {k:'odo',   nm:'ODO',       c:'#2563EB'},
+    {k:'ub',    nm:'UberEats',  c:'#DC3545'},
+    {k:'fp',    nm:'Foodpanda', c:'#CA8A04'}
+  ];
+  if(!window._trendCh) window._trendCh=new Set(['total']);
+  const chOf=(r,k)=>{
+    if(k==='total') return r[dim];
+    if(state.dim==='revenue'){
+      if(k==='onsite') return (r.onsite||Math.max(0,r.revenue-r.ub-r.fp-r.odo));
+      return r[k]||0;
+    }
+    const suf = state.dim==='cups' ? '_cup' : '_ord';
+    const u=r['ub'+suf]||0, f=r['fp'+suf]||0, o=r['odo'+suf]||0;
+    if(k==='onsite') return Math.max(0,(r[dim]||0)-u-f-o);
+    if(k==='ub') return u; if(k==='fp') return f; return o;
+  };
+  const chAvail = state.dim==='revenue' ? true :
+    rows.some(r=>{const s=state.dim==='cups'?'_cup':'_ord';return (r['ub'+s]||0)+(r['fp'+s]||0)+(r['odo'+s]||0)>0;});
+
+  const byDate={};const storesByDate={};const chByDate={};
   rows.forEach(r=>{
     byDate[r.date]=(byDate[r.date]||0)+r[dim];
     (storesByDate[r.date]=storesByDate[r.date]||new Set()).add(r.store);
+    const m=chByDate[r.date]=chByDate[r.date]||{total:0,onsite:0,ub:0,fp:0,odo:0};
+    TCH.forEach(c=>{ m[c.k]+=chOf(r,c.k); });
   });
   const tIsAvg = state.trendMode==='avg';
   const tUnit  = state.dim==='revenue'?'元':state.dim==='cups'?'杯':'人';
   const tModeLabel = tIsAvg?'每店日均':'全店店累積';
-  const tSeries = d=>{ const t=byDate[d]||0; if(!tIsAvg) return t; const sc=(storesByDate[d]&&storesByDate[d].size)||1; return Math.round(t/sc); };
-  const tData = ad.map(tSeries);
-  const tFmt = v=>(state.dim==='revenue'&&v>=10000)?(v/10000).toFixed(1)+'萬':v.toLocaleString();
+  const tSeriesCh = (d,k)=>{ const t=(chByDate[d]&&chByDate[d][k])||0; if(!tIsAvg) return t;
+    const sc=(storesByDate[d]&&storesByDate[d].size)||1; return Math.round(t/sc); };
+  const tFmt = v=>(state.dim==='revenue'&&Math.abs(v)>=10000)?(v/10000).toFixed(1)+'萬':Math.round(v).toLocaleString();
 
-  // 副標題
+  const chBtnEl=document.getElementById('trend-ch-btns');
+  if(chBtnEl){
+    chBtnEl.innerHTML=TCH.map(c=>{
+      const on=window._trendCh.has(c.k);
+      const dis=(c.k!=='total'&&!chAvail);
+      return '<button onclick="toggleTrendCh(\''+c.k+'\')"'+(dis?' disabled':'')
+        +' title="'+(dis?'此維度尚無逐渠道原始值，請重新上傳含渠道明細的檔案':'點擊可複選')+'"'
+        +' style="padding:4px 10px;border-radius:6px;border:none;cursor:'+(dis?'not-allowed':'pointer')
+        +';font-size:11px;font-family:var(--font);font-weight:'+(on?'600':'400')
+        +';opacity:'+(dis?'.35':'1')
+        +';background:'+(on?c.c:'transparent')+';color:'+(on?'#fff':'var(--text2)')+'">'
+        +(on?'✓ ':'')+c.nm+'</button>';
+    }).join('');
+  }
+  let sel=TCH.filter(c=>window._trendCh.has(c.k));
+  if(!chAvail) sel=sel.filter(c=>c.k==='total');
+  if(!sel.length){ sel=[TCH[0]]; window._trendCh=new Set(['total']); }
+
   const tSubEl=document.getElementById('trend-sub');
-  if(tSubEl) tSubEl.textContent=DIM_LABEL[state.dim].replace(/\s*\(.*\)/,'')+' · '+tModeLabel+'（共 '+ad.length+' 天）';
+  if(tSubEl) tSubEl.textContent=DIM_LABEL[state.dim].replace(/\s*\(.*\)/,'')+' · '+tModeLabel
+    +' · '+sel.map(c=>c.nm).join('＋')+'（共 '+ad.length+' 天）'
+    +(chAvail?'':' ※此維度無逐渠道資料，僅顯示總計');
 
-  // ── 字卡：期間總計 / 平均單日 / 單日最高 / 單日最低 ──
   const tSumEl=document.getElementById('trend-summary');
   if(tSumEl){
-    const totSum = ad.reduce((a,d)=>a+(byDate[d]||0),0);                 // 全店期間總計
-    const dayAvgOfMode = tData.length?Math.round(tData.reduce((a,b)=>a+b,0)/tData.length):0;
-    let hi={v:-1,d:''},lo={v:Infinity,d:''};
-    ad.forEach(d=>{ const v=tSeries(d); if(v>hi.v)hi={v,d}; if(v>0&&v<lo.v)lo={v,d}; });
-    if(lo.v===Infinity) lo={v:0,d:''};
-    const tCard=(lbl,val,sub,color)=>'<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;min-width:120px;flex:1;">'
-      +'<div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">'+lbl+'</div>'
-      +'<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:'+color+'">'+val+'</div>'
-      +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+sub+'</div></div>';
-    tSumEl.innerHTML =
-        tCard('期間總計（全店）', tFmt(totSum)+tUnit, ad.length+' 天合計', C.a)
-      + tCard('平均單日（'+tModeLabel+'）', tFmt(dayAvgOfMode)+tUnit, '每日平均', C.b)
-      + tCard('單日最高', tFmt(hi.v)+tUnit, (hi.d||'-')+' · '+tModeLabel, '#28A745')
-      + tCard('單日最低', tFmt(lo.v)+tUnit, (lo.d||'-')+' · '+tModeLabel, C.w);
+    const grand=ad.reduce((a,d)=>a+((chByDate[d]&&chByDate[d].total)||0),0)||1;
+    tSumEl.innerHTML=sel.map(c=>{
+      const tot=ad.reduce((a,d)=>a+((chByDate[d]&&chByDate[d][c.k])||0),0);
+      const series=ad.map(d=>tSeriesCh(d,c.k));
+      const dayAvg=series.length?Math.round(series.reduce((a,b)=>a+b,0)/series.length):0;
+      let hi={v:-1,d:''};ad.forEach(d=>{const v=tSeriesCh(d,c.k);if(v>hi.v)hi={v,d};});
+      const share=c.k==='total'?100:(tot/grand*100);
+      return '<div style="background:var(--bg3);border:1px solid '+c.c+'55;border-radius:8px;padding:10px 16px;min-width:130px;flex:1;">'
+        +'<div style="font-size:10px;color:var(--text3);letter-spacing:.06em;margin-bottom:5px">'
+        +'<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:'+c.c+';margin-right:5px"></span>'
+        +c.nm+'　'+tModeLabel+'</div>'
+        +'<div style="font-size:20px;font-weight:700;font-family:var(--mono);color:'+c.c+'">'+tFmt(dayAvg)+tUnit+'</div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:2px">期間總計 '+tFmt(tot)+tUnit
+        +(c.k==='total'?'':'　占 '+share.toFixed(1)+'%')+'<br>單日最高 '+tFmt(hi.v)+'（'+(hi.d||'-')+'）</div></div>';
+    }).join('');
   }
 
   mkChart('trend-line',{
     type:'line',
-    data:{labels:ad,datasets:[{
-      label:DIM_LABEL[state.dim].replace(/\s*\(.*\)/,'')+'（'+tModeLabel+'）',
-      data:tData,
-      borderColor:C.a,backgroundColor:C.a+'22',fill:true,
+    data:{labels:ad,datasets:sel.map(c=>({
+      label:c.nm,
+      data:ad.map(d=>tSeriesCh(d,c.k)),
+      borderColor:c.c,backgroundColor:c.c+'22',fill:sel.length===1,
       tension:0.35,pointRadius:2,pointHoverRadius:7,borderWidth:2,
-    }]},
+    }))},
     options:{
       ...BO,
       interaction:{mode:'index',intersect:false},
       plugins:{
-        legend:{display:false},
+        legend:{display:sel.length>1,labels:{boxWidth:11}},
+        datalabels:{display:false},
         tooltip:{
           mode:'index',intersect:false,
           callbacks:{
             title:ctx=>{
-              const date=ctx[0]?.label||'';
+              const date=(ctx[0]&&ctx[0].label)||'';
               const row=DATA.find(r=>r.date===date);
               const DOW=['一','二','三','四','五','六','日'];
-              return row?`${date}（週${DOW[row.dow]}）`:date;
+              return row?(date+'（週'+DOW[row.dow]+'）'):date;
             },
-            label:ctx=>{
-              const v=ctx.raw;
-              return tModeLabel+'：'+tFmt(v)+tUnit;
-            },
+            label:ctx=>ctx.dataset.label+'：'+tFmt(ctx.raw)+tUnit,
             afterBody:ctx=>{
-              const d=ctx[0]?.label;
+              const d=(ctx[0]&&ctx[0].label);
               const sc=(storesByDate[d]&&storesByDate[d].size)||0;
-              return sc?['營業門市 '+sc+' 家']:[];
+              const out=sc?['營業門市 '+sc+' 家']:[];
+              if(sel.length>1&&d&&chByDate[d]){
+                const tot=chByDate[d].total||0;
+                if(tot>0) out.push('（占比：'+sel.filter(c=>c.k!=='total')
+                  .map(c=>c.nm+' '+((chByDate[d][c.k]||0)/tot*100).toFixed(0)+'%').join('、')+'）');
+              }
+              return out;
             }
           }
         }
@@ -3143,6 +3198,7 @@ function renderTrend(){
       }
     }
   });
+
   // 週間分佈：本期 vs 前四週同 dow 平均
   const activeDatesSet = new Set(ad);
   // 前四週：在選定區間之前，往回取最多 28 天
